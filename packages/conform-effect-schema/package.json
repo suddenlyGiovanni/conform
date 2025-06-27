@@ -1,0 +1,65 @@
+{
+	"name": "@conform-to/effect-schema",
+	"description": "Conform helpers for integrating with Effect Schema.",
+	"homepage": "https://conform.guide",
+	"license": "MIT",
+	"version": "1.7.2",
+	"exports": {
+		"./v4": {
+			"types": "./dist/v4/index.d.ts",
+			"module": "./dist/v4/index.mjs",
+			"import": "./dist/v4/index.mjs",
+			"require": "./dist/v4/index.js",
+			"default": "./dist/v4/index.mjs"
+		}
+	},
+	"files": [
+		"./dist/**/*.{js,mjs}",
+		"./dist/**/*.d.ts"
+	],
+	"scripts": {
+		"build:js": "rollup -c",
+		"build:ts": "tsc --project ./tsconfig.build.json",
+		"build": "pnpm run \"/^build:.*/\"",
+		"dev:js": "pnpm run build:js --watch",
+		"dev:ts": "pnpm run build:ts --watch",
+		"dev": "pnpm run \"/^dev:.*/\"",
+		"test": "vitest",
+		"typecheck": "tsc",
+		"prepare": "pnpm run build"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/edmundhung/conform",
+		"directory": "packages/conform-zod"
+	},
+	"bugs": {
+		"url": "https://github.com/edmundhung/conform/issues"
+	},
+	"dependencies": {
+		"@conform-to/dom": "workspace:*"
+	},
+	"peerDependencies": {
+		"zod": "^3.21.0"
+	},
+	"devDependencies": {
+		"@babel/core": "^7.17.8",
+		"@babel/preset-env": "^7.20.2",
+		"@babel/preset-typescript": "^7.20.2",
+		"@rollup/plugin-babel": "^5.3.1",
+		"@rollup/plugin-node-resolve": "^13.3.0",
+		"rollup": "^2.79.1",
+		"rollup-plugin-copy": "^3.4.0",
+		"zod": "^3.25.30"
+	},
+	"keywords": [
+		"constraint-validation",
+		"form",
+		"form-validation",
+		"html",
+		"progressive-enhancement",
+		"validation",
+		"zod"
+	],
+	"sideEffects": false
+}
