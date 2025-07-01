@@ -4,19 +4,6 @@
 	"homepage": "https://conform.guide",
 	"license": "MIT",
 	"version": "1.7.2",
-	"exports": {
-		"./src": {
-			"types": "./dist/v4/index.d.ts",
-			"module": "./dist/v4/index.mjs",
-			"import": "./dist/v4/index.mjs",
-			"require": "./dist/v4/index.js",
-			"default": "./dist/v4/index.mjs"
-		}
-	},
-	"files": [
-		"./dist/**/*.{js,mjs}",
-		"./dist/**/*.d.ts"
-	],
 	"scripts": {
 		"build:js": "rollup -c",
 		"build:ts": "tsc --project ./tsconfig.build.json",
@@ -40,7 +27,7 @@
 		"@conform-to/dom": "workspace:*"
 	},
 	"peerDependencies": {
-		"zod": "^3.21.0"
+		"effect": "^3.16.10"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.17.8",
@@ -49,8 +36,7 @@
 		"@rollup/plugin-babel": "^5.3.1",
 		"@rollup/plugin-node-resolve": "^13.3.0",
 		"rollup": "^2.79.1",
-		"rollup-plugin-copy": "^3.4.0",
-		"zod": "^3.25.30"
+		"rollup-plugin-copy": "^3.4.0"
 	},
 	"keywords": [
 		"constraint-validation",
@@ -59,7 +45,7 @@
 		"html",
 		"progressive-enhancement",
 		"validation",
-		"zod"
+		"effect"
 	],
 	"sideEffects": false
 }

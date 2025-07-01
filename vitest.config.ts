@@ -26,6 +26,7 @@ export default defineConfig({
 			...defineTests('conform-react'),
 			...defineTests('conform-zod'),
 			...defineTests('conform-valibot'),
+			...defineTests('conform-effect-ts'),
 		],
 	},
 });
