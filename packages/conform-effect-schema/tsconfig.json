@@ -1,6 +1,10 @@
 {
 	"compilerOptions": {
-		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"lib": [
+			"ES2022",
+			"DOM",
+			"DOM.Iterable"
+		],
 		"target": "ES2022",
 		"module": "ES2022",
 		"moduleResolution": "Bundler",
@@ -11,6 +15,32 @@
 		"declarationMap": true,
 		"composite": true,
 		"noEmit": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"plugins": [
+			{
+				"name": "@effect/language-service",
+				"diagnostics": true,
+				// controls Effect diagnostics (default: true)
+				"diagnosticSeverity": {
+					// allows to change per-rule default severity of the diagnostic in the whole project
+					"floatingEffect": "warning"
+					// example for a rule, allowed values are off,error,warning,message,suggestion
+				},
+				"quickinfo": true,
+				// controls quickinfo over Effect (default: true)
+				"completions": true,
+				// controls Effect completions (default: true)
+				"goto": true,
+				// controls Effect goto references (default: true)
+				"allowedDuplicatedPackages": [],
+				// list of package names that has effect in peer dependencies and are allowed to be duplicated (default: [])
+				"barrelImportPackages": [],
+				// package names that should be preferred as imported from the top level barrel file (default: [])
+				"namespaceImportPackages": [
+					"@effect/*"
+				]
+				// package names that should be preferred as imported with namespace imports e.g. ["effect", "@effect/*"] (default: [])
+			}
+		]
 	}
 }
