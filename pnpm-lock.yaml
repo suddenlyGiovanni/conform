@@ -784,6 +784,9 @@ importers:
       '@babel/preset-typescript':
         specifier: ^7.20.2
         version: 7.23.3(@babel/core@7.27.3)
+      '@effect/language-service':
+        specifier: ^0.23.4
+        version: 0.23.4
       '@rollup/plugin-babel':
         specifier: ^5.3.1
         version: 5.3.1(@babel/core@7.27.3)(@types/babel__core@7.20.5)(rollup@2.79.1)
@@ -2367,6 +2370,9 @@ packages:
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
+
+  '@effect/language-service@0.23.4':
+    resolution: {integrity: sha512-ublaVipRjmGvV5yxKNZoeJiCNkpS8JDxKhWfifjvXwFsrc+QCOY5jTAaNkDLNvQZsyNzWL5/6vzeFWd7jbZxow==}
 
   '@emotion/babel-plugin@11.11.0':
     resolution: {integrity: sha512-m4HEDZleaaCH+XgDDsPF15Ht6wTLsgDTeR3WYj9Q/k76JtWhrJjcP4+/XlG8LGT/Rol9qUfOIztXeA84ATpqPQ==}
@@ -13553,6 +13559,8 @@ snapshots:
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
+
+  '@effect/language-service@0.23.4': {}
 
   '@emotion/babel-plugin@11.11.0':
     dependencies:
