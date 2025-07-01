@@ -5,7 +5,7 @@
 	"license": "MIT",
 	"version": "1.7.2",
 	"exports": {
-		"./v4": {
+		"./src": {
 			"types": "./dist/v4/index.d.ts",
 			"module": "./dist/v4/index.mjs",
 			"import": "./dist/v4/index.mjs",
