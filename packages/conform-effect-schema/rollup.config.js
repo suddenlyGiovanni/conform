@@ -13,7 +13,7 @@ function configurePackage () {
 	external (id) {
 	  return !id.startsWith('.') && !path.isAbsolute(id)
 	},
-	input: [`${sourceDir}/v4/index.ts`],
+	input: [`${sourceDir}/src/index.ts`],
 	output: {
 	  dir: outputDir,
 	  format: 'esm',
@@ -58,7 +58,7 @@ function configurePackage () {
 	external (id) {
 	  return !id.startsWith('.') && !path.isAbsolute(id)
 	},
-	input: [`${sourceDir}/v4/index.ts`],
+	input: [`${sourceDir}/src/index.ts`],
 	output: {
 	  dir: outputDir,
 	  format: 'cjs',
