@@ -106,29 +106,51 @@ export async function action({ request }: ActionFunctionArgs) {
 	}
 
 	// return redirect('/messages')
+	return null;
 }
 
 export default function Example() {
 	const result = useActionData<typeof action>();
 
 	return (
-		<Form method="post">
-			<div>{result?.formErrors}</div>
+		<Form
+			method="post"
+			aria-describedby={result?.formErrors ? 'contact-error' : undefined}
+		>
+			<div id="contact-error">{result?.formErrors}</div>
 
 			<Playground title="Mutliple Errors" result={result}>
 				<div>
-					<label>Email</label>
+					<label htmlFor="contact-email">Email</label>
 					<input
+						id="contact-email"
 						type="email"
 						name="email"
 						defaultValue={result?.payload.email}
+						required
+						aria-invalid={result?.fieldErrors.email ? true : undefined}
+						aria-describedby={
+							result?.fieldErrors.email ? 'contact-email-error' : undefined
+						}
 					/>
-					<div>{result?.fieldErrors.email}</div>
+					<div id="contact-email-error">{result?.fieldErrors.email}</div>
 				</div>
+
 				<div>
-					<label>Message</label>
-					<textarea name="message" defaultValue={result?.payload.message} />
-					<div>{result?.fieldErrors.message}</div>
+					<label htmlFor="contact-message">Message</label>
+					<textarea
+						id="contact-message"
+						name="message"
+						defaultValue={result?.payload.message}
+						required
+						minLength={10}
+						maxLength={100}
+						aria-invalid={result?.fieldErrors.message ? true : undefined}
+						aria-describedby={
+							result?.fieldErrors.message ? 'contact-email-message' : undefined
+						}
+					/>
+					<div id="contact-email-message">{result?.fieldErrors.message}</div>
 				</div>
 			</Playground>
 		</Form>
