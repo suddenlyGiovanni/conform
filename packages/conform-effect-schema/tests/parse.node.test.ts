@@ -1,4 +1,3 @@
-// tests/parse.test.ts
 import { describe, test, expect } from 'vitest';
 import * as Schema from 'effect/Schema';
 
@@ -41,7 +40,7 @@ describe('parseWithEffectSchema', () => {
 		});
 	});
 
-	test.todo('should return a valid Submission with errors for invalid data', () => {
+	test('should return a valid Submission with errors for invalid data', () => {
 		// Define a schema with validation rules
 		const schema = Schema.Struct({
 			email: Schema.String.pipe(Schema.pattern(/^[^@]+@[^@]+\.[^@]+$/)),
@@ -73,5 +72,11 @@ describe('parseWithEffectSchema', () => {
 		expect(result.error).toBeDefined();
 		expect(result.error).toHaveProperty('email');
 		expect(result.error).toHaveProperty('message');
+		expect(result.error?.message).toEqual([
+			'Expected a string at least 10 character(s) long, actual "short"',
+		]);
+		expect(result.error?.email).toEqual([
+			'Expected a string matching the pattern ^[^@]+@[^@]+\\.[^@]+$, actual "invalid-email"',
+		]);
 	});
 });

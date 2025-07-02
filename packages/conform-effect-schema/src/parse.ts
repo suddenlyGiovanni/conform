@@ -1,7 +1,14 @@
-import { type Intent, type Submission, parse } from '@conform-to/dom';
+import {
+	type Intent,
+	type Submission,
+	parse,
+	formatPaths,
+} from '@conform-to/dom';
+import * as ParseResult from 'effect/ParseResult';
 import { pipe } from 'effect/Function';
 import * as Schema from 'effect/Schema';
 import * as Either from 'effect/Either';
+import * as Record from 'effect/Record';
 
 export function parseWithEffectSchema<A>(
 	payload: FormData | URLSearchParams,
@@ -21,10 +28,19 @@ export function parseWithEffectSchema<A>(
 				payload,
 				Schema.decodeUnknownEither(baseSchema, { errors: 'all' }),
 				Either.match({
-					onLeft: (_parseError) => ({
-						value: undefined,
-						error: {},
-					}),
+					onLeft: (parseError) => {
+						return {
+							value: undefined,
+							error: pipe(
+								parseError,
+								ParseResult.ArrayFormatter.formatErrorSync,
+								Record.fromIterableWith((issue) => [
+									formatPaths(issue.path as Array<string | number>),
+									[issue.message],
+								]),
+							),
+						};
+					},
 					onRight: (value) => ({
 						value,
 						error: undefined,
