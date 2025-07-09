@@ -60,10 +60,30 @@ describe('constraint', () => {
 	});
 
 	test('Non-object schemas will throw an error', () => {
+		// @ts-expect-error We want to test that non-object schemas throw an error
 		expect(() => getEffectSchemaConstraint(Schema.String)).toThrow();
 		expect(() =>
+			// @ts-expect-error We want to test that non-object schemas throw an error
 			getEffectSchemaConstraint(Schema.Array(Schema.String)),
 		).toThrow();
+	});
+
+	test('Schemas with no transformations', () => {
+		const schema = Schema.Struct({
+			requiredText: Schema.String,
+			optionalText: Schema.optional(Schema.String),
+		});
+
+		expect(getEffectSchemaConstraint(schema)).toEqual<
+			Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+		>({
+			optionalText: {
+				required: false,
+			},
+			requiredText: {
+				required: true,
+			},
+		});
 	});
 
 	test('Intersection is supported', () => {
