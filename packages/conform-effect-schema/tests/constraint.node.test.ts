@@ -173,6 +173,22 @@ describe('constraint', () => {
 						},
 					});
 				});
+
+				test('IncludesSchemaId', () => {
+					const infix = 'infix';
+					const schema = Schema.Struct({
+						pattern: Schema.String.pipe(Schema.includes(infix)),
+					});
+
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						pattern: {
+							required: true,
+							pattern: `.*${infix}.*`,
+						},
+					});
+				});
 			});
 		});
 
