@@ -170,4 +170,23 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle EndsWithSchemaId e.g. Schema.String.pipe(Schema.endsWith('suffix'))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(
+			(schemaIdAnnotation) => schemaIdAnnotation === Schema.EndsWithSchemaId,
+		),
+		Option.andThen(AST.getAnnotation(refinement, Schema.EndsWithSchemaId)),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(Predicate.hasProperty('pattern')),
+		Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ pattern }) => {
+				mutableConstraint.pattern = pattern;
+				return Option.void;
+			},
+		}),
+	);
 }

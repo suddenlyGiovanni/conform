@@ -157,6 +157,22 @@ describe('constraint', () => {
 						},
 					});
 				});
+
+				test('EndsWithSchemaId', () => {
+					const endsWith = 'postfix';
+					const schema = Schema.Struct({
+						pattern: Schema.String.pipe(Schema.endsWith(endsWith)),
+					});
+
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						pattern: {
+							required: true,
+							pattern: `^.*${endsWith}$`,
+						},
+					});
+				});
 			});
 		});
 
