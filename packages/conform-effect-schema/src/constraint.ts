@@ -4,6 +4,7 @@ import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
+import * as Predicate from 'effect/Predicate';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -68,19 +69,19 @@ function extractRefinementConstraints(
 ): void {
 	const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(refinement);
 
-	// handle the minLength refinement
+	// handle MinLengthSchemaId refinement (minLength)
+	const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(
+		refinement,
+	) as Option.Option<Record.ReadonlyRecord<string, unknown>>;
+
 	pipe(
 		maybeSchemaIdAnnotation,
 		Option.filter(
 			(schemaIdAnnotation) => schemaIdAnnotation === Schema.MinLengthSchemaId,
 		),
-		Option.andThen(
-			AST.getJSONSchemaAnnotation(refinement) as Option.Option<
-				Record.ReadonlyRecord<string, unknown>
-			>,
-		),
+		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.flatMap(Record.get('minLength')),
-		Option.filter((minLength) => typeof minLength === 'number'),
+		Option.filter((minLength) => Predicate.isNumber(minLength)),
 		Option.match({
 			onNone: () => Option.none(),
 			onSome: (minLength) => {
@@ -89,4 +90,23 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle MaxLengthSchemaId refinement (maxLength)
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(
+			(schemaIdAnnotation) => schemaIdAnnotation === Schema.MaxLengthSchemaId,
+		),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.flatMap(Record.get('maxLength')),
+		Option.filter((maxLength) => Predicate.isNumber(maxLength)),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: (maxLength) => {
+				mutableConstraint.maxLength = maxLength;
+				return Option.void;
+			},
+		}),
+	);
+
 }

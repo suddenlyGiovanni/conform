@@ -25,7 +25,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('with transformation', () => {
+			test('with minLength transformation', () => {
 				const minLength = 1;
 				const schema = Schema.Struct({
 					requiredTextAndWithMinLength: Schema.String.pipe(
@@ -39,6 +39,28 @@ describe('constraint', () => {
 					requiredTextAndWithMinLength: {
 						required: true,
 						minLength,
+					},
+				});
+			});
+
+			test('with minLength and maxLength transformation', () => {
+				// handling multiple transformations
+				const minLength = 1;
+				const maxLength = 10;
+				const schema = Schema.Struct({
+					requiredTextAndWithMinLength: Schema.String.pipe(
+						Schema.minLength(minLength),
+						Schema.maxLength(maxLength),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					requiredTextAndWithMinLength: {
+						required: true,
+						minLength,
+						maxLength,
 					},
 				});
 			});
