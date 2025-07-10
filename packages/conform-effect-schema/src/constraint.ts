@@ -135,4 +135,22 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle PatternSchemaId
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(
+			(schemaIdAnnotation) => schemaIdAnnotation === Schema.PatternSchemaId,
+		),
+		Option.andThen(AST.getAnnotation(refinement, Schema.PatternSchemaId)),
+		Option.filter(Predicate.hasProperty('regex')),
+		Option.filter(Predicate.struct({ regex: Predicate.isRegExp })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ regex }) => {
+				mutableConstraint.pattern = regex.source;
+				return Option.void;
+			},
+		}),
+	);
 }
