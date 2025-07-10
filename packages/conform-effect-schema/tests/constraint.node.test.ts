@@ -25,43 +25,91 @@ describe('constraint', () => {
 				});
 			});
 
-			test('with minLength transformation', () => {
-				const minLength = 1;
-				const schema = Schema.Struct({
-					requiredTextAndWithMinLength: Schema.String.pipe(
-						Schema.minLength(minLength),
-					),
+			describe('with refinements', () => {
+				test('MinLengthSchemaId', () => {
+					const minLength = 1;
+					const schema = Schema.Struct({
+						requiredTextAndWithMinLength: Schema.String.pipe(
+							Schema.minLength(minLength),
+						),
+					});
+
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						requiredTextAndWithMinLength: {
+							required: true,
+							minLength,
+						},
+					});
 				});
 
-				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-				>({
-					requiredTextAndWithMinLength: {
-						required: true,
-						minLength,
+				test('MinLengthSchemaId and MaxLengthSchemaId', () => {
+					// handling multiple transformations
+					const minLength = 1;
+					const maxLength = 10;
+					const schema = Schema.Struct({
+						requiredTextAndWithMinLength: Schema.String.pipe(
+							Schema.minLength(minLength),
+							Schema.maxLength(maxLength),
+						),
+					});
+
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						requiredTextAndWithMinLength: {
+							required: true,
+							minLength,
+							maxLength,
+						},
+					});
+				});
+
+				test.each([
+					{
+						inputLength: 10,
+						expected: {
+							maxLength: 10,
+							minLength: 10,
+						},
 					},
-				});
-			});
-
-			test('with minLength and maxLength transformation', () => {
-				// handling multiple transformations
-				const minLength = 1;
-				const maxLength = 10;
-				const schema = Schema.Struct({
-					requiredTextAndWithMinLength: Schema.String.pipe(
-						Schema.minLength(minLength),
-						Schema.maxLength(maxLength),
-					),
-				});
-
-				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-				>({
-					requiredTextAndWithMinLength: {
-						required: true,
-						minLength,
-						maxLength,
+					{
+						inputLength: {
+							min: 20,
+							max: 20,
+						},
+						expected: {
+							maxLength: 20,
+							minLength: 20,
+						},
 					},
+					{
+						inputLength: {
+							min: 15,
+							max: 50,
+						},
+						expected: {
+							maxLength: 50,
+							minLength: 15,
+						},
+					},
+				])('LengthSchemaId', ({ inputLength, expected }) => {
+					const schema = Schema.Struct({
+						requiredTextAndWithMinLength: Schema.String.pipe(
+							Schema.length(inputLength),
+						),
+					});
+
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						requiredTextAndWithMinLength: {
+							required: true,
+							maxLength: expected.maxLength,
+							minLength: expected.minLength,
+						},
+					});
 				});
 			});
 		});

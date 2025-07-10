@@ -70,9 +70,7 @@ function extractRefinementConstraints(
 	const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(refinement);
 
 	// handle MinLengthSchemaId refinement (minLength)
-	const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(
-		refinement,
-	) as Option.Option<Record.ReadonlyRecord<string, unknown>>;
+	const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(refinement);
 
 	pipe(
 		maybeSchemaIdAnnotation,
@@ -80,11 +78,11 @@ function extractRefinementConstraints(
 			(schemaIdAnnotation) => schemaIdAnnotation === Schema.MinLengthSchemaId,
 		),
 		Option.andThen(maybeJsonSchemaAnnotation),
-		Option.flatMap(Record.get('minLength')),
-		Option.filter((minLength) => Predicate.isNumber(minLength)),
+		Option.filter(Predicate.hasProperty('minLength')),
+		Option.filter(Predicate.struct({ minLength: Predicate.isNumber })),
 		Option.match({
 			onNone: () => Option.none(),
-			onSome: (minLength) => {
+			onSome: ({ minLength }) => {
 				mutableConstraint.minLength = minLength;
 				return Option.void;
 			},
@@ -98,15 +96,43 @@ function extractRefinementConstraints(
 			(schemaIdAnnotation) => schemaIdAnnotation === Schema.MaxLengthSchemaId,
 		),
 		Option.andThen(maybeJsonSchemaAnnotation),
-		Option.flatMap(Record.get('maxLength')),
-		Option.filter((maxLength) => Predicate.isNumber(maxLength)),
+		Option.filter(Predicate.hasProperty('maxLength')),
+		Option.filter(Predicate.struct({ maxLength: Predicate.isNumber })),
 		Option.match({
 			onNone: () => Option.none(),
-			onSome: (maxLength) => {
+			onSome: ({ maxLength }) => {
 				mutableConstraint.maxLength = maxLength;
 				return Option.void;
 			},
 		}),
 	);
 
+	// handle LengthSchemaId refinement (length)
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(
+			(schemaIdAnnotation) => schemaIdAnnotation === Schema.LengthSchemaId,
+		),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(
+			pipe(
+				Predicate.hasProperty('minLength'),
+				Predicate.and(Predicate.hasProperty('maxLength')),
+			),
+		),
+		Option.filter(
+			Predicate.struct({
+				minLength: Predicate.isNumber,
+				maxLength: Predicate.isNumber,
+			}),
+		),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ maxLength, minLength }) => {
+				mutableConstraint.maxLength = maxLength;
+				mutableConstraint.minLength = minLength;
+				return Option.void;
+			},
+		}),
+	);
 }
