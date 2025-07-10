@@ -5,6 +5,46 @@ import * as Schema from 'effect/Schema';
 import { describe, expect, test } from 'vitest';
 
 describe('constraint', () => {
+	describe('Simple use cases', () => {
+		describe('String', () => {
+			test('with optional', () => {
+				const schema = Schema.Struct({
+					requiredText: Schema.String,
+					optionalText: Schema.optional(Schema.String),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					optionalText: {
+						required: false,
+					},
+					requiredText: {
+						required: true,
+					},
+				});
+			});
+
+			test('with transformation', () => {
+				const minLength = 1;
+				const schema = Schema.Struct({
+					requiredTextAndWithMinLength: Schema.String.pipe(
+						Schema.minLength(minLength),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					requiredTextAndWithMinLength: {
+						required: true,
+						minLength,
+					},
+				});
+			});
+		});
+	});
+
 	const schema = Schema.Struct({
 		text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
 		number: Schema.Number.pipe(
@@ -66,24 +106,6 @@ describe('constraint', () => {
 			// @ts-expect-error We want to test that non-object schemas throw an error
 			getEffectSchemaConstraint(Schema.Array(Schema.String)),
 		).toThrow();
-	});
-
-	test('Schemas with no transformations', () => {
-		const schema = Schema.Struct({
-			requiredText: Schema.String,
-			optionalText: Schema.optional(Schema.String),
-		});
-
-		expect(getEffectSchemaConstraint(schema)).toEqual<
-			Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-		>({
-			optionalText: {
-				required: false,
-			},
-			requiredText: {
-				required: true,
-			},
-		});
 	});
 
 	test('Intersection is supported', () => {
