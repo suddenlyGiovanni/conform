@@ -68,10 +68,9 @@ function extractRefinementConstraints(
 	mutableConstraint: Constraint,
 ): void {
 	const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(refinement);
-
-	// handle MinLengthSchemaId refinement (minLength)
 	const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(refinement);
 
+	// handle MinLengthSchemaId refinement (minLength) e.g. Schema.String.pipe(Schema.minLength(5))
 	pipe(
 		maybeSchemaIdAnnotation,
 		Option.filter(
@@ -89,7 +88,7 @@ function extractRefinementConstraints(
 		}),
 	);
 
-	// handle MaxLengthSchemaId refinement (maxLength)
+	// handle MaxLengthSchemaId refinement (maxLength) e.g. Schema.String.pipe(Schema.maxLength(42))
 	pipe(
 		maybeSchemaIdAnnotation,
 		Option.filter(
@@ -107,7 +106,7 @@ function extractRefinementConstraints(
 		}),
 	);
 
-	// handle LengthSchemaId refinement (length)
+	// handle LengthSchemaId refinement (length) e.g. Schema.String.pipe(Schema.length(100))
 	pipe(
 		maybeSchemaIdAnnotation,
 		Option.filter(
@@ -136,7 +135,7 @@ function extractRefinementConstraints(
 		}),
 	);
 
-	// handle PatternSchemaId
+	// handle PatternSchemaId e.g. Schema.String.pipe(Schema.pattern(/regex/))
 	pipe(
 		maybeSchemaIdAnnotation,
 		Option.filter(
@@ -149,6 +148,24 @@ function extractRefinementConstraints(
 			onNone: () => Option.none(),
 			onSome: ({ regex }) => {
 				mutableConstraint.pattern = regex.source;
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle StartsWithSchemaId e.g. Schema.String.pipe(Schema.startsWith('prefix'))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(
+			(schemaIdAnnotation) => schemaIdAnnotation === Schema.StartsWithSchemaId,
+		),
+		Option.andThen(AST.getAnnotation(refinement, Schema.StartsWithSchemaId)),
+		Option.filter(Predicate.hasProperty('startsWith')),
+		Option.filter(Predicate.struct({ startsWith: Predicate.isString })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ startsWith }) => {
+				mutableConstraint.pattern = new RegExp(`^${startsWith}`).source;
 				return Option.void;
 			},
 		}),
