@@ -1,7 +1,9 @@
 import { Constraint } from '@conform-to/dom';
-import { hole } from 'effect/Function';
+import { pipe } from 'effect/Function';
+import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
+import * as Option from 'effect/Option';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -52,5 +54,39 @@ function processAST(
 		// it's a Schema.Number with no transformations
 	} else if (AST.isBooleanKeyword(ast)) {
 		// it's a Schema.Boolean with no transformations
+	} else if (AST.isRefinement(ast)) {
+		// handle refinements
+		extractRefinementConstraints(ast, mutableConstraint);
+		// continue to process the `from` AST part
+		processAST(ast.from, mutableConstraint);
 	}
+}
+
+function extractRefinementConstraints(
+	refinement: AST.Refinement,
+	mutableConstraint: Constraint,
+): void {
+	const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(refinement);
+
+	// handle the minLength refinement
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(
+			(schemaIdAnnotation) => schemaIdAnnotation === Schema.MinLengthSchemaId,
+		),
+		Option.andThen(
+			AST.getJSONSchemaAnnotation(refinement) as Option.Option<
+				Record.ReadonlyRecord<string, unknown>
+			>,
+		),
+		Option.flatMap(Record.get('minLength')),
+		Option.filter((minLength) => typeof minLength === 'number'),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: (minLength) => {
+				mutableConstraint.minLength = minLength;
+				return Option.void;
+			},
+		}),
+	);
 }
