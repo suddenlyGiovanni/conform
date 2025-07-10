@@ -137,7 +137,23 @@ describe('constraint', () => {
 					>({
 						pattern: {
 							required: true,
-							pattern: regex.source
+							pattern: regex.source,
+						},
+					});
+				});
+
+				test('StartsWithSchemaId', () => {
+					const startsWith = 'prefix';
+					const schema = Schema.Struct({
+						pattern: Schema.String.pipe(Schema.startsWith(startsWith)),
+					});
+
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						pattern: {
+							required: true,
+							pattern: `^${startsWith}`,
 						},
 					});
 				});
