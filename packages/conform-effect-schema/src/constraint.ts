@@ -189,4 +189,23 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle IncludesSchemaId e.g. Schema.String.pipe(Schema.includes('substring'))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(
+			(schemaIdAnnotation) => schemaIdAnnotation === Schema.IncludesSchemaId,
+		),
+		Option.andThen(AST.getAnnotation(refinement, Schema.IncludesSchemaId)),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(Predicate.hasProperty('pattern')),
+		Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ pattern }) => {
+				mutableConstraint.pattern = pattern;
+				return Option.void;
+			},
+		}),
+	);
 }
