@@ -239,7 +239,20 @@ describe('constraint', () => {
 				});
 
 
+				test('CapitalizedSchemaId: a capitalized string', () => {
+					const schema = Schema.Struct({
+						pattern: Schema.String.pipe(Schema.capitalized()),
+					});
 
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						pattern: {
+							required: true,
+							pattern: "^[^a-z]?.*$",
+						},
+					});
+				});
 			});
 		});
 
