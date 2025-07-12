@@ -26,7 +26,7 @@ describe('constraint', () => {
 			});
 
 			describe('with refinements', () => {
-				test('MinLengthSchemaId', () => {
+				test('MinLengthSchemaId: a string at least <number> character(s) long', () => {
 					const minLength = 1;
 					const schema = Schema.Struct({
 						requiredTextAndWithMinLength: Schema.String.pipe(
@@ -44,7 +44,7 @@ describe('constraint', () => {
 					});
 				});
 
-				test('MinLengthSchemaId and MaxLengthSchemaId', () => {
+				test('MaxLengthSchemaId: a string at most <number> character(s) long', () => {
 					// handling multiple transformations
 					const minLength = 1;
 					const maxLength = 10;
@@ -94,25 +94,28 @@ describe('constraint', () => {
 							minLength: 15,
 						},
 					},
-				])('LengthSchemaId', ({ inputLength, expected }) => {
-					const schema = Schema.Struct({
-						requiredTextAndWithMinLength: Schema.String.pipe(
-							Schema.length(inputLength),
-						),
-					});
+				])(
+					'LengthSchemaId: a string at most <number> character(s) long',
+					({ inputLength, expected }) => {
+						const schema = Schema.Struct({
+							requiredTextAndWithMinLength: Schema.String.pipe(
+								Schema.length(inputLength),
+							),
+						});
 
-					expect(getEffectSchemaConstraint(schema)).toEqual<
-						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-					>({
-						requiredTextAndWithMinLength: {
-							required: true,
-							maxLength: expected.maxLength,
-							minLength: expected.minLength,
-						},
-					});
-				});
+						expect(getEffectSchemaConstraint(schema)).toEqual<
+							Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						>({
+							requiredTextAndWithMinLength: {
+								required: true,
+								maxLength: expected.maxLength,
+								minLength: expected.minLength,
+							},
+						});
+					},
+				);
 
-				test('NonEmptyString', () => {
+				test('NonEmptyString: a non empty string', () => {
 					const schema = Schema.Struct({
 						nonEmptyString: Schema.NonEmptyString,
 					});
@@ -126,7 +129,7 @@ describe('constraint', () => {
 					});
 				});
 
-				test('PatternSchemaId', () => {
+				test('PatternSchemaId: a string matching the <pattern>', () => {
 					const regex = new RegExp(/^[a-z]+$/);
 
 					const schema = Schema.Struct({
@@ -142,7 +145,7 @@ describe('constraint', () => {
 					});
 				});
 
-				test('StartsWithSchemaId', () => {
+				test('StartsWithSchemaId: a string starting with `{string}<postfix>`', () => {
 					const startsWith = 'prefix';
 					const schema = Schema.Struct({
 						pattern: Schema.String.pipe(Schema.startsWith(startsWith)),
@@ -158,7 +161,7 @@ describe('constraint', () => {
 					});
 				});
 
-				test('EndsWithSchemaId', () => {
+				test('EndsWithSchemaId: a string ending with `<prefix>{string}`', () => {
 					const endsWith = 'postfix';
 					const schema = Schema.Struct({
 						pattern: Schema.String.pipe(Schema.endsWith(endsWith)),
