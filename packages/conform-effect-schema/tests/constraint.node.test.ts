@@ -307,7 +307,23 @@ describe('constraint', () => {
 				});
 			});
 
+			test('GreaterThanOrEqualToSchemaId: a number greater than or equal to <inclusiveMinimum>', () => {
+				const inclusiveMinimum = 10;
+				const schema = Schema.Struct({
+					numberGreaterThanOrEqualTo: Schema.Number.pipe(
+						Schema.greaterThanOrEqualTo(inclusiveMinimum),
+					),
+				});
 
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					numberGreaterThanOrEqualTo: {
+						required: true,
+						min: inclusiveMinimum,
+					},
+				});
+			});
 		});
 
 		const schema = Schema.Struct({
