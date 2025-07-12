@@ -177,7 +177,7 @@ describe('constraint', () => {
 					});
 				});
 
-				test('IncludesSchemaId', () => {
+				test('IncludesSchemaId: a string including `<prefix>{string}<postfix>`', () => {
 					const infix = 'infix';
 					const schema = Schema.Struct({
 						pattern: Schema.String.pipe(Schema.includes(infix)),
@@ -189,6 +189,21 @@ describe('constraint', () => {
 						pattern: {
 							required: true,
 							pattern: `.*${infix}.*`,
+						},
+					});
+				});
+
+				test('TrimmedSchemaId: a string with no leading or trailing whitespace', () => {
+					const schema = Schema.Struct({
+						pattern: Schema.String.pipe(Schema.trimmed()),
+					});
+
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						pattern: {
+							required: true,
+							pattern: '^\\S[\\s\\S]*\\S$|^\\S$|^$',
 						},
 					});
 				});
