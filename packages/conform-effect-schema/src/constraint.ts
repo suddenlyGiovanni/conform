@@ -5,6 +5,7 @@ import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
+import { LowercasedSchemaId } from 'effect/src/Schema'
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -225,5 +226,23 @@ function extractRefinementConstraints(
 				return Option.void;
 			},
 		}),
+	);
+
+	// handle LowercasedSchemaId e.g. Schema.String.pipe(Schema.lowercased())
+	pipe(
+			maybeSchemaIdAnnotation,
+			Option.filter(
+					(schemaIdAnnotation) => schemaIdAnnotation === Schema.LowercasedSchemaId,
+			),
+			Option.andThen(maybeJsonSchemaAnnotation),
+			Option.filter(Predicate.hasProperty('pattern')),
+			Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+			Option.match({
+				onNone: () => Option.none(),
+				onSome: ({ pattern }) => {
+					mutableConstraint.pattern = pattern;
+					return Option.void;
+				},
+			}),
 	);
 }
