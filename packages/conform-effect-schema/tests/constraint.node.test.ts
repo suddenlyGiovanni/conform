@@ -339,6 +339,25 @@ describe('constraint', () => {
 				},
 			});
 		});
+
+
+		test('LessThanOrEqualToSchemaId: a number less than or equal to <inclusiveMaximum>', () => {
+			const inclusiveMaximum = 42;
+			const schema = Schema.Struct({
+				numberLessThanOrEqualTo: Schema.Number.pipe(
+					Schema.lessThanOrEqualTo(inclusiveMaximum),
+				),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({
+				numberLessThanOrEqualTo: {
+					required: true,
+					max: inclusiveMaximum,
+				},
+			});
+		});
 	});
 
 	const schema = Schema.Struct({

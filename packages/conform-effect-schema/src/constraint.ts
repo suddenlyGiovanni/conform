@@ -6,6 +6,7 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
+import type { LessThanOrEqualToSchemaId } from 'effect/src/Schema';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -320,6 +321,22 @@ function extractRefinementConstraints(
 			onNone: () => Option.none(),
 			onSome: ({ exclusiveMaximum }) => {
 				mutableConstraint.max = exclusiveMaximum;
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle LessThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.lessThanOrEqualTo(10))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.LessThanOrEqualToSchemaId)),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(Predicate.hasProperty('maximum')),
+		Option.filter(Predicate.struct({ maximum: Predicate.isNumber })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ maximum }) => {
+				mutableConstraint.max = maximum;
 				return Option.void;
 			},
 		}),
