@@ -5,8 +5,8 @@ import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
-import * as Equal  from "effect/Equal"
-
+import * as Equal from 'effect/Equal';
+import { UncapitalizedSchemaId } from 'effect/src/Schema';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -75,8 +75,7 @@ function extractRefinementConstraints(
 	// handle MinLengthSchemaId refinement (minLength) e.g. Schema.String.pipe(Schema.minLength(5))
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.MinLengthSchemaId),
-		),
+		Option.filter(Equal.equals(Schema.MinLengthSchemaId)),
 		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.filter(Predicate.hasProperty('minLength')),
 		Option.filter(Predicate.struct({ minLength: Predicate.isNumber })),
@@ -92,8 +91,7 @@ function extractRefinementConstraints(
 	// handle MaxLengthSchemaId refinement (maxLength) e.g. Schema.String.pipe(Schema.maxLength(42))
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.MaxLengthSchemaId),
-		),
+		Option.filter(Equal.equals(Schema.MaxLengthSchemaId)),
 		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.filter(Predicate.hasProperty('maxLength')),
 		Option.filter(Predicate.struct({ maxLength: Predicate.isNumber })),
@@ -109,8 +107,7 @@ function extractRefinementConstraints(
 	// handle LengthSchemaId refinement (length) e.g. Schema.String.pipe(Schema.length(100))
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.LengthSchemaId),
-		),
+		Option.filter(Equal.equals(Schema.LengthSchemaId)),
 		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.filter(
 			pipe(
@@ -137,8 +134,7 @@ function extractRefinementConstraints(
 	// handle PatternSchemaId e.g. Schema.String.pipe(Schema.pattern(/regex/))
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.PatternSchemaId),
-		),
+		Option.filter(Equal.equals(Schema.PatternSchemaId)),
 		Option.andThen(AST.getAnnotation(refinement, Schema.PatternSchemaId)),
 		Option.filter(Predicate.hasProperty('regex')),
 		Option.filter(Predicate.struct({ regex: Predicate.isRegExp })),
@@ -154,8 +150,7 @@ function extractRefinementConstraints(
 	// handle StartsWithSchemaId e.g. Schema.String.pipe(Schema.startsWith('prefix'))
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.StartsWithSchemaId),
-		),
+		Option.filter(Equal.equals(Schema.StartsWithSchemaId)),
 		Option.andThen(AST.getAnnotation(refinement, Schema.StartsWithSchemaId)),
 		Option.filter(Predicate.hasProperty('startsWith')),
 		Option.filter(Predicate.struct({ startsWith: Predicate.isString })),
@@ -171,7 +166,7 @@ function extractRefinementConstraints(
 	// handle EndsWithSchemaId e.g. Schema.String.pipe(Schema.endsWith('suffix'))
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.EndsWithSchemaId),),
+		Option.filter(Equal.equals(Schema.EndsWithSchemaId)),
 		Option.andThen(AST.getAnnotation(refinement, Schema.EndsWithSchemaId)),
 		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.filter(Predicate.hasProperty('pattern')),
@@ -188,7 +183,7 @@ function extractRefinementConstraints(
 	// handle IncludesSchemaId e.g. Schema.String.pipe(Schema.includes('substring'))
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.IncludesSchemaId),),
+		Option.filter(Equal.equals(Schema.IncludesSchemaId)),
 		Option.andThen(AST.getAnnotation(refinement, Schema.IncludesSchemaId)),
 		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.filter(Predicate.hasProperty('pattern')),
@@ -205,7 +200,7 @@ function extractRefinementConstraints(
 	// handle TrimmedSchemaId e.g. Schema.String.pipe(Schema.trimmed())
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.TrimmedSchemaId),),
+		Option.filter(Equal.equals(Schema.TrimmedSchemaId)),
 		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.filter(Predicate.hasProperty('pattern')),
 		Option.filter(Predicate.struct({ pattern: Predicate.isString })),
@@ -221,7 +216,7 @@ function extractRefinementConstraints(
 	// handle LowercasedSchemaId e.g. Schema.String.pipe(Schema.lowercased())
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.LowercasedSchemaId),),
+		Option.filter(Equal.equals(Schema.LowercasedSchemaId)),
 		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.filter(Predicate.hasProperty('pattern')),
 		Option.filter(Predicate.struct({ pattern: Predicate.isString })),
@@ -237,7 +232,7 @@ function extractRefinementConstraints(
 	// handle UppercasedSchemaId e.g. Schema.String.pipe(Schema.uppercased())
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals(Schema.UppercasedSchemaId),),
+		Option.filter(Equal.equals(Schema.UppercasedSchemaId)),
 		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.filter(Predicate.hasProperty('pattern')),
 		Option.filter(Predicate.struct({ pattern: Predicate.isString })),
@@ -253,7 +248,23 @@ function extractRefinementConstraints(
 	// handle CapitalizedSchemaId e.g. Schema.String.pipe(Schema.capitalized())
 	pipe(
 		maybeSchemaIdAnnotation,
-		Option.filter(Equal.equals( Schema.CapitalizedSchemaId )),
+		Option.filter(Equal.equals(Schema.CapitalizedSchemaId)),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(Predicate.hasProperty('pattern')),
+		Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ pattern }) => {
+				mutableConstraint.pattern = pattern;
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle UncapitalizedSchemaId e.g. Schema.String.pipe(Schema.uncapitalized())
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.UncapitalizedSchemaId)),
 		Option.andThen(maybeJsonSchemaAnnotation),
 		Option.filter(Predicate.hasProperty('pattern')),
 		Option.filter(Predicate.struct({ pattern: Predicate.isString })),
