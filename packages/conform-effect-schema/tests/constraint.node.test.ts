@@ -207,6 +207,21 @@ describe('constraint', () => {
 						},
 					});
 				});
+
+				test('LowercasedSchemaId: a lowercase string', () => {
+					const schema = Schema.Struct({
+						pattern: Schema.String.pipe(Schema.lowercased()),
+					});
+
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						pattern: {
+							required: true,
+							pattern: '^[^A-Z]*$',
+						},
+					});
+				});
 			});
 		});
 
