@@ -288,6 +288,26 @@ describe('constraint', () => {
 					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({ optionalNumber: { required: false } });
 			});
+
+			test('GreaterThanSchemaId: a number greater than <exclusiveMinimum>', () => {
+				const exclusiveMinimum = 5;
+				const schema = Schema.Struct({
+					numberGreaterThan: Schema.Number.pipe(
+						Schema.greaterThan(exclusiveMinimum),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					numberGreaterThan: {
+						required: true,
+						min: exclusiveMinimum,
+					},
+				});
+			});
+
+
 		});
 
 		const schema = Schema.Struct({

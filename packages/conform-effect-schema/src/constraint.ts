@@ -6,7 +6,6 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
-import { UncapitalizedSchemaId } from 'effect/src/Schema';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -273,6 +272,22 @@ function extractRefinementConstraints(
 			onNone: () => Option.none(),
 			onSome: ({ pattern }) => {
 				mutableConstraint.pattern = pattern;
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle GreaterThanSchemaId e.g. Schema.Number.pipe(Schema.greaterThan(10))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.GreaterThanSchemaId)),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(Predicate.hasProperty('exclusiveMinimum')),
+		Option.filter(Predicate.struct({ exclusiveMinimum: Predicate.isNumber })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ exclusiveMinimum }) => {
+				mutableConstraint.min = exclusiveMinimum;
 				return Option.void;
 			},
 		}),
