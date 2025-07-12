@@ -292,4 +292,20 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle GreaterThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.greaterThanOrEqualTo(10))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.GreaterThanOrEqualToSchemaId)),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(Predicate.hasProperty('minimum')),
+		Option.filter(Predicate.struct({ minimum: Predicate.isNumber })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ minimum }) => {
+				mutableConstraint.min = minimum;
+				return Option.void;
+			},
+		}),
+	);
 }
