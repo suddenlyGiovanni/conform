@@ -272,15 +272,21 @@ describe('constraint', () => {
 
 		describe('Number', () => {
 			test('with no refinement', () => {
+				const schema = Schema.Struct({ number: Schema.Number });
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({ number: { required: true } });
+			});
+
+			test('with optional', () => {
 				const schema = Schema.Struct({
-					number: Schema.Number,
+					optionalNumber: Schema.optional(Schema.Number),
 				});
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
 					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-				>({
-					number: { required: true },
-				});
+				>({ optionalNumber: { required: false } });
 			});
 		});
 
