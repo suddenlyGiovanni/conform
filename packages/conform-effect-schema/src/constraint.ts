@@ -208,4 +208,22 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle TrimmedSchemaId e.g. Schema.String.pipe(Schema.trimmed())
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(
+			(schemaIdAnnotation) => schemaIdAnnotation === Schema.TrimmedSchemaId,
+		),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(Predicate.hasProperty('pattern')),
+		Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ pattern }) => {
+				mutableConstraint.pattern = pattern;
+				return Option.void;
+			},
+		}),
+	);
 }
