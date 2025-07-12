@@ -222,6 +222,21 @@ describe('constraint', () => {
 						},
 					});
 				});
+
+				test('UppercasedSchemaId: an uppercase string', () => {
+					const schema = Schema.Struct({
+						pattern: Schema.String.pipe(Schema.uppercased()),
+					});
+
+					expect(getEffectSchemaConstraint(schema)).toEqual<
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					>({
+						pattern: {
+							required: true,
+							pattern: '^[^a-z]*$',
+						},
+					});
+				});
 			});
 		});
 
