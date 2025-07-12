@@ -340,7 +340,6 @@ describe('constraint', () => {
 			});
 		});
 
-
 		test('LessThanOrEqualToSchemaId: a number less than or equal to <inclusiveMaximum>', () => {
 			const inclusiveMaximum = 42;
 			const schema = Schema.Struct({
@@ -355,6 +354,26 @@ describe('constraint', () => {
 				numberLessThanOrEqualTo: {
 					required: true,
 					max: inclusiveMaximum,
+				},
+			});
+		});
+
+		test('BetweenSchemaId: a number between <minimum> and <maximum>', () => {
+			const inclusiveMinimum = 3;
+			const inclusiveMaximum = 7;
+			const schema = Schema.Struct({
+				numberBetween: Schema.Number.pipe(
+					Schema.between(inclusiveMinimum, inclusiveMaximum),
+				),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({
+				numberBetween: {
+					required: true,
+					max: inclusiveMaximum,
+					min: inclusiveMinimum,
 				},
 			});
 		});
