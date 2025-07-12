@@ -308,4 +308,20 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle LessThanSchemaId e.g. Schema.Number.pipe(Schema.lessThan(10))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.LessThanSchemaId)),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(Predicate.hasProperty('exclusiveMaximum')),
+		Option.filter(Predicate.struct({ exclusiveMaximum: Predicate.isNumber })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ exclusiveMaximum }) => {
+				mutableConstraint.max = exclusiveMaximum;
+				return Option.void;
+			},
+		}),
+	);
 }
