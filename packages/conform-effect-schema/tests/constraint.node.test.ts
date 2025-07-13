@@ -377,6 +377,22 @@ describe('constraint', () => {
 				},
 			});
 		});
+
+		test('MultipleOfSchemaId: a number divisible by <positiveDivisor>', () => {
+			const divisor = 3;
+			const schema = Schema.Struct({
+				numberBetween: Schema.Number.pipe(Schema.multipleOf(divisor)),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({
+				numberBetween: {
+					required: true,
+					step: divisor,
+				},
+			});
+		});
 	});
 
 	const schema = Schema.Struct({

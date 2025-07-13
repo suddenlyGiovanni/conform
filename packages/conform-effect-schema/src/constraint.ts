@@ -6,6 +6,7 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
+import { MultipleOfSchemaId } from 'effect/src/Schema';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -363,6 +364,22 @@ function extractRefinementConstraints(
 			onSome: ({ maximum, minimum }) => {
 				mutableConstraint.min = minimum;
 				mutableConstraint.max = maximum;
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle MultipleOfSchemaId e.g. Schema.Number.pipe(Schema.multipleOf(5))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.MultipleOfSchemaId)),
+		Option.andThen(maybeJsonSchemaAnnotation),
+		Option.filter(Predicate.hasProperty('multipleOf')),
+		Option.filter(Predicate.struct({ multipleOf: Predicate.isNumber })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ multipleOf }) => {
+				mutableConstraint.step = multipleOf;
 				return Option.void;
 			},
 		}),
