@@ -507,6 +507,22 @@ describe('constraint', () => {
 		});
 	});
 
+	describe('Date', () => {
+		test('with optional', () => {
+			const schema = Schema.Struct({
+				optionalDate: Schema.optional(Schema.DateFromSelf),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({
+				optionalDate: {
+					required: false,
+				},
+			});
+		});
+	});
+
 	const schema = Schema.Struct({
 		text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
 		number: Schema.Number.pipe(
