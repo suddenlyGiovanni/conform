@@ -406,4 +406,24 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle GreaterThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanOrEqualToBigInt(10n))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.GreaterThanOrEqualToBigIntSchemaId)),
+		Option.andThen(() =>
+			AST.getAnnotation<{
+				min: bigint;
+			}>(refinement, Schema.GreaterThanOrEqualToBigIntSchemaId),
+		),
+		Option.filter(Predicate.hasProperty('min')),
+		Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ min }) => {
+				mutableConstraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+				return Option.void;
+			},
+		}),
+	);
 }
