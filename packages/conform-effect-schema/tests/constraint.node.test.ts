@@ -414,7 +414,25 @@ describe('constraint', () => {
 			>({ optionalBigInt: { required: false } });
 		});
 
+		test('GreaterThanBigIntSchemaId: a bigint greater than <exclusiveMinimum>', () => {
+			const exclusiveMinimum = 5n;
+			const schema = Schema.Struct({
+				bigIntGreaterThan: Schema.BigIntFromSelf.pipe(
+					Schema.greaterThanBigInt(exclusiveMinimum),
+				),
+			});
 
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({
+				bigIntGreaterThan: {
+					required: true,
+					min: exclusiveMinimum as unknown as number
+				},
+			});
+		});
+
+		
 	});
 
 	const schema = Schema.Struct({

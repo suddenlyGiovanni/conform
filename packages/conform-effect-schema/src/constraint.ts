@@ -6,7 +6,6 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
-import { MultipleOfSchemaId } from 'effect/src/Schema';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -383,6 +382,26 @@ function extractRefinementConstraints(
 			onNone: () => Option.none(),
 			onSome: ({ multipleOf }) => {
 				mutableConstraint.step = multipleOf;
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle GreaterThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanBigInt(10n))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.GreaterThanBigIntSchemaId)),
+		Option.andThen(() =>
+			AST.getAnnotation<{
+				min: bigint;
+			}>(refinement, Schema.GreaterThanBigIntSchemaId),
+		),
+		Option.filter(Predicate.hasProperty('min')),
+		Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ min }) => {
+				mutableConstraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
 				return Option.void;
 			},
 		}),
