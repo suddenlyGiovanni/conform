@@ -56,6 +56,9 @@ function processAST(
 	} else if (AST.isNumberKeyword(ast)) {
 		// it's a Schema.Number with no transformations
 		mutableConstraint.required = true;
+	} else if (AST.isBigIntKeyword(ast)) {
+		// it's a Schema.BigInt with no transformations
+		mutableConstraint.required = true;
 	} else if (AST.isBooleanKeyword(ast)) {
 		// it's a Schema.Boolean with no transformations
 	} else if (AST.isRefinement(ast)) {

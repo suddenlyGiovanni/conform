@@ -395,6 +395,28 @@ describe('constraint', () => {
 		});
 	});
 
+	describe('BigInt ', () => {
+		test('with no refinement', () => {
+			const schema = Schema.Struct({ bigInt: Schema.BigIntFromSelf });
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({ bigInt: { required: true } });
+		});
+
+		test('with optional', () => {
+			const schema = Schema.Struct({
+				optionalBigInt: Schema.optional(Schema.BigIntFromSelf),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({ optionalBigInt: { required: false } });
+		});
+
+
+	});
+
 	const schema = Schema.Struct({
 		text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
 		number: Schema.Number.pipe(
