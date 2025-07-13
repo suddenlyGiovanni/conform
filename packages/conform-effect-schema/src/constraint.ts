@@ -446,4 +446,24 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle LessThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanOrEqualToBigInt(42n))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.LessThanOrEqualToBigIntSchemaId)),
+		Option.andThen(() =>
+			AST.getAnnotation<{
+				max: bigint;
+			}>(refinement, Schema.LessThanOrEqualToBigIntSchemaId),
+		),
+		Option.filter(Predicate.hasProperty('max')),
+		Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ max }) => {
+				mutableConstraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+				return Option.void;
+			},
+		}),
+	);
 }
