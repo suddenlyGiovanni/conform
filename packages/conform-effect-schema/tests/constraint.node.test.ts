@@ -1,8 +1,8 @@
-import type { Constraint } from '@conform-to/dom';
-import { getEffectSchemaConstraint } from '../src/constraint';
-import * as Schema from 'effect/Schema';
+import type { Constraint }           from '@conform-to/dom'
+import { getEffectSchemaConstraint } from '../src/constraint'
+import * as Schema                   from 'effect/Schema'
 
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest'
 
 describe('constraint', () => {
 	describe('String', () => {
@@ -10,10 +10,10 @@ describe('constraint', () => {
 			const schema = Schema.Struct({
 				requiredText: Schema.String,
 				optionalText: Schema.optional(Schema.String),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
 				optionalText: {
 					required: false,
@@ -21,49 +21,49 @@ describe('constraint', () => {
 				requiredText: {
 					required: true,
 				},
-			});
-		});
+			})
+		})
 
 		describe('with refinements', () => {
 			test('MinLengthSchemaId: a string at least <number> character(s) long', () => {
-				const minLength = 1;
+				const minLength = 1
 				const schema = Schema.Struct({
 					requiredTextAndWithMinLength: Schema.String.pipe(
-						Schema.minLength(minLength),
+							Schema.minLength(minLength),
 					),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					requiredTextAndWithMinLength: {
 						required: true,
 						minLength,
 					},
-				});
-			});
+				})
+			})
 
 			test('MaxLengthSchemaId: a string at most <number> character(s) long', () => {
 				// handling multiple transformations
-				const minLength = 1;
-				const maxLength = 10;
+				const minLength = 1
+				const maxLength = 10
 				const schema = Schema.Struct({
 					requiredTextAndWithMinLength: Schema.String.pipe(
-						Schema.minLength(minLength),
-						Schema.maxLength(maxLength),
+							Schema.minLength(minLength),
+							Schema.maxLength(maxLength),
 					),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					requiredTextAndWithMinLength: {
 						required: true,
 						minLength,
 						maxLength,
 					},
-				});
-			});
+				})
+			})
 
 			test.each([
 				{
@@ -94,366 +94,386 @@ describe('constraint', () => {
 					},
 				},
 			])(
-				'LengthSchemaId: a string at most <number> character(s) long',
-				({ inputLength, expected }) => {
-					const schema = Schema.Struct({
-						requiredTextAndWithMinLength: Schema.String.pipe(
-							Schema.length(inputLength),
-						),
-					});
+					'LengthSchemaId: a string at most <number> character(s) long',
+					({
+						 inputLength,
+						 expected,
+					 }) => {
+						const schema = Schema.Struct({
+							requiredTextAndWithMinLength: Schema.String.pipe(
+									Schema.length(inputLength),
+							),
+						})
 
-					expect(getEffectSchemaConstraint(schema)).toEqual<
-						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-					>({
-						requiredTextAndWithMinLength: {
-							required: true,
-							maxLength: expected.maxLength,
-							minLength: expected.minLength,
-						},
-					});
-				},
-			);
+						expect(getEffectSchemaConstraint(schema)).toEqual<
+								Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						>({
+							requiredTextAndWithMinLength: {
+								required: true,
+								maxLength: expected.maxLength,
+								minLength: expected.minLength,
+							},
+						})
+					},
+			)
 
 			test('NonEmptyString: a non empty string', () => {
 				const schema = Schema.Struct({
 					nonEmptyString: Schema.NonEmptyString,
-				});
+				})
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					nonEmptyString: {
 						required: true,
 						minLength: 1,
 					},
-				});
-			});
+				})
+			})
 
 			test('PatternSchemaId: a string matching the <pattern>', () => {
-				const regex = new RegExp(/^[a-z]+$/);
+				const regex = new RegExp(/^[a-z]+$/)
 
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.pattern(regex)),
-				});
+				})
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					pattern: {
 						required: true,
 						pattern: regex.source,
 					},
-				});
-			});
+				})
+			})
 
 			test('StartsWithSchemaId: a string starting with `{string}<postfix>`', () => {
-				const startsWith = 'prefix';
+				const startsWith = 'prefix'
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.startsWith(startsWith)),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					pattern: {
 						required: true,
 						pattern: `^${startsWith}`,
 					},
-				});
-			});
+				})
+			})
 
 			test('EndsWithSchemaId: a string ending with `<prefix>{string}`', () => {
-				const endsWith = 'postfix';
+				const endsWith = 'postfix'
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.endsWith(endsWith)),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					pattern: {
 						required: true,
 						pattern: `^.*${endsWith}$`,
 					},
-				});
-			});
+				})
+			})
 
 			test('IncludesSchemaId: a string including `<prefix>{string}<postfix>`', () => {
-				const infix = 'infix';
+				const infix = 'infix'
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.includes(infix)),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					pattern: {
 						required: true,
 						pattern: `.*${infix}.*`,
 					},
-				});
-			});
+				})
+			})
 
 			test('TrimmedSchemaId: a string with no leading or trailing whitespace', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.trimmed()),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					pattern: {
 						required: true,
 						pattern: '^\\S[\\s\\S]*\\S$|^\\S$|^$',
 					},
-				});
-			});
+				})
+			})
 
 			test('LowercasedSchemaId: a lowercase string', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.lowercased()),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					pattern: {
 						required: true,
 						pattern: '^[^A-Z]*$',
 					},
-				});
-			});
+				})
+			})
 
 			test('UppercasedSchemaId: an uppercase string', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.uppercased()),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					pattern: {
 						required: true,
 						pattern: '^[^a-z]*$',
 					},
-				});
-			});
+				})
+			})
 
 			test('CapitalizedSchemaId: a capitalized string', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.capitalized()),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					pattern: {
 						required: true,
 						pattern: '^[^a-z]?.*$',
 					},
-				});
-			});
+				})
+			})
 
 			test('UncapitalizedSchemaId: a uncapitalized string', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.uncapitalized()),
-				});
+				})
 
 				expect(getEffectSchemaConstraint(schema)).toEqual<
-					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 				>({
 					pattern: {
 						required: true,
 						pattern: '^[^A-Z]?.*$',
 					},
-				});
-			});
-		});
-	});
+				})
+			})
+		})
+	})
 
 	describe('Number', () => {
 		test('with no refinement', () => {
-			const schema = Schema.Struct({ number: Schema.Number });
+			const schema = Schema.Struct({number: Schema.Number})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-			>({ number: { required: true } });
-		});
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({number: {required: true}})
+		})
 
 		test('with optional', () => {
 			const schema = Schema.Struct({
 				optionalNumber: Schema.optional(Schema.Number),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-			>({ optionalNumber: { required: false } });
-		});
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({optionalNumber: {required: false}})
+		})
 
 		test('GreaterThanSchemaId: a number greater than <exclusiveMinimum>', () => {
-			const exclusiveMinimum = 5;
+			const exclusiveMinimum = 5
 			const schema = Schema.Struct({
 				numberGreaterThan: Schema.Number.pipe(
-					Schema.greaterThan(exclusiveMinimum),
+						Schema.greaterThan(exclusiveMinimum),
 				),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
 				numberGreaterThan: {
 					required: true,
 					min: exclusiveMinimum,
 				},
-			});
-		});
+			})
+		})
 
 		test('GreaterThanOrEqualToSchemaId: a number greater than or equal to <inclusiveMinimum>', () => {
-			const inclusiveMinimum = 10;
+			const inclusiveMinimum = 10
 			const schema = Schema.Struct({
 				numberGreaterThanOrEqualTo: Schema.Number.pipe(
-					Schema.greaterThanOrEqualTo(inclusiveMinimum),
+						Schema.greaterThanOrEqualTo(inclusiveMinimum),
 				),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
 				numberGreaterThanOrEqualTo: {
 					required: true,
 					min: inclusiveMinimum,
 				},
-			});
-		});
+			})
+		})
 
 		test('LessThanSchemaId: a number less than <exclusiveMaximum>', () => {
-			const exclusiveMaximum = 7;
+			const exclusiveMaximum = 7
 			const schema = Schema.Struct({
 				numberLessThan: Schema.Number.pipe(Schema.lessThan(exclusiveMaximum)),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
 				numberLessThan: {
 					required: true,
 					max: exclusiveMaximum,
 				},
-			});
-		});
+			})
+		})
 
 		test('LessThanOrEqualToSchemaId: a number less than or equal to <inclusiveMaximum>', () => {
-			const inclusiveMaximum = 42;
+			const inclusiveMaximum = 42
 			const schema = Schema.Struct({
 				numberLessThanOrEqualTo: Schema.Number.pipe(
-					Schema.lessThanOrEqualTo(inclusiveMaximum),
+						Schema.lessThanOrEqualTo(inclusiveMaximum),
 				),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
 				numberLessThanOrEqualTo: {
 					required: true,
 					max: inclusiveMaximum,
 				},
-			});
-		});
+			})
+		})
 
 		test('BetweenSchemaId: a number between <minimum> and <maximum>', () => {
-			const inclusiveMinimum = 3;
-			const inclusiveMaximum = 7;
+			const inclusiveMinimum = 3
+			const inclusiveMaximum = 7
 			const schema = Schema.Struct({
 				numberBetween: Schema.Number.pipe(
-					Schema.between(inclusiveMinimum, inclusiveMaximum),
+						Schema.between(inclusiveMinimum, inclusiveMaximum),
 				),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
 				numberBetween: {
 					required: true,
 					max: inclusiveMaximum,
 					min: inclusiveMinimum,
 				},
-			});
-		});
+			})
+		})
 
 		test('MultipleOfSchemaId: a number divisible by <positiveDivisor>', () => {
-			const divisor = 3;
+			const divisor = 3
 			const schema = Schema.Struct({
 				numberBetween: Schema.Number.pipe(Schema.multipleOf(divisor)),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
 				numberBetween: {
 					required: true,
 					step: divisor,
 				},
-			});
-		});
-	});
+			})
+		})
+	})
 
 	describe('BigInt ', () => {
 		test('with no refinement', () => {
-			const schema = Schema.Struct({ bigInt: Schema.BigIntFromSelf });
+			const schema = Schema.Struct({bigInt: Schema.BigIntFromSelf})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-			>({ bigInt: { required: true } });
-		});
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({bigInt: {required: true}})
+		})
 
 		test('with optional', () => {
 			const schema = Schema.Struct({
 				optionalBigInt: Schema.optional(Schema.BigIntFromSelf),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-			>({ optionalBigInt: { required: false } });
-		});
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({optionalBigInt: {required: false}})
+		})
 
 		test('GreaterThanBigIntSchemaId: a bigint greater than <exclusiveMinimum>', () => {
-			const exclusiveMinimum = 5n;
+			const exclusiveMinimum = 5n
 			const schema = Schema.Struct({
 				bigIntGreaterThan: Schema.BigIntFromSelf.pipe(
-					Schema.greaterThanBigInt(exclusiveMinimum),
+						Schema.greaterThanBigInt(exclusiveMinimum),
 				),
-			});
+			})
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
 				bigIntGreaterThan: {
 					required: true,
-					min: exclusiveMinimum as unknown as number
+					min: exclusiveMinimum as unknown as number,
 				},
-			});
-		});
+			})
+		})
 
-		
-	});
+		test('GreaterThanOrEqualToBigIntSchemaId: a bigint greater than or equal to <inclusiveMinimum>', () => {
+			const inclusiveMinimumBigInt = 10n
+			const schema = Schema.Struct({
+				bigIntGreaterThanOrEqualTo: Schema.BigIntFromSelf.pipe(
+						Schema.greaterThanOrEqualToBigInt(inclusiveMinimumBigInt),
+				),
+			})
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({
+				bigIntGreaterThanOrEqualTo: {
+					required: true,
+					min: inclusiveMinimumBigInt as unknown as number,
+				},
+			})
+		})
+
+	})
 
 	const schema = Schema.Struct({
 		text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
 		number: Schema.Number.pipe(
-			Schema.greaterThanOrEqualTo(1),
-			Schema.lessThanOrEqualTo(10),
-			Schema.multipleOf(2, { message: () => 'step' }),
+				Schema.greaterThanOrEqualTo(1),
+				Schema.lessThanOrEqualTo(10),
+				Schema.multipleOf(2, {message: () => 'step'}),
 		),
 		timestamp: Schema.optionalWith(
-			Schema.Date.pipe(Schema.betweenDate(new Date(1), new Date())),
-			{
-				default: () => new Date(),
-			},
+				Schema.Date.pipe(Schema.betweenDate(new Date(1), new Date())),
+				{
+					default: () => new Date(),
+				},
 		),
 		flag: Schema.optional(Schema.Boolean),
 		literalFlag: Schema.Literal(true),
 		options: Schema.Array(Schema.Literal('a', 'b', 'c')).pipe(
-			Schema.minItems(3),
+				Schema.minItems(3),
 		),
-	});
+	})
 
 	const constraint = {
 		text: {
@@ -483,62 +503,62 @@ describe('constraint', () => {
 			required: true,
 			pattern: 'a|b|c',
 		},
-	} satisfies Record<string, Constraint>;
+	} satisfies Record<string, Constraint>
 
 	test('case 1', () => {
-		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
-	});
+		expect(getEffectSchemaConstraint(schema)).toEqual(constraint)
+	})
 
 	test('Non-object schemas will throw an error', () => {
 		// @ts-expect-error We want to test that non-object schemas throw an error
-		expect(() => getEffectSchemaConstraint(Schema.String)).toThrow();
+		expect(() => getEffectSchemaConstraint(Schema.String)).toThrow()
 		expect(() =>
-			// @ts-expect-error We want to test that non-object schemas throw an error
-			getEffectSchemaConstraint(Schema.Array(Schema.String)),
-		).toThrow();
-	});
+				// @ts-expect-error We want to test that non-object schemas throw an error
+				getEffectSchemaConstraint(Schema.Array(Schema.String)),
+		).toThrow()
+	})
 
 	test('Intersection is supported', () => {
 		// Intersection is supported
 		expect(
-			getEffectSchemaConstraint(
-				Schema.Struct({
-					...schema.fields,
-					text: Schema.optional(Schema.String),
-					something: Schema.String,
-				}),
-			),
+				getEffectSchemaConstraint(
+						Schema.Struct({
+							...schema.fields,
+							text: Schema.optional(Schema.String),
+							something: Schema.String,
+						}),
+				),
 		).toEqual({
 			...constraint,
-			text: { required: false },
-			something: { required: true },
-		});
-	});
+			text: {required: false},
+			something: {required: true},
+		})
+	})
 
 	test('Union is supported', () => {
 		// Union is supported
 		const baseSchema = Schema.Struct({
 			qux: Schema.String.pipe(Schema.minLength(1)),
-		});
+		})
 		expect(
-			getEffectSchemaConstraint(
-				Schema.Union(
-					Schema.Struct({
-						...baseSchema.fields,
-						type: Schema.Literal('a'),
-						foo: Schema.String.pipe(Schema.minLength(1)),
-						baz: Schema.String.pipe(Schema.minLength(1)),
-					}),
-					Schema.Struct({
-						...baseSchema.fields,
-						type: Schema.Literal('b'),
-						bar: Schema.String.pipe(Schema.minLength(1)),
-						baz: Schema.String.pipe(Schema.minLength(1)),
-					}),
+				getEffectSchemaConstraint(
+						Schema.Union(
+								Schema.Struct({
+									...baseSchema.fields,
+									type: Schema.Literal('a'),
+									foo: Schema.String.pipe(Schema.minLength(1)),
+									baz: Schema.String.pipe(Schema.minLength(1)),
+								}),
+								Schema.Struct({
+									...baseSchema.fields,
+									type: Schema.Literal('b'),
+									bar: Schema.String.pipe(Schema.minLength(1)),
+									baz: Schema.String.pipe(Schema.minLength(1)),
+								}),
+						),
 				),
-			),
 		).toEqual({
-			type: { required: true },
+			type: {required: true},
 			foo: {
 				required: false,
 				minLength: 1,
@@ -555,26 +575,26 @@ describe('constraint', () => {
 				required: true,
 				minLength: 1,
 			},
-		});
+		})
 
 		// Discriminated union is also supported
 		expect(
-			getEffectSchemaConstraint(
-				Schema.Union(
-					Schema.Struct({
-						...baseSchema.fields,
-						foo: Schema.String.pipe(Schema.minLength(1)),
-						baz: Schema.String.pipe(Schema.minLength(1)),
-					}).pipe(Schema.attachPropertySignature('type', 'a')),
-					Schema.Struct({
-						...baseSchema.fields,
-						bar: Schema.String.pipe(Schema.minLength(1)),
-						baz: Schema.String.pipe(Schema.minLength(1)),
-					}).pipe(Schema.attachPropertySignature('type', 'b')),
+				getEffectSchemaConstraint(
+						Schema.Union(
+								Schema.Struct({
+									...baseSchema.fields,
+									foo: Schema.String.pipe(Schema.minLength(1)),
+									baz: Schema.String.pipe(Schema.minLength(1)),
+								}).pipe(Schema.attachPropertySignature('type', 'a')),
+								Schema.Struct({
+									...baseSchema.fields,
+									bar: Schema.String.pipe(Schema.minLength(1)),
+									baz: Schema.String.pipe(Schema.minLength(1)),
+								}).pipe(Schema.attachPropertySignature('type', 'b')),
+						),
 				),
-			),
 		).toEqual({
-			type: { required: true },
+			type: {required: true},
 			foo: {
 				required: false,
 				minLength: 1,
@@ -591,8 +611,8 @@ describe('constraint', () => {
 				required: true,
 				minLength: 1,
 			},
-		});
-	});
+		})
+	})
 
 	test('Recursive schema should be supported too', () => {
 		// Recursive schema should be supported too
@@ -605,9 +625,9 @@ describe('constraint', () => {
 		const categorySchema = Schema.Struct({
 			name: Schema.String,
 			subcategories: Schema.Array(
-				Schema.suspend((): Schema.Schema<Category> => categorySchema),
+					Schema.suspend((): Schema.Schema<Category> => categorySchema),
 			),
-		});
+		})
 
 		expect(getEffectSchemaConstraint(categorySchema)).toEqual({
 			name: {
@@ -633,33 +653,33 @@ describe('constraint', () => {
 				required: true,
 				multiple: true,
 			},
-		});
-	});
+		})
+	})
 
 	test('getEffectSchemaConstraint', () => {
 		type Condition =
-			| {
-					readonly type: 'filter';
-			  }
-			| {
-					readonly type: 'group';
-					readonly conditions: ReadonlyArray<Condition>;
-			  };
+				| {
+			readonly type: 'filter';
+		}
+				| {
+			readonly type: 'group';
+			readonly conditions: ReadonlyArray<Condition>;
+		};
 
 		const ConditionSchema: Schema.Schema<Condition> = Schema.Union(
-			Schema.Struct({
-				type: Schema.Literal('filter'),
-			}),
-			Schema.Struct({
-				type: Schema.Literal('group'),
-				conditions: Schema.Array(Schema.suspend(() => ConditionSchema)),
-			}),
-		);
+				Schema.Struct({
+					type: Schema.Literal('filter'),
+				}),
+				Schema.Struct({
+					type: Schema.Literal('group'),
+					conditions: Schema.Array(Schema.suspend(() => ConditionSchema)),
+				}),
+		)
 
 		const FilterSchema = Schema.Struct({
 			type: Schema.Literal('group'),
 			conditions: Schema.Array(ConditionSchema),
-		});
+		})
 
 		expect(getEffectSchemaConstraint(FilterSchema)).toEqual({
 			type: {
@@ -685,6 +705,6 @@ describe('constraint', () => {
 				required: true,
 				multiple: true,
 			},
-		});
-	});
-});
+		})
+	})
+})
