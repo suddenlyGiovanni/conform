@@ -466,4 +466,37 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle BetweenBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
+
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.BetweenBigIntSchemaId)),
+		Option.andThen(() =>
+			AST.getAnnotation<{
+				max: bigint;
+				min: bigint;
+			}>(refinement, Schema.BetweenBigIntSchemaId),
+		),
+		Option.filter(
+			pipe(
+				Predicate.hasProperty('max'),
+				Predicate.and(Predicate.hasProperty('max')),
+			),
+		),
+		Option.filter(
+			Predicate.struct({
+				max: Predicate.isBigInt,
+				min: Predicate.isBigInt,
+			}),
+		),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ max, min }) => {
+				mutableConstraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+				mutableConstraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+				return Option.void;
+			},
+		}),
+	);
 }
