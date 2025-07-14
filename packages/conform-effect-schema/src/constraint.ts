@@ -6,7 +6,10 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
-import { GreaterThanOrEqualToDateSchemaId } from 'effect/src/Schema';
+import {
+	GreaterThanOrEqualToDateSchemaId,
+	LessThanOrEqualToDateSchemaId,
+} from 'effect/src/Schema';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -566,6 +569,26 @@ function extractRefinementConstraints(
 			AST.getAnnotation<{
 				max: Date;
 			}>(refinement, Schema.LessThanDateSchemaId),
+		),
+		Option.filter(Predicate.hasProperty('max')),
+		Option.filter(Predicate.struct({ max: Predicate.isDate })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ max }) => {
+				mutableConstraint.max = max.toISOString().split('T')[0];
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle LessThanOrEqualToDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanOrEqualToDate(new Date(1)))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.LessThanOrEqualToDateSchemaId)),
+		Option.andThen(() =>
+			AST.getAnnotation<{
+				max: Date;
+			}>(refinement, Schema.LessThanOrEqualToDateSchemaId),
 		),
 		Option.filter(Predicate.hasProperty('max')),
 		Option.filter(Predicate.struct({ max: Predicate.isDate })),
