@@ -1,7 +1,6 @@
 import type { Constraint } from '@conform-to/dom';
 import { getEffectSchemaConstraint } from '../src/constraint';
 import * as Schema from 'effect/Schema';
-
 import { describe, expect, test } from 'vitest';
 
 describe('constraint', () => {
@@ -519,6 +518,44 @@ describe('constraint', () => {
 				optionalDate: {
 					required: false,
 				},
+			});
+		});
+
+		describe('with refinements', () => {
+			test('GreaterThanDateSchemaId: a date after <minExclusiveDate>', () => {
+				const minExclusiveDate = new Date('2020-01-01');
+				const schema = Schema.Struct({
+					dateGreaterThanDate: Schema.DateFromSelf.pipe(
+						Schema.greaterThanDate(minExclusiveDate),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					dateGreaterThanDate: {
+						required: true,
+						min: '2020-01-01', // yyyy-mm-dd format
+					},
+				});
+			});
+
+			test('GreaterThanOrEqualToDateSchemaId: a date after or equal to <minInclusiveDate>', () => {
+				const minInclusiveDate = new Date('2022-01-01');
+				const schema = Schema.Struct({
+					dateGreaterThanOrEqualToDate: Schema.DateFromSelf.pipe(
+						Schema.greaterThanOrEqualToDate(minInclusiveDate),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					dateGreaterThanOrEqualToDate: {
+						required: true,
+						min: '2022-01-01', // yyyy-mm-dd format
+					},
+				});
 			});
 		});
 	});
