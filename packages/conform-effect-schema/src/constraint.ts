@@ -7,6 +7,7 @@ import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
 import {
+	BetweenDateSchemaId,
 	GreaterThanOrEqualToDateSchemaId,
 	LessThanOrEqualToDateSchemaId,
 } from 'effect/src/Schema';
@@ -15,10 +16,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
 ): Record<string, Constraint> {
 	const isStruct = Schema.is(
-		Schema.Struct<Fields>(
-			// cast here because we only want to check that the input schema is a Struct,
-			{} as any,
-		),
+		Schema.Struct<Fields>({} as any), // cast here because we only want to check that the input schema is a Struct,
 	);
 
 	const result: Record<string, Constraint> = {};
@@ -595,6 +593,38 @@ function extractRefinementConstraints(
 		Option.match({
 			onNone: () => Option.none(),
 			onSome: ({ max }) => {
+				mutableConstraint.max = max.toISOString().split('T')[0];
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle BetweenDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.betweenDate(new Date(1), new Date(2)))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.BetweenDateSchemaId)),
+		Option.andThen(() =>
+			AST.getAnnotation<{
+				max: Date;
+				min: Date;
+			}>(refinement, Schema.BetweenDateSchemaId),
+		),
+		Option.filter(
+			pipe(
+				Predicate.hasProperty('min'),
+				Predicate.and(Predicate.hasProperty('max')),
+			),
+		),
+		Option.filter(
+			Predicate.struct({
+				min: Predicate.isDate,
+				max: Predicate.isDate,
+			}),
+		),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ max, min }) => {
+				mutableConstraint.min = min.toISOString().split('T')[0];
 				mutableConstraint.max = max.toISOString().split('T')[0];
 				return Option.void;
 			},
