@@ -593,6 +593,26 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test('BetweenDateSchemaId: a date between <minInclusiveDate> and <maxInclusiveDate>', () => {
+				const minInclusiveDate = new Date('2001-01-01');
+				const maxInclusiveDate = new Date('2021-01-01');
+				const schema = Schema.Struct({
+					dateBetweenDate: Schema.DateFromSelf.pipe(
+						Schema.betweenDate(minInclusiveDate, maxInclusiveDate),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					dateBetweenDate: {
+						required: true,
+						min: '2001-01-01',
+						max: '2021-01-01',
+					},
+				});
+			});
 		});
 	});
 
