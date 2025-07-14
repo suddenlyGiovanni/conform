@@ -6,6 +6,7 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
+import { GreaterThanOrEqualToDateSchemaId } from 'effect/src/Schema';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -60,6 +61,24 @@ function processAST(
 		mutableConstraint.required = true;
 	} else if (AST.isBooleanKeyword(ast)) {
 		// it's a Schema.Boolean with no transformations
+	} else if (AST.isDeclaration(ast)) {
+		// it's a declaration
+		// match the declaration type e.g Schema.DateFromSelf
+		AST.getSchemaIdAnnotation(ast).pipe(
+			Option.match({
+				onNone: () => {},
+				onSome: (schemaId) => {
+					switch (schemaId) {
+						case Schema.DateFromSelfSchemaId:
+							mutableConstraint.required = true;
+							break;
+						default:
+							// do nothing for other schema IDs
+							break;
+					}
+				},
+			}),
+		);
 	} else if (AST.isRefinement(ast)) {
 		// handle refinements
 		extractRefinementConstraints(ast, mutableConstraint);
@@ -468,7 +487,6 @@ function extractRefinementConstraints(
 	);
 
 	// handle BetweenBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
-
 	pipe(
 		maybeSchemaIdAnnotation,
 		Option.filter(Equal.equals(Schema.BetweenBigIntSchemaId)),
@@ -495,6 +513,46 @@ function extractRefinementConstraints(
 			onSome: ({ max, min }) => {
 				mutableConstraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
 				mutableConstraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.GreaterThanDateSchemaId)),
+		Option.andThen(() =>
+			AST.getAnnotation<{
+				min: Date;
+			}>(refinement, Schema.GreaterThanDateSchemaId),
+		),
+		Option.filter(Predicate.hasProperty('min')),
+		Option.filter(Predicate.struct({ min: Predicate.isDate })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ min }) => {
+				mutableConstraint.min = min.toISOString().split('T')[0];
+				return Option.void;
+			},
+		}),
+	);
+
+	// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.GreaterThanOrEqualToDateSchemaId)),
+		Option.andThen(() =>
+			AST.getAnnotation<{
+				min: Date;
+			}>(refinement, Schema.GreaterThanOrEqualToDateSchemaId),
+		),
+		Option.filter(Predicate.hasProperty('min')),
+		Option.filter(Predicate.struct({ min: Predicate.isDate })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ min }) => {
+				mutableConstraint.min = min.toISOString().split('T')[0];
 				return Option.void;
 			},
 		}),
