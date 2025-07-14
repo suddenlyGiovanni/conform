@@ -575,6 +575,24 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test('LessThanDateSchemaId: a date before or equal to <maxInclusiveDate>', () => {
+				const maxInclusiveDate = new Date('1911-01-01');
+				const schema = Schema.Struct({
+					dateLessThanOrEqualToDate: Schema.DateFromSelf.pipe(
+						Schema.lessThanOrEqualToDate(maxInclusiveDate),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					dateLessThanOrEqualToDate: {
+						required: true,
+						max: '1911-01-01', // yyyy-mm-dd format
+					},
+				});
+			});
 		});
 	});
 
