@@ -616,6 +616,28 @@ describe('constraint', () => {
 		});
 	});
 
+	describe('Nested Schemas', () => {
+		test.todo('Struct', () => {
+			const schema = Schema.Struct({
+				nested: Schema.Struct({
+					key: Schema.String.pipe(Schema.minLength(1)),
+				}),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<string, Constraint>
+			>({
+				nested: {
+					required: true,
+				},
+				'nested.key': {
+					required: true,
+					minLength: 1,
+				},
+			});
+		});
+	});
+
 	const schema = Schema.Struct({
 		text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
 		number: Schema.Number.pipe(

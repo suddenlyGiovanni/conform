@@ -6,11 +6,6 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
-import {
-	BetweenDateSchemaId,
-	GreaterThanOrEqualToDateSchemaId,
-	LessThanOrEqualToDateSchemaId,
-} from 'effect/src/Schema';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
