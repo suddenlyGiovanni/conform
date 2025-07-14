@@ -557,4 +557,24 @@ function extractRefinementConstraints(
 			},
 		}),
 	);
+
+	// handle LessThanDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanDate(new Date(1)))
+	pipe(
+		maybeSchemaIdAnnotation,
+		Option.filter(Equal.equals(Schema.LessThanDateSchemaId)),
+		Option.andThen(() =>
+			AST.getAnnotation<{
+				max: Date;
+			}>(refinement, Schema.LessThanDateSchemaId),
+		),
+		Option.filter(Predicate.hasProperty('max')),
+		Option.filter(Predicate.struct({ max: Predicate.isDate })),
+		Option.match({
+			onNone: () => Option.none(),
+			onSome: ({ max }) => {
+				mutableConstraint.max = max.toISOString().split('T')[0];
+				return Option.void;
+			},
+		}),
+	);
 }

@@ -557,6 +557,24 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test('LessThanDateSchemaId: a date before <maxExclusiveDate>', () => {
+				const maxExclusiveDate = new Date('1969-01-01');
+				const schema = Schema.Struct({
+					dateLessThanDate: Schema.DateFromSelf.pipe(
+						Schema.lessThanDate(maxExclusiveDate),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					dateLessThanDate: {
+						required: true,
+						max: '1969-01-01', // yyyy-mm-dd format
+					},
+				});
+			});
 		});
 	});
 
