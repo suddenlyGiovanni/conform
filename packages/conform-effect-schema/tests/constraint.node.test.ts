@@ -32,6 +32,18 @@ describe('constraint', () => {
 			>({ literalString: { required: true } });
 		});
 
+		test('with no refinement', () => {
+			expect(
+				getEffectSchemaConstraint(
+					Schema.Struct({
+						requiredText: Schema.String,
+					}),
+				),
+			).toEqual<Record<string, Constraint>>({
+				requiredText: { required: true },
+			});
+		});
+
 		describe('with refinements', () => {
 			test('MinLengthSchemaId: a string at least <number> character(s) long', () => {
 				const minLength = 1;
@@ -685,6 +697,22 @@ describe('constraint', () => {
 				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
 				literalBoolean: { required: true },
+			});
+		});
+	});
+
+	describe('Array', () => {
+		test.todo('with no refinement', () => {
+			const schema = Schema.Struct({ array: Schema.Array(Schema.String) });
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema> | string, Constraint>
+			>({
+				array: {
+					required: true,
+					multiple: true,
+				},
+				'array[]': { required: true },
 			});
 		});
 	});
