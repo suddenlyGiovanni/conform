@@ -65,6 +65,14 @@ function processAST(
 		case 'TemplateLiteral':
 		case 'Enums':
 			break;
+		case 'TupleType': {
+			// Schema.Array & Schema.Tuple
+			// we need to distinguish between Schema.Array and Schema.Tuple
+			// Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
+			// need to set the filed name e.g. {'list[]': { required: true }}
+
+			break;
+		}
 		case 'PropertySignatureDeclaration': {
 			// only PropertySignatureDeclarations can be decorated with optionality, else Schemas are always required!
 			mutableConstraint.required = !ast.isOptional;
