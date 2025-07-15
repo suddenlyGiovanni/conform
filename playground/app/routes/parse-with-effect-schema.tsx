@@ -2,10 +2,16 @@ import {
 	type LoaderFunctionArgs,
 	type ActionFunctionArgs,
 } from '@remix-run/node';
+import { pipe } from 'effect';
+import * as ParseResult from 'effect/ParseResult';
+import * as Record from 'effect/Record';
 import { z } from 'zod';
+import * as Schema from 'effect/Schema';
+import * as Either from 'effect/Either';
 import { Form, useActionData } from '@remix-run/react';
 
 import { Playground } from '~/components';
+import { formatPaths } from '@conform-to/dom';
 
 /**
  * A simple delay function that returns a promise that resolves after the specified time.
@@ -38,7 +44,7 @@ async function delay(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 // lets mock this function by introducing an asybc delay and returning a success message
-async function sendMessage(data: z.infer<typeof schema>) {
+async function sendMessage(data: Schema.Schema.Type<typeof schema>) {
 	await delay(2000);
 	const payload = {
 		sent: true,
@@ -50,7 +56,7 @@ async function sendMessage(data: z.infer<typeof schema>) {
 	return payload;
 }
 
-const schema = z.object({
+const _schema = z.object({
 	// The preprocess step is required for zod to perform the required check properly
 	// as the value of an empty input is usually an empty string
 	email: z.preprocess(
@@ -63,6 +69,14 @@ const schema = z.object({
 			.string({ required_error: 'Message is required' })
 			.min(10, 'Message is too short')
 			.max(100, 'Message is too long'),
+	),
+});
+
+const schema = Schema.Struct({
+	email: Schema.String.annotations({ message: () => 'Email is invalid' }),
+	message: Schema.String.pipe(
+		Schema.minLength(10, { message: () => 'Message us too short' }),
+		Schema.maxLength(100, { message: () => 'Message is too long' }),
 	),
 });
 
@@ -79,34 +93,43 @@ export async function action({ request }: ActionFunctionArgs) {
 
 	// Construct an object using `Object.fromEntries`
 	const payload = Object.fromEntries(formData);
-	// Then parse it with zod
-	const result = schema.safeParse(payload);
+	const decodeForm = Schema.decodeUnknownEither(schema);
 
 	// Return the error to the client if the data is not valid
-	if (!result.success) {
-		const error = result.error.flatten();
+	return pipe(
+		payload,
+		decodeForm,
+		Either.match({
+			onLeft: (parseError) => {
+				const error = parseError.pipe(
+					ParseResult.ArrayFormatter.formatErrorSync,
+					Record.fromIterableWith((issue) => [
+						formatPaths(issue.path as Array<string | number>),
+						[issue.message],
+					]),
+				);
 
-		return {
-			payload,
-			formErrors: error.formErrors,
-			fieldErrors: error.fieldErrors,
-		};
-	}
+				return {
+					payload,
+					formErrors: error.formErrors,
+					fieldErrors: error.fieldErrors,
+				};
+			},
+			onRight: async (value) => {
+				// We will skip the implementation as it is not important to the tutorial
+				const message = await sendMessage(value);
 
-	// We will skip the implementation as it is not important to the tutorial
-	const message = await sendMessage(result.data);
-
-	// Return a form error if the message is not sent
-	if (!message.sent) {
-		return {
-			payload,
-			formErrors: ['Failed to send the message. Please try again later.'],
-			fieldErrors: {},
-		};
-	}
-
-	// return redirect('/messages')
-	return null;
+				// Return a form error if the message is not sent
+				if (!message.sent) {
+					return {
+						payload,
+						formErrors: ['Failed to send the message. Please try again later.'],
+						fieldErrors: {},
+					};
+				}
+			},
+		}),
+	);
 }
 
 export default function Example() {
