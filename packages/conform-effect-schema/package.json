@@ -3,13 +3,13 @@
 	"description": "Conform helpers for integrating with Effect Schema.",
 	"homepage": "https://conform.guide",
 	"license": "MIT",
-	"version": "1.7.2",
+	"version": "1.8.1",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
-	"types": "./dist/index.d.ts",
+	"types": "./dist/src/index.d.ts",
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
+			"types": "./dist/src/index.d.ts",
 			"module": "./dist/index.mjs",
 			"import": "./dist/index.mjs",
 			"require": "./dist/index.js",
