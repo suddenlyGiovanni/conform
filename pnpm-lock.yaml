@@ -772,8 +772,8 @@ importers:
         specifier: workspace:*
         version: link:../conform-dom
       effect:
-        specifier: ^3.16.10
-        version: 3.16.10
+        specifier: ^3.16.13
+        version: 3.16.13
     devDependencies:
       '@babel/core':
         specifier: ^7.17.8
@@ -7142,6 +7142,9 @@ packages:
 
   effect@3.16.10:
     resolution: {integrity: sha512-F0hDCOLax7i3SOy5wQnJZTzKP9aGg8OQNUJ2s8YoL5fVcCgRCgE+Ky+Hfz5qC7LgVVOWDDbRpCh5MPB20wRI8Q==}
+
+  effect@3.16.13:
+    resolution: {integrity: sha512-xJDgOhD7+3qIY1d8PGfkaPZMfmdJuSp2XAQgc9dVF8pSl1FJL6WK4ZUpMh177R+GH8XgPloT8dlZsEYUYDo1Ag==}
 
   electron-to-chromium@1.4.758:
     resolution: {integrity: sha512-/o9x6TCdrYZBMdGeTifAP3wlF/gVT+TtWJe3BSmtNh92Mw81U9hrYwW9OAGUh+sEOX/yz5e34sksqRruZbjYrw==}
@@ -19361,6 +19364,11 @@ snapshots:
   ee-first@1.1.1: {}
 
   effect@3.16.10:
+    dependencies:
+      '@standard-schema/spec': 1.0.0
+      fast-check: 3.23.2
+
+  effect@3.16.13:
     dependencies:
       '@standard-schema/spec': 1.0.0
       fast-check: 3.23.2

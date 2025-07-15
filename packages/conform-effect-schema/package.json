@@ -43,7 +43,7 @@
 		"@conform-to/dom": "workspace:*"
 	},
 	"peerDependencies": {
-		"effect": "^3.16.10"
+		"effect": "^3.16.13"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.17.8",
