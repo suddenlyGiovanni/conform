@@ -1,7 +1,7 @@
 import type { Constraint } from '@conform-to/dom';
 import { getEffectSchemaConstraint } from '../src/constraint';
 import * as Schema from 'effect/Schema';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, expectTypeOf, test } from 'vitest';
 
 describe('constraint', () => {
 	describe('String', () => {
@@ -286,7 +286,7 @@ describe('constraint', () => {
 			>({ number: { required: true } });
 		});
 
-		test('with optional', () => {
+		test('optional', () => {
 			const schema = Schema.Struct({
 				optionalNumber: Schema.optional(Schema.Number),
 			});
@@ -294,6 +294,19 @@ describe('constraint', () => {
 			expect(getEffectSchemaConstraint(schema)).toEqual<
 				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({ optionalNumber: { required: false } });
+		});
+
+		test('literal', () => {
+			const literal = 42;
+			const schema = Schema.Struct({ literalNumber: Schema.Literal(literal) });
+
+			expectTypeOf<typeof schema.Type>().toEqualTypeOf<{
+				readonly literalNumber: 42;
+			}>();
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({ literalNumber: { required: true } });
 		});
 
 		test('GreaterThanSchemaId: a number greater than <exclusiveMinimum>', () => {
