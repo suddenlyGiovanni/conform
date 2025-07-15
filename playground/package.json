@@ -10,6 +10,7 @@
 	},
 	"dependencies": {
 		"@conform-to/dom": "workspace:*",
+		"@conform-to/effect-schema": "workspace:*",
 		"@conform-to/react": "workspace:*",
 		"@conform-to/validitystate": "workspace:*",
 		"@conform-to/yup": "workspace:*",

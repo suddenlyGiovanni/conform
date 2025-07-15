@@ -971,6 +971,9 @@ importers:
       '@conform-to/dom':
         specifier: workspace:*
         version: link:../packages/conform-dom
+      '@conform-to/effect-schema':
+        specifier: workspace:*
+        version: link:../packages/conform-effect-schema
       '@conform-to/react':
         specifier: workspace:*
         version: link:../packages/conform-react
