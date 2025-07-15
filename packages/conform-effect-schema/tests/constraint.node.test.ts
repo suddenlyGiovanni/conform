@@ -435,6 +435,19 @@ describe('constraint', () => {
 			>({ optionalBigInt: { required: false } });
 		});
 
+		test('literal', () => {
+			const literal = 42n;
+			const schema = Schema.Struct({ literalBigInt: Schema.Literal(literal) });
+
+			expectTypeOf<typeof schema.Type>().toEqualTypeOf<{
+				readonly literalBigInt: 42n;
+			}>();
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({ literalBigInt: { required: true } });
+		});
+
 		test('GreaterThanBigIntSchemaId: a bigint greater than <exclusiveMinimum>', () => {
 			const exclusiveMinimum = 5n;
 			const schema = Schema.Struct({
