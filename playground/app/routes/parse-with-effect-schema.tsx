@@ -9,7 +9,12 @@ import {
 	parseWithEffectSchema,
 	getEffectSchemaConstraint,
 } from '@conform-to/effect-schema';
-import { useForm } from '@conform-to/react';
+import {
+	useForm,
+	getFormProps,
+	getInputProps,
+	getTextareaProps,
+} from '@conform-to/react';
 
 import { Playground } from '~/components';
 
@@ -118,46 +123,19 @@ export default function Example() {
 	});
 
 	return (
-		<Form
-			method="post"
-			id={form.id}
-			aria-describedby={form.errors ? form.errorId : undefined}
-			onSubmit={form.onSubmit}
-			noValidate={form.noValidate}
-		>
+		<Form method="post" {...getFormProps(form)}>
 			<div id={form.errorId}>{form.errors}</div>
 
 			<Playground title="Mutliple Errors" result={lastResult}>
 				<div>
 					<label htmlFor={fields.email.id}>Email</label>
-					<input
-						id={fields.email.id}
-						type="email"
-						name={fields.email.name}
-						defaultValue={fields.email.initialValue}
-						required={fields.email.required}
-						aria-invalid={fields.email.errors ? true : undefined}
-						aria-describedby={
-							fields.email.errors ? fields.email.errorId : undefined
-						}
-					/>
+					<input {...getInputProps(fields.email, { type: 'email' })} />
 					<div id={fields.email.errorId}>{fields.email.errors}</div>
 				</div>
 
 				<div>
 					<label htmlFor={fields.message.id}>Message</label>
-					<textarea
-						id={fields.message.id}
-						name={fields.message.name}
-						defaultValue={fields.message.initialValue}
-						required={fields.message.required}
-						minLength={fields.message.minLength}
-						maxLength={fields.message.maxLength}
-						aria-invalid={fields.message.errors ? true : undefined}
-						aria-describedby={
-							fields.message.errors ? fields.message.errorId : undefined
-						}
-					/>
+					<textarea {...getTextareaProps(fields.message)} />
 					<div id={fields.message.errorId}>{fields.message.errors}</div>
 				</div>
 			</Playground>
