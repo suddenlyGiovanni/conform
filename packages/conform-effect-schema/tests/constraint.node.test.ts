@@ -616,6 +616,46 @@ describe('constraint', () => {
 		});
 	});
 
+	describe('Boolean', () => {
+		test('with optional', () => {
+			const schema = Schema.Struct({
+				optionalBoolean: Schema.optional(Schema.Boolean),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({
+				optionalBoolean: { required: false },
+			});
+		});
+
+		test('required', () => {
+			const schema = Schema.Struct({
+				requiredBoolean: Schema.Boolean,
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({
+				requiredBoolean: { required: true },
+			});
+		});
+
+		test('with literal', () => {
+			const schema = Schema.Struct({
+				literalBoolean: Schema.Literal(true),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({
+				literalBoolean: {
+					required: true,
+				},
+			});
+		});
+	});
+
 	describe('Nested Schemas', () => {
 		test.todo('Struct', () => {
 			const schema = Schema.Struct({
