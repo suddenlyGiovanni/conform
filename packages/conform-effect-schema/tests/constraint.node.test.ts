@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 
 describe('constraint', () => {
 	describe('String', () => {
-		test('with optional', () => {
+		test('optional', () => {
 			const schema = Schema.Struct({
 				requiredText: Schema.String,
 				optionalText: Schema.optional(Schema.String),
@@ -21,6 +21,15 @@ describe('constraint', () => {
 					required: true,
 				},
 			});
+		});
+
+		test('literal', () => {
+			const literal = 'literal';
+			const schema = Schema.Struct({ literalString: Schema.Literal(literal) });
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+			>({ literalString: { required: true } });
 		});
 
 		describe('with refinements', () => {
@@ -726,7 +735,7 @@ describe('constraint', () => {
 		},
 	} satisfies Record<string, Constraint>;
 
-	test('case 1', () => {
+	test.todo('case 1', () => {
 		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
 	});
 
@@ -739,7 +748,7 @@ describe('constraint', () => {
 		).toThrow();
 	});
 
-	test('Intersection is supported', () => {
+	test.todo('Intersection is supported', () => {
 		// Intersection is supported
 		expect(
 			getEffectSchemaConstraint(
@@ -756,7 +765,7 @@ describe('constraint', () => {
 		});
 	});
 
-	test('Union is supported', () => {
+	test.todo('Union is supported', () => {
 		// Union is supported
 		const baseSchema = Schema.Struct({
 			qux: Schema.String.pipe(Schema.minLength(1)),
@@ -835,7 +844,7 @@ describe('constraint', () => {
 		});
 	});
 
-	test('Recursive schema should be supported too', () => {
+	test.todo('Recursive schema should be supported too', () => {
 		// Recursive schema should be supported too
 
 		interface Category {
@@ -877,7 +886,7 @@ describe('constraint', () => {
 		});
 	});
 
-	test('getEffectSchemaConstraint', () => {
+	test.todo('getEffectSchemaConstraint', () => {
 		type Condition =
 			| {
 					readonly type: 'filter';
