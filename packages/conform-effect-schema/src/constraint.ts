@@ -7,7 +7,6 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
-import * as Match from 'effect/Match';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -42,70 +41,66 @@ function processAST(
 	ast: Schema.Struct.Field['ast'],
 	mutableConstraint: Constraint,
 ): void {
-	// should I provide defaults for mutableConstraint?
-	if (ast._tag === 'PropertySignatureDeclaration') {
-		// handle PropertySignatureDeclaration
-		mutableConstraint.required = !ast.isOptional;
-	} else if (ast._tag === 'PropertySignatureTransformation') {
-		// handle PropertySignatureTransformation
-	} else if (AST.isStringKeyword(ast)) {
-		// it's a Schema.String with no transformations
-		mutableConstraint.required = true;
-	} else if (AST.isNumberKeyword(ast)) {
-		// it's a Schema.Number with no transformations
-		mutableConstraint.required = true;
-	} else if (AST.isBigIntKeyword(ast)) {
-		// it's a Schema.BigInt with no transformations
-		mutableConstraint.required = true;
-	} else if (AST.isBooleanKeyword(ast)) {
-		// it's a Schema.Boolean with no transformations
-		mutableConstraint.required = true;
-	} else if (AST.isLiteral(ast)) {
-		/**
-		 * Literal schemas represent a literal type. You can use them to specify exact values that a type must have.
-		 * Literals can be of the following types:
-		 * - string
-		 * - number
-		 * - boolean
-		 * - null
-		 * - bigint
-		 */
-		mutableConstraint.required = pipe(
-			ast.literal,
-			Match.value,
-			Match.withReturnType<{
-				readonly required: boolean;
-			}>(),
-			Match.when(Match.string, (_stringLiteral) => ({ required: true })),
-			Match.when(Match.number, (_numberLiteral) => ({ required: true })),
-			Match.when(Match.boolean, (_booleanLiteral) => ({ required: true })),
-			Match.when(Match.null, (_nullLiteral) => ({ required: true })),
-			Match.when(Match.bigint, (_bigintLiteral) => ({ required: true })),
-			Match.orElse(() => ({ required: false })),
-		).required;
-	} else if (AST.isDeclaration(ast)) {
-		// it's a declaration
-		// match the declaration type e.g Schema.DateFromSelf
-		AST.getSchemaIdAnnotation(ast).pipe(
-			Option.match({
-				onNone: () => {},
-				onSome: (schemaId) => {
-					switch (schemaId) {
-						case Schema.DateFromSelfSchemaId:
-							mutableConstraint.required = true;
-							break;
-						default:
-							// do nothing for other schema IDs
-							break;
-					}
-				},
-			}),
-		);
-	} else if (AST.isRefinement(ast)) {
-		// handle refinements
-		extractRefinementConstraints(ast, mutableConstraint);
-		// continue to process the `from` AST part
-		processAST(ast.from, mutableConstraint);
+	// Schemas are required by default, optionality is the exception.
+	mutableConstraint.required ??= true;
+
+	switch (ast._tag) {
+		case 'PropertySignatureDeclaration': {
+			// only PropertySignatureDeclarations can be decorated with optionality, else Schemas are always required!
+			mutableConstraint.required = !ast.isOptional;
+			break;
+		}
+
+		case 'StringKeyword':
+		case 'NumberKeyword':
+		case 'BigIntKeyword':
+		case 'BooleanKeyword':
+		case 'Literal': {
+			/**
+			 * Literal schemas represent a literal type. You can use them to specify exact values that a type must have.
+			 * Literals can be of the following types:
+			 * - string
+			 * - number
+			 * - boolean
+			 * - null
+			 * - bigint
+			 */
+			// handle primitive types
+			mutableConstraint.required = true;
+			break;
+		}
+
+		case 'Declaration': {
+			AST.getSchemaIdAnnotation(ast).pipe(
+				Option.match({
+					onNone: () => {},
+					onSome: (schemaId) => {
+						switch (schemaId) {
+							case Schema.DateFromSelfSchemaId:
+								mutableConstraint.required = true;
+								break;
+
+							default:
+								throw new Error(
+									`Unsupported schema ID: ${schemaId.toString()}`,
+								);
+						}
+					},
+				}),
+			);
+			break;
+		}
+
+		case 'Refinement': {
+			// handle refinements
+			extractRefinementConstraints(ast, mutableConstraint);
+			// recursively continue to process the `from` AST part
+			processAST(ast.from, mutableConstraint);
+			break;
+		}
+
+		default:
+			throw new Error(`Unsupported AST type: ${ast._tag}`);
 	}
 }
 
