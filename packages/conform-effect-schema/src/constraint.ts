@@ -57,6 +57,7 @@ function processAST(
 		mutableConstraint.required = true;
 	} else if (AST.isBooleanKeyword(ast)) {
 		// it's a Schema.Boolean with no transformations
+		mutableConstraint.required = true;
 	} else if (AST.isDeclaration(ast)) {
 		// it's a declaration
 		// match the declaration type e.g Schema.DateFromSelf
