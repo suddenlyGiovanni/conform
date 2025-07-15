@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Constraint } from '@conform-to/dom';
 import { pipe } from 'effect/Function';
 import * as Record from 'effect/Record';
@@ -45,49 +44,30 @@ function processAST(
 	mutableConstraint.required ??= true;
 
 	switch (ast._tag) {
+		case 'StringKeyword': // Schema.String
+		case 'NumberKeyword': // Schema.Number
+		case 'BigIntKeyword': // Schema.BigIntFromSelf
+		case 'BooleanKeyword': // Schema.Boolean
+			break;
+		case 'AnyKeyword': // Schema.Any
+		case 'NeverKeyword': // Schema.Never
+		case 'ObjectKeyword': // Schema.Object
+		case 'SymbolKeyword': // Schema.SymbolFromSelf
+		case 'VoidKeyword': // Schema.Void
+		case 'UnknownKeyword': // Schema.Unknown
+		case 'UndefinedKeyword': // Schema.Undefined
+			throw new Error(
+				'Unsupported AST type for Constraint extraction AST: ' + ast._tag,
+			);
+		case 'Literal': // string | number | boolean | null | bigint
+		case 'Declaration':
+		case 'TypeLiteral': // a Schema.Struct is a TypeLiteral AST node
+		case 'TemplateLiteral':
+		case 'Enums':
+			break;
 		case 'PropertySignatureDeclaration': {
 			// only PropertySignatureDeclarations can be decorated with optionality, else Schemas are always required!
 			mutableConstraint.required = !ast.isOptional;
-			break;
-		}
-
-		case 'StringKeyword':
-		case 'NumberKeyword':
-		case 'BigIntKeyword':
-		case 'BooleanKeyword':
-		case 'Literal': {
-			/**
-			 * Literal schemas represent a literal type. You can use them to specify exact values that a type must have.
-			 * Literals can be of the following types:
-			 * - string
-			 * - number
-			 * - boolean
-			 * - null
-			 * - bigint
-			 */
-			// handle primitive types
-			mutableConstraint.required = true;
-			break;
-		}
-
-		case 'Declaration': {
-			AST.getSchemaIdAnnotation(ast).pipe(
-				Option.match({
-					onNone: () => {},
-					onSome: (schemaId) => {
-						switch (schemaId) {
-							case Schema.DateFromSelfSchemaId:
-								mutableConstraint.required = true;
-								break;
-
-							default:
-								throw new Error(
-									`Unsupported schema ID: ${schemaId.toString()}`,
-								);
-						}
-					},
-				}),
-			);
 			break;
 		}
 
