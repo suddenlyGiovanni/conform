@@ -649,9 +649,7 @@ describe('constraint', () => {
 			expect(getEffectSchemaConstraint(schema)).toEqual<
 				Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
 			>({
-				literalBoolean: {
-					required: true,
-				},
+				literalBoolean: { required: true },
 			});
 		});
 	});
