@@ -785,8 +785,8 @@ importers:
         specifier: ^7.20.2
         version: 7.23.3(@babel/core@7.27.3)
       '@effect/language-service':
-        specifier: ^0.23.4
-        version: 0.23.4
+        specifier: ^0.27.0
+        version: 0.27.0
       '@rollup/plugin-babel':
         specifier: ^5.3.1
         version: 5.3.1(@babel/core@7.27.3)(@types/babel__core@7.20.5)(rollup@2.79.1)
@@ -1008,8 +1008,8 @@ importers:
         specifier: ^2.9.1
         version: 2.9.1(typescript@5.4.5)
       effect:
-        specifier: ^3.16.10
-        version: 3.16.10
+        specifier: ^3.16.13
+        version: 3.16.13
       isbot:
         specifier: ^5.1.5
         version: 5.1.6
@@ -2374,8 +2374,9 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@effect/language-service@0.23.4':
-    resolution: {integrity: sha512-ublaVipRjmGvV5yxKNZoeJiCNkpS8JDxKhWfifjvXwFsrc+QCOY5jTAaNkDLNvQZsyNzWL5/6vzeFWd7jbZxow==}
+  '@effect/language-service@0.27.0':
+    resolution: {integrity: sha512-ILN6c7s1rb7JhR2+yHNtAP+nygkRdsrEWZZRGyEuskGzOJ4QCUjXQk+K3yn6TYoulnzFzOEwW/KvfuKrA3jmAQ==}
+    hasBin: true
 
   '@emotion/babel-plugin@11.11.0':
     resolution: {integrity: sha512-m4HEDZleaaCH+XgDDsPF15Ht6wTLsgDTeR3WYj9Q/k76JtWhrJjcP4+/XlG8LGT/Rol9qUfOIztXeA84ATpqPQ==}
@@ -7139,9 +7140,6 @@ packages:
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
-
-  effect@3.16.10:
-    resolution: {integrity: sha512-F0hDCOLax7i3SOy5wQnJZTzKP9aGg8OQNUJ2s8YoL5fVcCgRCgE+Ky+Hfz5qC7LgVVOWDDbRpCh5MPB20wRI8Q==}
 
   effect@3.16.13:
     resolution: {integrity: sha512-xJDgOhD7+3qIY1d8PGfkaPZMfmdJuSp2XAQgc9dVF8pSl1FJL6WK4ZUpMh177R+GH8XgPloT8dlZsEYUYDo1Ag==}
@@ -13566,7 +13564,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@effect/language-service@0.23.4': {}
+  '@effect/language-service@0.27.0': {}
 
   '@emotion/babel-plugin@11.11.0':
     dependencies:
@@ -19362,11 +19360,6 @@ snapshots:
   eastasianwidth@0.2.0: {}
 
   ee-first@1.1.1: {}
-
-  effect@3.16.10:
-    dependencies:
-      '@standard-schema/spec': 1.0.0
-      fast-check: 3.23.2
 
   effect@3.16.13:
     dependencies:
