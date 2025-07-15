@@ -10,14 +10,14 @@ import * as Equal from 'effect/Equal';
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
 ): Record<string, Constraint> {
-	const isStruct = Schema.is(
-		Schema.Struct<Fields>({} as any), // cast here because we only want to check that the input schema is a Struct,
-	);
+	if (!AST.isTypeLiteral(schema.ast)) {
+		throw new Error(
+			'root schema must be a TypeLiteral AST node, e.g. Schema.Struct, instead got: ' +
+				schema.ast._tag,
+		);
+	}
 
 	const result: Record<string, Constraint> = {};
-
-	// add a runtime check to ensure the schema is a Struct and we are not fooling the type system
-	if (!isStruct(schema)) throw new Error('Expected a Struct schema');
 
 	for (const [fieldName, fieldSchema] of Object.entries(
 		schema.fields,
