@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Constraint } from '@conform-to/dom';
 import { pipe } from 'effect/Function';
 import * as Record from 'effect/Record';
@@ -6,6 +7,7 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
+import * as Match from 'effect/Match';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -58,6 +60,29 @@ function processAST(
 	} else if (AST.isBooleanKeyword(ast)) {
 		// it's a Schema.Boolean with no transformations
 		mutableConstraint.required = true;
+	} else if (AST.isLiteral(ast)) {
+		/**
+		 * Literal schemas represent a literal type. You can use them to specify exact values that a type must have.
+		 * Literals can be of the following types:
+		 * - string
+		 * - number
+		 * - boolean
+		 * - null
+		 * - bigint
+		 */
+		mutableConstraint.required = pipe(
+			ast.literal,
+			Match.value,
+			Match.withReturnType<{
+				readonly required: boolean;
+			}>(),
+			Match.when(Match.string, (_stringLiteral) => ({ required: true })),
+			Match.when(Match.number, (_numberLiteral) => ({ required: true })),
+			Match.when(Match.boolean, (_booleanLiteral) => ({ required: true })),
+			Match.when(Match.null, (_nullLiteral) => ({ required: true })),
+			Match.when(Match.bigint, (_bigintLiteral) => ({ required: true })),
+			Match.orElse(() => ({ required: false })),
+		).required;
 	} else if (AST.isDeclaration(ast)) {
 		// it's a declaration
 		// match the declaration type e.g Schema.DateFromSelf
