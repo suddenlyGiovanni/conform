@@ -1,17 +1,18 @@
 import {
 	type LoaderFunctionArgs,
 	type ActionFunctionArgs,
+	redirect,
 } from '@remix-run/node';
-import { pipe } from 'effect';
-import * as ParseResult from 'effect/ParseResult';
-import * as Record from 'effect/Record';
 import { z } from 'zod';
 import * as Schema from 'effect/Schema';
-import * as Either from 'effect/Either';
 import { Form, useActionData } from '@remix-run/react';
+import {
+	parseWithEffectSchema,
+	getEffectSchemaConstraint,
+} from '@conform-to/effect-schema';
+import { useForm } from '@conform-to/react';
 
 import { Playground } from '~/components';
-import { formatPaths } from '@conform-to/dom';
 
 /**
  * A simple delay function that returns a promise that resolves after the specified time.
@@ -91,89 +92,80 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
 	const formData = await request.formData();
 
-	// Construct an object using `Object.fromEntries`
-	const payload = Object.fromEntries(formData);
-	const decodeForm = Schema.decodeUnknownEither(schema);
+	// Replace `Object.fromEntries()` with the parseWithEffectSchema helper
+	const submission = parseWithEffectSchema(formData, { schema });
 
-	// Return the error to the client if the data is not valid
-	return pipe(
-		payload,
-		decodeForm,
-		Either.match({
-			onLeft: (parseError) => {
-				const error = parseError.pipe(
-					ParseResult.ArrayFormatter.formatErrorSync,
-					Record.fromIterableWith((issue) => [
-						formatPaths(issue.path as Array<string | number>),
-						[issue.message],
-					]),
-				);
+	// Report the submission to client if it is not successful
+	if (submission.status !== 'success') {
+		return submission.reply();
+	}
 
-				return {
-					payload,
-					formErrors: error.formErrors,
-					fieldErrors: error.fieldErrors,
-				};
-			},
-			onRight: async (value) => {
-				// We will skip the implementation as it is not important to the tutorial
-				const message = await sendMessage(value);
+	const message = await sendMessage(submission.value);
 
-				// Return a form error if the message is not sent
-				if (!message.sent) {
-					return {
-						payload,
-						formErrors: ['Failed to send the message. Please try again later.'],
-						fieldErrors: {},
-					};
-				}
-			},
-		}),
-	);
+	// Return a form error if the message is not sent
+	if (!message.sent) {
+		return submission.reply({
+			formErrors: ['Failed to send the message. Please try again later.'],
+		});
+	}
+
+	return redirect('/messages');
 }
 
 export default function Example() {
-	const result = useActionData<typeof action>();
+	const lastResult = useActionData<typeof action>();
+
+	// The useForm hook will return all the metadata we need to render the form
+	// and put focus on the first invalid field when the form is submitted
+	const [form, fields] = useForm({
+		// This not only syncs the error from the server
+		// But is also used as the default value of the form
+		// in case the document is reloaded for progressive enhancement
+		lastResult,
+		// To derive all validation attributes
+		constraint: getEffectSchemaConstraint(schema),
+	});
 
 	return (
 		<Form
 			method="post"
-			aria-describedby={result?.formErrors ? 'contact-error' : undefined}
+			id={form.id}
+			aria-describedby={form.errors ? form.errorId : undefined}
 		>
-			<div id="contact-error">{result?.formErrors}</div>
+			<div id={form.errorId}>{form.errors}</div>
 
-			<Playground title="Mutliple Errors" result={result}>
+			<Playground title="Mutliple Errors" result={lastResult}>
 				<div>
-					<label htmlFor="contact-email">Email</label>
+					<label htmlFor={fields.email.id}>Email</label>
 					<input
-						id="contact-email"
+						id={fields.email.id}
 						type="email"
-						name="email"
-						defaultValue={result?.payload.email}
-						required
-						aria-invalid={result?.fieldErrors.email ? true : undefined}
+						name={fields.email.name}
+						defaultValue={fields.email.initialValue}
+						required={fields.email.required}
+						aria-invalid={fields.email.errors ? true : undefined}
 						aria-describedby={
-							result?.fieldErrors.email ? 'contact-email-error' : undefined
+							fields.email.errors ? fields.email.errorId : undefined
 						}
 					/>
-					<div id="contact-email-error">{result?.fieldErrors.email}</div>
+					<div id={fields.email.errorId}>{fields.email.errors}</div>
 				</div>
 
 				<div>
-					<label htmlFor="contact-message">Message</label>
+					<label htmlFor={fields.message.id}>Message</label>
 					<textarea
-						id="contact-message"
-						name="message"
-						defaultValue={result?.payload.message}
-						required
-						minLength={10}
-						maxLength={100}
-						aria-invalid={result?.fieldErrors.message ? true : undefined}
+						id={fields.message.id}
+						name={fields.message.name}
+						defaultValue={fields.message.initialValue}
+						required={fields.message.required}
+						minLength={fields.message.minLength}
+						maxLength={fields.message.maxLength}
+						aria-invalid={fields.message.errors ? true : undefined}
 						aria-describedby={
-							result?.fieldErrors.message ? 'contact-email-message' : undefined
+							fields.message.errors ? fields.message.errorId : undefined
 						}
 					/>
-					<div id="contact-email-message">{result?.fieldErrors.message}</div>
+					<div id={fields.message.errorId}>{fields.message.errors}</div>
 				</div>
 			</Playground>
 		</Form>
