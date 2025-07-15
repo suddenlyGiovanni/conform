@@ -3,7 +3,6 @@ import {
 	type ActionFunctionArgs,
 	redirect,
 } from '@remix-run/node';
-import { z } from 'zod';
 import * as Schema from 'effect/Schema';
 import { Form, useActionData } from '@remix-run/react';
 import {
@@ -44,7 +43,7 @@ async function delay(ms: number, signal?: AbortSignal): Promise<void> {
 	});
 }
 
-// lets mock this function by introducing an asybc delay and returning a success message
+// let's mock this function by introducing an asybc delay and returning a success message
 async function sendMessage(data: Schema.Schema.Type<typeof schema>) {
 	await delay(2000);
 	const payload = {
@@ -57,24 +56,12 @@ async function sendMessage(data: Schema.Schema.Type<typeof schema>) {
 	return payload;
 }
 
-const _schema = z.object({
-	// The preprocess step is required for zod to perform the required check properly
-	// as the value of an empty input is usually an empty string
-	email: z.preprocess(
-		(value) => (value === '' ? undefined : value),
-		z.string({ required_error: 'Email is required' }).email('Email is invalid'),
-	),
-	message: z.preprocess(
-		(value) => (value === '' ? undefined : value),
-		z
-			.string({ required_error: 'Message is required' })
-			.min(10, 'Message is too short')
-			.max(100, 'Message is too long'),
-	),
-});
-
 const schema = Schema.Struct({
-	email: Schema.String.annotations({ message: () => 'Email is invalid' }),
+	email: Schema.String.pipe(
+		Schema.pattern(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, {
+			message: () => 'Email is invalid',
+		}),
+	),
 	message: Schema.String.pipe(
 		Schema.minLength(10, { message: () => 'Message us too short' }),
 		Schema.maxLength(100, { message: () => 'Message is too long' }),
@@ -121,9 +108,13 @@ export default function Example() {
 		// This not only syncs the error from the server
 		// But is also used as the default value of the form
 		// in case the document is reloaded for progressive enhancement
-		lastResult,
-		// To derive all validation attributes
-		constraint: getEffectSchemaConstraint(schema),
+		lastResult, // To derive all validation attributes
+		constraint: getEffectSchemaConstraint(schema), // Validate field once user leaves the field
+		shouldValidate: 'onBlur', // Then, revalidate field as user types again
+		shouldRevalidate: 'onInput',
+		onValidate({ formData }) {
+			return parseWithEffectSchema(formData, { schema });
+		},
 	});
 
 	return (
@@ -131,6 +122,8 @@ export default function Example() {
 			method="post"
 			id={form.id}
 			aria-describedby={form.errors ? form.errorId : undefined}
+			onSubmit={form.onSubmit}
+			noValidate={form.noValidate}
 		>
 			<div id={form.errorId}>{form.errors}</div>
 
