@@ -6,6 +6,7 @@ import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
 import * as Equal from 'effect/Equal';
+import * as MutableHashMap from 'effect/MutableHashMap';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -19,12 +20,9 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 	function updateConstraint(
 		ast: AST.AST,
-		data: Record<string, Constraint>,
+		data: MutableHashMap.MutableHashMap<string, Constraint>,
 		name: string = '',
 	): void {
-		// Schemas are required by default, optionality is the exception.
-		const constraint: Constraint = name !== '' ? (data[name] ??= {}) : {};
-
 		switch (ast._tag) {
 			case 'StringKeyword': // Schema.String
 			case 'NumberKeyword': // Schema.Number
@@ -50,14 +48,15 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				// a Schema.Struct is a TypeLiteral AST node
 				ast.propertySignatures.forEach((propertySignature) => {
 					const propertyKey = propertySignature.name as string;
-					data[propertyKey] = {
-						...data[propertyKey],
-						required: !propertySignature.isOptional,
-					} satisfies Constraint;
 
 					updateConstraint(
 						propertySignature.type,
-						data,
+						MutableHashMap.modifyAt(data, propertyKey, (constraint) =>
+							Option.some({
+								...constraint.pipe(Option.getOrElse(() => ({}))),
+								required: !propertySignature.isOptional,
+							}),
+						),
 						name ? `${name}.${propertyKey}` : propertyKey,
 					);
 				});
@@ -90,7 +89,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ minLength }) => {
-							constraint.minLength = minLength;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									minLength,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -106,7 +110,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ maxLength }) => {
-							constraint.maxLength = maxLength;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									maxLength,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -132,8 +141,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ maxLength, minLength }) => {
-							constraint.maxLength = maxLength;
-							constraint.minLength = minLength;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									maxLength,
+									minLength,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -149,7 +163,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ regex }) => {
-							constraint.pattern = regex.source;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									pattern: regex.source,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -165,7 +184,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ startsWith }) => {
-							constraint.pattern = new RegExp(`^${startsWith}`).source;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									pattern: new RegExp(`^${startsWith}`).source,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -182,7 +206,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ pattern }) => {
-							constraint.pattern = pattern;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									pattern,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -199,7 +228,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ pattern }) => {
-							constraint.pattern = pattern;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									pattern,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -215,7 +249,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ pattern }) => {
-							constraint.pattern = pattern;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									pattern,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -231,7 +270,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ pattern }) => {
-							constraint.pattern = pattern;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									pattern,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -247,7 +291,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ pattern }) => {
-							constraint.pattern = pattern;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									pattern,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -263,7 +312,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ pattern }) => {
-							constraint.pattern = pattern;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									pattern,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -279,7 +333,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ pattern }) => {
-							constraint.pattern = pattern;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									pattern,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -297,7 +356,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ exclusiveMinimum }) => {
-							constraint.min = exclusiveMinimum;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									min: exclusiveMinimum,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -313,7 +377,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ minimum }) => {
-							constraint.min = minimum;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									min: minimum,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -331,7 +400,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ exclusiveMaximum }) => {
-							constraint.max = exclusiveMaximum;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									max: exclusiveMaximum,
+								}),
+							);
+
 							return Option.void;
 						},
 					}),
@@ -347,7 +422,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ maximum }) => {
-							constraint.max = maximum;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									max: maximum,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -373,8 +453,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ maximum, minimum }) => {
-							constraint.min = minimum;
-							constraint.max = maximum;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									max: maximum,
+									min: minimum,
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -390,7 +475,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ multipleOf }) => {
-							constraint.step = multipleOf;
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									step: multipleOf,
+								}),
+							);
+
 							return Option.void;
 						},
 					}),
@@ -410,7 +501,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ min }) => {
-							constraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									min: min as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+								}),
+							);
+
 							return Option.void;
 						},
 					}),
@@ -432,7 +529,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ min }) => {
-							constraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									min: min as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -452,7 +554,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ max }) => {
-							constraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									max: max as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -472,7 +579,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ max }) => {
-							constraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									max: max as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -503,8 +615,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ max, min }) => {
-							constraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
-							constraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									max: max as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+									min: min as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -524,7 +641,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ min }) => {
-							constraint.min = min.toISOString().split('T')[0];
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									min: min.toISOString().split('T')[0],
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -544,7 +666,12 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ min }) => {
-							constraint.min = min.toISOString().split('T')[0];
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									min: min.toISOString().split('T')[0],
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -564,7 +691,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ max }) => {
-							constraint.max = max.toISOString().split('T')[0];
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									max: max.toISOString().split('T')[0],
+								}),
+							);
+
 							return Option.void;
 						},
 					}),
@@ -584,7 +717,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ max }) => {
-							constraint.max = max.toISOString().split('T')[0];
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									max: max.toISOString().split('T')[0],
+								}),
+							);
+
 							return Option.void;
 						},
 					}),
@@ -615,8 +754,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					Option.match({
 						onNone: () => Option.none(),
 						onSome: ({ max, min }) => {
-							constraint.min = min.toISOString().split('T')[0];
-							constraint.max = max.toISOString().split('T')[0];
+							MutableHashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									max: max.toISOString().split('T')[0],
+									min: min.toISOString().split('T')[0],
+								}),
+							);
 							return Option.void;
 						},
 					}),
@@ -632,8 +776,8 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 		}
 	}
 
-	const result: Record<string, Constraint> = {};
+	const result = MutableHashMap.empty<string, Constraint>();
 	updateConstraint(schema.ast, result);
 
-	return result;
+	return result.pipe((hm) => Record.fromEntries(hm));
 }
