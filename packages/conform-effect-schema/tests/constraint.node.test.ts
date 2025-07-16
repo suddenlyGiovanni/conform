@@ -702,7 +702,7 @@ describe('constraint', () => {
 	});
 
 	describe('Array', () => {
-		test.todo('with no refinement', () => {
+		test('with no refinement', () => {
 			const schema = Schema.Struct({ array: Schema.Array(Schema.String) });
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<

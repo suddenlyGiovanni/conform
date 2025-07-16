@@ -68,6 +68,25 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				// Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
 				// need to set the filed name e.g. {'list[]': { required: true }}
 
+				const arrayNestedKey = `${name}[]`;
+				ast.rest.forEach((type) =>
+					updateConstraint(
+						type.type,
+						pipe(
+							data,
+							MutableHashMap.modifyAt(name, (constraint) =>
+								Option.some({
+									...constraint.pipe(Option.getOrElse(() => ({}))),
+									multiple: true,
+								}),
+							),
+							_ => _,
+							(_) => MutableHashMap.set(_, arrayNestedKey, { required: true }),
+						),
+						arrayNestedKey,
+					),
+				);
+
 				break;
 			}
 
