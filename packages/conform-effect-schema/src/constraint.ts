@@ -22,19 +22,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	for (const [fieldName, fieldSchema] of Object.entries(
 		schema.fields,
 	) as unknown as [string, Schema.Struct.Field][]) {
-		result[fieldName] ??= {};
-
-		extractConstraints(fieldSchema, result[fieldName]);
+		const mutableConstraint: Constraint = result[fieldName] ?? {};
+		const ast = fieldSchema.ast;
+		processAST(ast, mutableConstraint);
+		result[fieldName] = mutableConstraint;
 	}
 
 	return result;
-}
-
-function extractConstraints(
-	fieldSchema: Schema.Struct.Field,
-	mutableConstraint: Constraint,
-) {
-	processAST(fieldSchema.ast, mutableConstraint);
 }
 
 function processAST(
