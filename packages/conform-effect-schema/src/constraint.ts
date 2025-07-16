@@ -17,614 +17,628 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 		);
 	}
 
-	const result: Record<string, Constraint> = {};
+	function updateConstraint(
+		ast: Schema.Struct.Field['ast'],
+		data: Record<string, Constraint>,
+		name: string = '',
+	): void {
+		// Schemas are required by default, optionality is the exception.
+		const constraint: Constraint = name !== '' ? (data[name] ??= {}) : {};
 
-	for (const [fieldName, fieldSchema] of Object.entries(
-		schema.fields,
-	) as unknown as [string, Schema.Struct.Field][]) {
-		const mutableConstraint: Constraint = result[fieldName] ?? {};
-		const ast = fieldSchema.ast;
-		processAST(ast, mutableConstraint);
-		result[fieldName] = mutableConstraint;
+		switch (ast._tag) {
+			case 'StringKeyword': // Schema.String
+			case 'NumberKeyword': // Schema.Number
+			case 'BigIntKeyword': // Schema.BigIntFromSelf
+			case 'BooleanKeyword': // Schema.Boolean
+				break;
+			case 'AnyKeyword': // Schema.Any
+			case 'NeverKeyword': // Schema.Never
+			case 'ObjectKeyword': // Schema.Object
+			case 'SymbolKeyword': // Schema.SymbolFromSelf
+			case 'VoidKeyword': // Schema.Void
+			case 'UnknownKeyword': // Schema.Unknown
+			case 'UndefinedKeyword': // Schema.Undefined
+				throw new Error(
+					'Unsupported AST type for Constraint extraction AST: ' + ast._tag,
+				);
+			case 'Literal': // string | number | boolean | null | bigint
+			case 'Declaration':
+			case 'TemplateLiteral':
+			case 'Enums':
+				break;
+			case 'TypeLiteral': {
+				// a Schema.Struct is a TypeLiteral AST node
+				ast.propertySignatures.forEach((propertySignature) => {
+					const propertyKey = propertySignature.name as string;
+					data[propertyKey] = {
+						...data[propertyKey],
+						required: !propertySignature.isOptional,
+					} satisfies Constraint;
+
+					updateConstraint(
+						propertySignature.type,
+						data,
+						name ? `${name}.${propertyKey}` : propertyKey,
+					);
+				});
+				break;
+			}
+			case 'TupleType': {
+				// Schema.Array & Schema.Tuple
+				// we need to distinguish between Schema.Array and Schema.Tuple
+				// Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
+				// need to set the filed name e.g. {'list[]': { required: true }}
+
+				break;
+			}
+			case 'PropertySignatureDeclaration': {
+				// only PropertySignatureDeclarations can be decorated with optionality, else Schemas are always required!
+				constraint.required = !ast.isOptional;
+				break;
+			}
+
+			case 'Union':
+				break;
+
+			case 'Refinement': {
+				// handle refinements
+				const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(ast);
+				const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(ast);
+
+				// handle MinLengthSchemaId refinement (minLength) e.g. Schema.String.pipe(Schema.minLength(5))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.MinLengthSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('minLength')),
+					Option.filter(Predicate.struct({ minLength: Predicate.isNumber })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ minLength }) => {
+							constraint.minLength = minLength;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle MaxLengthSchemaId refinement (maxLength) e.g. Schema.String.pipe(Schema.maxLength(42))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.MaxLengthSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('maxLength')),
+					Option.filter(Predicate.struct({ maxLength: Predicate.isNumber })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ maxLength }) => {
+							constraint.maxLength = maxLength;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle LengthSchemaId refinement (length) e.g. Schema.String.pipe(Schema.length(100))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.LengthSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(
+						pipe(
+							Predicate.hasProperty('minLength'),
+							Predicate.and(Predicate.hasProperty('maxLength')),
+						),
+					),
+					Option.filter(
+						Predicate.struct({
+							minLength: Predicate.isNumber,
+							maxLength: Predicate.isNumber,
+						}),
+					),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ maxLength, minLength }) => {
+							constraint.maxLength = maxLength;
+							constraint.minLength = minLength;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle PatternSchemaId e.g. Schema.String.pipe(Schema.pattern(/regex/))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.PatternSchemaId)),
+					Option.andThen(AST.getAnnotation(ast, Schema.PatternSchemaId)),
+					Option.filter(Predicate.hasProperty('regex')),
+					Option.filter(Predicate.struct({ regex: Predicate.isRegExp })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ regex }) => {
+							constraint.pattern = regex.source;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle StartsWithSchemaId e.g. Schema.String.pipe(Schema.startsWith('prefix'))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.StartsWithSchemaId)),
+					Option.andThen(AST.getAnnotation(ast, Schema.StartsWithSchemaId)),
+					Option.filter(Predicate.hasProperty('startsWith')),
+					Option.filter(Predicate.struct({ startsWith: Predicate.isString })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ startsWith }) => {
+							constraint.pattern = new RegExp(`^${startsWith}`).source;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle EndsWithSchemaId e.g. Schema.String.pipe(Schema.endsWith('suffix'))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.EndsWithSchemaId)),
+					Option.andThen(AST.getAnnotation(ast, Schema.EndsWithSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('pattern')),
+					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ pattern }) => {
+							constraint.pattern = pattern;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle IncludesSchemaId e.g. Schema.String.pipe(Schema.includes('substring'))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.IncludesSchemaId)),
+					Option.andThen(AST.getAnnotation(ast, Schema.IncludesSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('pattern')),
+					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ pattern }) => {
+							constraint.pattern = pattern;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle TrimmedSchemaId e.g. Schema.String.pipe(Schema.trimmed())
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.TrimmedSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('pattern')),
+					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ pattern }) => {
+							constraint.pattern = pattern;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle LowercasedSchemaId e.g. Schema.String.pipe(Schema.lowercased())
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.LowercasedSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('pattern')),
+					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ pattern }) => {
+							constraint.pattern = pattern;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle UppercasedSchemaId e.g. Schema.String.pipe(Schema.uppercased())
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.UppercasedSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('pattern')),
+					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ pattern }) => {
+							constraint.pattern = pattern;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle CapitalizedSchemaId e.g. Schema.String.pipe(Schema.capitalized())
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.CapitalizedSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('pattern')),
+					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ pattern }) => {
+							constraint.pattern = pattern;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle UncapitalizedSchemaId e.g. Schema.String.pipe(Schema.uncapitalized())
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.UncapitalizedSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('pattern')),
+					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ pattern }) => {
+							constraint.pattern = pattern;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle GreaterThanSchemaId e.g. Schema.Number.pipe(Schema.greaterThan(10))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.GreaterThanSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('exclusiveMinimum')),
+					Option.filter(
+						Predicate.struct({ exclusiveMinimum: Predicate.isNumber }),
+					),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ exclusiveMinimum }) => {
+							constraint.min = exclusiveMinimum;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle GreaterThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.greaterThanOrEqualTo(10))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.GreaterThanOrEqualToSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('minimum')),
+					Option.filter(Predicate.struct({ minimum: Predicate.isNumber })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ minimum }) => {
+							constraint.min = minimum;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle LessThanSchemaId e.g. Schema.Number.pipe(Schema.lessThan(10))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.LessThanSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('exclusiveMaximum')),
+					Option.filter(
+						Predicate.struct({ exclusiveMaximum: Predicate.isNumber }),
+					),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ exclusiveMaximum }) => {
+							constraint.max = exclusiveMaximum;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle LessThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.lessThanOrEqualTo(10))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.LessThanOrEqualToSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('maximum')),
+					Option.filter(Predicate.struct({ maximum: Predicate.isNumber })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ maximum }) => {
+							constraint.max = maximum;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle BetweenSchemaId e.g. Schema.Number.pipe(Schema.between(10, 20))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.BetweenSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(
+						pipe(
+							Predicate.hasProperty('minimum'),
+							Predicate.and(Predicate.hasProperty('maximum')),
+						),
+					),
+					Option.filter(
+						Predicate.struct({
+							minimum: Predicate.isNumber,
+							maximum: Predicate.isNumber,
+						}),
+					),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ maximum, minimum }) => {
+							constraint.min = minimum;
+							constraint.max = maximum;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle MultipleOfSchemaId e.g. Schema.Number.pipe(Schema.multipleOf(5))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.MultipleOfSchemaId)),
+					Option.andThen(maybeJsonSchemaAnnotation),
+					Option.filter(Predicate.hasProperty('multipleOf')),
+					Option.filter(Predicate.struct({ multipleOf: Predicate.isNumber })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ multipleOf }) => {
+							constraint.step = multipleOf;
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle GreaterThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanBigInt(10n))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.GreaterThanBigIntSchemaId)),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							min: bigint;
+						}>(ast, Schema.GreaterThanBigIntSchemaId),
+					),
+					Option.filter(Predicate.hasProperty('min')),
+					Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ min }) => {
+							constraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle GreaterThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanOrEqualToBigInt(10n))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(
+						Equal.equals(Schema.GreaterThanOrEqualToBigIntSchemaId),
+					),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							min: bigint;
+						}>(ast, Schema.GreaterThanOrEqualToBigIntSchemaId),
+					),
+					Option.filter(Predicate.hasProperty('min')),
+					Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ min }) => {
+							constraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle LessThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanBigInt(10n))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.LessThanBigIntSchemaId)),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							max: bigint;
+						}>(ast, Schema.LessThanBigIntSchemaId),
+					),
+					Option.filter(Predicate.hasProperty('max')),
+					Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ max }) => {
+							constraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle LessThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanOrEqualToBigInt(42n))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.LessThanOrEqualToBigIntSchemaId)),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							max: bigint;
+						}>(ast, Schema.LessThanOrEqualToBigIntSchemaId),
+					),
+					Option.filter(Predicate.hasProperty('max')),
+					Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ max }) => {
+							constraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle BetweenBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.BetweenBigIntSchemaId)),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							max: bigint;
+							min: bigint;
+						}>(ast, Schema.BetweenBigIntSchemaId),
+					),
+					Option.filter(
+						pipe(
+							Predicate.hasProperty('max'),
+							Predicate.and(Predicate.hasProperty('max')),
+						),
+					),
+					Option.filter(
+						Predicate.struct({
+							max: Predicate.isBigInt,
+							min: Predicate.isBigInt,
+						}),
+					),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ max, min }) => {
+							constraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							constraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.GreaterThanDateSchemaId)),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							min: Date;
+						}>(ast, Schema.GreaterThanDateSchemaId),
+					),
+					Option.filter(Predicate.hasProperty('min')),
+					Option.filter(Predicate.struct({ min: Predicate.isDate })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ min }) => {
+							constraint.min = min.toISOString().split('T')[0];
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.GreaterThanOrEqualToDateSchemaId)),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							min: Date;
+						}>(ast, Schema.GreaterThanOrEqualToDateSchemaId),
+					),
+					Option.filter(Predicate.hasProperty('min')),
+					Option.filter(Predicate.struct({ min: Predicate.isDate })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ min }) => {
+							constraint.min = min.toISOString().split('T')[0];
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle LessThanDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanDate(new Date(1)))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.LessThanDateSchemaId)),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							max: Date;
+						}>(ast, Schema.LessThanDateSchemaId),
+					),
+					Option.filter(Predicate.hasProperty('max')),
+					Option.filter(Predicate.struct({ max: Predicate.isDate })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ max }) => {
+							constraint.max = max.toISOString().split('T')[0];
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle LessThanOrEqualToDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanOrEqualToDate(new Date(1)))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.LessThanOrEqualToDateSchemaId)),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							max: Date;
+						}>(ast, Schema.LessThanOrEqualToDateSchemaId),
+					),
+					Option.filter(Predicate.hasProperty('max')),
+					Option.filter(Predicate.struct({ max: Predicate.isDate })),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ max }) => {
+							constraint.max = max.toISOString().split('T')[0];
+							return Option.void;
+						},
+					}),
+				);
+
+				// handle BetweenDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.betweenDate(new Date(1), new Date(2)))
+				pipe(
+					maybeSchemaIdAnnotation,
+					Option.filter(Equal.equals(Schema.BetweenDateSchemaId)),
+					Option.andThen(() =>
+						AST.getAnnotation<{
+							max: Date;
+							min: Date;
+						}>(ast, Schema.BetweenDateSchemaId),
+					),
+					Option.filter(
+						pipe(
+							Predicate.hasProperty('min'),
+							Predicate.and(Predicate.hasProperty('max')),
+						),
+					),
+					Option.filter(
+						Predicate.struct({
+							min: Predicate.isDate,
+							max: Predicate.isDate,
+						}),
+					),
+					Option.match({
+						onNone: () => Option.none(),
+						onSome: ({ max, min }) => {
+							constraint.min = min.toISOString().split('T')[0];
+							constraint.max = max.toISOString().split('T')[0];
+							return Option.void;
+						},
+					}),
+				);
+
+				// done refining the ast, now recursively continue to process the `from` AST part
+				updateConstraint(ast.from, data, name);
+				break;
+			}
+
+			default:
+				throw new Error(`Unsupported AST type: ${ast._tag}`);
+		}
 	}
+
+	const result: Record<string, Constraint> = {};
+	updateConstraint(schema.ast, result);
 
 	return result;
-}
-
-function processAST(
-	ast: Schema.Struct.Field['ast'],
-	mutableConstraint: Constraint,
-): void {
-	// Schemas are required by default, optionality is the exception.
-	mutableConstraint.required ??= true;
-
-	switch (ast._tag) {
-		case 'StringKeyword': // Schema.String
-		case 'NumberKeyword': // Schema.Number
-		case 'BigIntKeyword': // Schema.BigIntFromSelf
-		case 'BooleanKeyword': // Schema.Boolean
-			break;
-		case 'AnyKeyword': // Schema.Any
-		case 'NeverKeyword': // Schema.Never
-		case 'ObjectKeyword': // Schema.Object
-		case 'SymbolKeyword': // Schema.SymbolFromSelf
-		case 'VoidKeyword': // Schema.Void
-		case 'UnknownKeyword': // Schema.Unknown
-		case 'UndefinedKeyword': // Schema.Undefined
-			throw new Error(
-				'Unsupported AST type for Constraint extraction AST: ' + ast._tag,
-			);
-		case 'Literal': // string | number | boolean | null | bigint
-		case 'Declaration':
-		case 'TypeLiteral': // a Schema.Struct is a TypeLiteral AST node
-		case 'TemplateLiteral':
-		case 'Enums':
-			break;
-		case 'TupleType': {
-			// Schema.Array & Schema.Tuple
-			// we need to distinguish between Schema.Array and Schema.Tuple
-			// Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
-			// need to set the filed name e.g. {'list[]': { required: true }}
-
-			break;
-		}
-		case 'PropertySignatureDeclaration': {
-			// only PropertySignatureDeclarations can be decorated with optionality, else Schemas are always required!
-			mutableConstraint.required = !ast.isOptional;
-			break;
-		}
-
-		case 'Refinement': {
-			// handle refinements
-			const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(ast);
-			const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(ast);
-
-			// handle MinLengthSchemaId refinement (minLength) e.g. Schema.String.pipe(Schema.minLength(5))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.MinLengthSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('minLength')),
-				Option.filter(Predicate.struct({ minLength: Predicate.isNumber })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ minLength }) => {
-						mutableConstraint.minLength = minLength;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle MaxLengthSchemaId refinement (maxLength) e.g. Schema.String.pipe(Schema.maxLength(42))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.MaxLengthSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('maxLength')),
-				Option.filter(Predicate.struct({ maxLength: Predicate.isNumber })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ maxLength }) => {
-						mutableConstraint.maxLength = maxLength;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle LengthSchemaId refinement (length) e.g. Schema.String.pipe(Schema.length(100))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.LengthSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(
-					pipe(
-						Predicate.hasProperty('minLength'),
-						Predicate.and(Predicate.hasProperty('maxLength')),
-					),
-				),
-				Option.filter(
-					Predicate.struct({
-						minLength: Predicate.isNumber,
-						maxLength: Predicate.isNumber,
-					}),
-				),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ maxLength, minLength }) => {
-						mutableConstraint.maxLength = maxLength;
-						mutableConstraint.minLength = minLength;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle PatternSchemaId e.g. Schema.String.pipe(Schema.pattern(/regex/))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.PatternSchemaId)),
-				Option.andThen(AST.getAnnotation(ast, Schema.PatternSchemaId)),
-				Option.filter(Predicate.hasProperty('regex')),
-				Option.filter(Predicate.struct({ regex: Predicate.isRegExp })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ regex }) => {
-						mutableConstraint.pattern = regex.source;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle StartsWithSchemaId e.g. Schema.String.pipe(Schema.startsWith('prefix'))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.StartsWithSchemaId)),
-				Option.andThen(AST.getAnnotation(ast, Schema.StartsWithSchemaId)),
-				Option.filter(Predicate.hasProperty('startsWith')),
-				Option.filter(Predicate.struct({ startsWith: Predicate.isString })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ startsWith }) => {
-						mutableConstraint.pattern = new RegExp(`^${startsWith}`).source;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle EndsWithSchemaId e.g. Schema.String.pipe(Schema.endsWith('suffix'))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.EndsWithSchemaId)),
-				Option.andThen(AST.getAnnotation(ast, Schema.EndsWithSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('pattern')),
-				Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ pattern }) => {
-						mutableConstraint.pattern = pattern;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle IncludesSchemaId e.g. Schema.String.pipe(Schema.includes('substring'))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.IncludesSchemaId)),
-				Option.andThen(AST.getAnnotation(ast, Schema.IncludesSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('pattern')),
-				Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ pattern }) => {
-						mutableConstraint.pattern = pattern;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle TrimmedSchemaId e.g. Schema.String.pipe(Schema.trimmed())
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.TrimmedSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('pattern')),
-				Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ pattern }) => {
-						mutableConstraint.pattern = pattern;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle LowercasedSchemaId e.g. Schema.String.pipe(Schema.lowercased())
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.LowercasedSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('pattern')),
-				Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ pattern }) => {
-						mutableConstraint.pattern = pattern;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle UppercasedSchemaId e.g. Schema.String.pipe(Schema.uppercased())
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.UppercasedSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('pattern')),
-				Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ pattern }) => {
-						mutableConstraint.pattern = pattern;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle CapitalizedSchemaId e.g. Schema.String.pipe(Schema.capitalized())
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.CapitalizedSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('pattern')),
-				Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ pattern }) => {
-						mutableConstraint.pattern = pattern;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle UncapitalizedSchemaId e.g. Schema.String.pipe(Schema.uncapitalized())
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.UncapitalizedSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('pattern')),
-				Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ pattern }) => {
-						mutableConstraint.pattern = pattern;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle GreaterThanSchemaId e.g. Schema.Number.pipe(Schema.greaterThan(10))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.GreaterThanSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('exclusiveMinimum')),
-				Option.filter(
-					Predicate.struct({ exclusiveMinimum: Predicate.isNumber }),
-				),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ exclusiveMinimum }) => {
-						mutableConstraint.min = exclusiveMinimum;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle GreaterThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.greaterThanOrEqualTo(10))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.GreaterThanOrEqualToSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('minimum')),
-				Option.filter(Predicate.struct({ minimum: Predicate.isNumber })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ minimum }) => {
-						mutableConstraint.min = minimum;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle LessThanSchemaId e.g. Schema.Number.pipe(Schema.lessThan(10))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.LessThanSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('exclusiveMaximum')),
-				Option.filter(
-					Predicate.struct({ exclusiveMaximum: Predicate.isNumber }),
-				),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ exclusiveMaximum }) => {
-						mutableConstraint.max = exclusiveMaximum;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle LessThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.lessThanOrEqualTo(10))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.LessThanOrEqualToSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('maximum')),
-				Option.filter(Predicate.struct({ maximum: Predicate.isNumber })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ maximum }) => {
-						mutableConstraint.max = maximum;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle BetweenSchemaId e.g. Schema.Number.pipe(Schema.between(10, 20))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.BetweenSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(
-					pipe(
-						Predicate.hasProperty('minimum'),
-						Predicate.and(Predicate.hasProperty('maximum')),
-					),
-				),
-				Option.filter(
-					Predicate.struct({
-						minimum: Predicate.isNumber,
-						maximum: Predicate.isNumber,
-					}),
-				),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ maximum, minimum }) => {
-						mutableConstraint.min = minimum;
-						mutableConstraint.max = maximum;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle MultipleOfSchemaId e.g. Schema.Number.pipe(Schema.multipleOf(5))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.MultipleOfSchemaId)),
-				Option.andThen(maybeJsonSchemaAnnotation),
-				Option.filter(Predicate.hasProperty('multipleOf')),
-				Option.filter(Predicate.struct({ multipleOf: Predicate.isNumber })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ multipleOf }) => {
-						mutableConstraint.step = multipleOf;
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle GreaterThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanBigInt(10n))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.GreaterThanBigIntSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						min: bigint;
-					}>(ast, Schema.GreaterThanBigIntSchemaId),
-				),
-				Option.filter(Predicate.hasProperty('min')),
-				Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ min }) => {
-						mutableConstraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle GreaterThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanOrEqualToBigInt(10n))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.GreaterThanOrEqualToBigIntSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						min: bigint;
-					}>(ast, Schema.GreaterThanOrEqualToBigIntSchemaId),
-				),
-				Option.filter(Predicate.hasProperty('min')),
-				Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ min }) => {
-						mutableConstraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle LessThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanBigInt(10n))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.LessThanBigIntSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						max: bigint;
-					}>(ast, Schema.LessThanBigIntSchemaId),
-				),
-				Option.filter(Predicate.hasProperty('max')),
-				Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ max }) => {
-						mutableConstraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle LessThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanOrEqualToBigInt(42n))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.LessThanOrEqualToBigIntSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						max: bigint;
-					}>(ast, Schema.LessThanOrEqualToBigIntSchemaId),
-				),
-				Option.filter(Predicate.hasProperty('max')),
-				Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ max }) => {
-						mutableConstraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle BetweenBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.BetweenBigIntSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						max: bigint;
-						min: bigint;
-					}>(ast, Schema.BetweenBigIntSchemaId),
-				),
-				Option.filter(
-					pipe(
-						Predicate.hasProperty('max'),
-						Predicate.and(Predicate.hasProperty('max')),
-					),
-				),
-				Option.filter(
-					Predicate.struct({
-						max: Predicate.isBigInt,
-						min: Predicate.isBigInt,
-					}),
-				),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ max, min }) => {
-						mutableConstraint.max = max as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
-						mutableConstraint.min = min as unknown as number; // cast bigint type to number as the Constraint type does not support bigint
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.GreaterThanDateSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						min: Date;
-					}>(ast, Schema.GreaterThanDateSchemaId),
-				),
-				Option.filter(Predicate.hasProperty('min')),
-				Option.filter(Predicate.struct({ min: Predicate.isDate })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ min }) => {
-						mutableConstraint.min = min.toISOString().split('T')[0];
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.GreaterThanOrEqualToDateSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						min: Date;
-					}>(ast, Schema.GreaterThanOrEqualToDateSchemaId),
-				),
-				Option.filter(Predicate.hasProperty('min')),
-				Option.filter(Predicate.struct({ min: Predicate.isDate })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ min }) => {
-						mutableConstraint.min = min.toISOString().split('T')[0];
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle LessThanDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanDate(new Date(1)))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.LessThanDateSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						max: Date;
-					}>(ast, Schema.LessThanDateSchemaId),
-				),
-				Option.filter(Predicate.hasProperty('max')),
-				Option.filter(Predicate.struct({ max: Predicate.isDate })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ max }) => {
-						mutableConstraint.max = max.toISOString().split('T')[0];
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle LessThanOrEqualToDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanOrEqualToDate(new Date(1)))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.LessThanOrEqualToDateSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						max: Date;
-					}>(ast, Schema.LessThanOrEqualToDateSchemaId),
-				),
-				Option.filter(Predicate.hasProperty('max')),
-				Option.filter(Predicate.struct({ max: Predicate.isDate })),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ max }) => {
-						mutableConstraint.max = max.toISOString().split('T')[0];
-						return Option.void;
-					},
-				}),
-			);
-
-			// handle BetweenDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.betweenDate(new Date(1), new Date(2)))
-			pipe(
-				maybeSchemaIdAnnotation,
-				Option.filter(Equal.equals(Schema.BetweenDateSchemaId)),
-				Option.andThen(() =>
-					AST.getAnnotation<{
-						max: Date;
-						min: Date;
-					}>(ast, Schema.BetweenDateSchemaId),
-				),
-				Option.filter(
-					pipe(
-						Predicate.hasProperty('min'),
-						Predicate.and(Predicate.hasProperty('max')),
-					),
-				),
-				Option.filter(
-					Predicate.struct({
-						min: Predicate.isDate,
-						max: Predicate.isDate,
-					}),
-				),
-				Option.match({
-					onNone: () => Option.none(),
-					onSome: ({ max, min }) => {
-						mutableConstraint.min = min.toISOString().split('T')[0];
-						mutableConstraint.max = max.toISOString().split('T')[0];
-						return Option.void;
-					},
-				}),
-			);
-
-			// recursively continue to process the `from` AST part
-			processAST(ast.from, mutableConstraint);
-			break;
-		}
-
-		default:
-			throw new Error(`Unsupported AST type: ${ast._tag}`);
-	}
 }
