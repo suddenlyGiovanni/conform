@@ -63,29 +63,41 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 			}
 			case 'TupleType': {
-				// Schema.Array & Schema.Tuple
+				// Schema.Array is represented as special case of Schema.Tuple where it is defined as [...rest: Schema.Any]
 				// we need to distinguish between Schema.Array and Schema.Tuple
 				// Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
 				// need to set the filed name e.g. {'list[]': { required: true }}
 
-				const arrayNestedKey = `${name}[]`;
-				ast.rest.forEach((type) =>
-					updateConstraint(
-						type.type,
-						pipe(
-							data,
-							MutableHashMap.modifyAt(name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									multiple: true,
-								}),
+				// let requiredTypes: Array<AST.Type> = ast.elements.filter(
+				// 	(e) => !e.isOptional,
+				// );
+				// if (ast.rest.length > 0) {
+				// 	requiredTypes = requiredTypes.concat(ast.rest.slice(1));
+				// }
+
+				if (ast.elements.length === 0 && ast.rest.length > 0) {
+					// its an array such as [...elements: string[]]
+					const arrayNestedKey = `${name}[]`;
+					ast.rest.forEach((type) =>
+						updateConstraint(
+							type.type,
+							pipe(
+								data,
+								MutableHashMap.modifyAt(name, (constraint) =>
+									Option.some({
+										...constraint.pipe(Option.getOrElse(() => ({}))),
+										multiple: true,
+									}),
+								),
+								(_) =>
+									MutableHashMap.set(_, arrayNestedKey, { required: true }),
 							),
-							_ => _,
-							(_) => MutableHashMap.set(_, arrayNestedKey, { required: true }),
+							arrayNestedKey,
 						),
-						arrayNestedKey,
-					),
-				);
+					);
+				} else if (ast.elements.length > 0 && ast.rest.length >= 0) {
+					// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
+				}
 
 				break;
 			}
