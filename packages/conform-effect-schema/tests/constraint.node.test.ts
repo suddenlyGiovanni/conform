@@ -733,6 +733,31 @@ describe('constraint', () => {
 				'tuple[1]': { required: true },
 			});
 		});
+
+		test('with refinements', () => {
+			const schema = Schema.Struct({
+				tuple: Schema.Tuple(
+					Schema.String.pipe(Schema.minLength(3)),
+					Schema.Number.pipe(Schema.lessThanOrEqualTo(100)),
+				),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema> | string, Constraint>
+			>({
+				tuple: {
+					required: true,
+				},
+				'tuple[0]': {
+					required: true,
+					minLength: 3,
+				},
+				'tuple[1]': {
+					required: true,
+					max: 100,
+				},
+			});
+		});
 	});
 
 	describe('Nested Schemas', () => {
