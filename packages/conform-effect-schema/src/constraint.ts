@@ -99,21 +99,13 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
 
 					ast.elements.forEach((optionalType, idx) => {
+						const tupleNestedKey = `${name}[${idx}]`;
 						const required = !optionalType.isOptional;
 
 						updateConstraint(
 							optionalType.type,
-							pipe(
-								data,
-								MutableHashMap.modifyAt(name, (constraint) =>
-									Option.some({
-										...constraint.pipe(Option.getOrElse(() => ({}))),
-									}),
-								),
-								(_) =>
-									MutableHashMap.set(_, `${name}[${idx}]`, { required }),
-							),
-							`${name}[${idx}]`,
+							MutableHashMap.set(data, tupleNestedKey, { required }),
+							tupleNestedKey,
 						);
 					});
 				}
