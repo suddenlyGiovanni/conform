@@ -175,6 +175,24 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle PatternSchemaId e.g. Schema.String.pipe(Schema.pattern(/regex/))
+								Schema.PatternSchemaId,
+								() =>
+									pipe(
+										AST.getAnnotation<{
+											regex: RegExp;
+										}>(ast, Schema.PatternSchemaId),
+										Option.filter(Predicate.hasProperty('regex')),
+										Option.filter(
+											Predicate.struct({ regex: Predicate.isRegExp }),
+										),
+										Option.map(
+											({ regex }): Constraint => ({ pattern: regex.source }),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 							Option.match({
 								onNone: () => Option.none(),
@@ -190,27 +208,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 							}),
 						),
 					),
-				);
-
-				// handle PatternSchemaId e.g. Schema.String.pipe(Schema.pattern(/regex/))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.PatternSchemaId)),
-					Option.andThen(AST.getAnnotation(ast, Schema.PatternSchemaId)),
-					Option.filter(Predicate.hasProperty('regex')),
-					Option.filter(Predicate.struct({ regex: Predicate.isRegExp })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ regex }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									pattern: regex.source,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle StartsWithSchemaId e.g. Schema.String.pipe(Schema.startsWith('prefix'))
