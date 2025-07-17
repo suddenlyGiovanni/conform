@@ -148,6 +148,33 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 								),
 							),
 
+							Match.when(
+								// handle LengthSchemaId refinement (length) e.g. Schema.String.pipe(Schema.length(100))
+								Schema.LengthSchemaId,
+								() =>
+									pipe(
+										maybeJsonSchemaAnnotation,
+										Option.filter(
+											pipe(
+												Predicate.hasProperty('minLength'),
+												Predicate.and(Predicate.hasProperty('maxLength')),
+											),
+										),
+										Option.filter(
+											Predicate.struct({
+												minLength: Predicate.isNumber,
+												maxLength: Predicate.isNumber,
+											}),
+										),
+										Option.map(
+											({ maxLength, minLength }): Constraint => ({
+												maxLength,
+												minLength,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 							Option.match({
 								onNone: () => Option.none(),
@@ -163,38 +190,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 							}),
 						),
 					),
-				);
-
-				// handle LengthSchemaId refinement (length) e.g. Schema.String.pipe(Schema.length(100))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.LengthSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(
-						pipe(
-							Predicate.hasProperty('minLength'),
-							Predicate.and(Predicate.hasProperty('maxLength')),
-						),
-					),
-					Option.filter(
-						Predicate.struct({
-							minLength: Predicate.isNumber,
-							maxLength: Predicate.isNumber,
-						}),
-					),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ maxLength, minLength }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									maxLength,
-									minLength,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle PatternSchemaId e.g. Schema.String.pipe(Schema.pattern(/regex/))
