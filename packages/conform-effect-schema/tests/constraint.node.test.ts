@@ -717,6 +717,24 @@ describe('constraint', () => {
 		});
 	});
 
+	describe('Tuple', () => {
+		test('with no refinement', () => {
+			const schema = Schema.Struct({
+				tuple: Schema.Tuple(Schema.String, Schema.Number),
+			});
+
+			expect(getEffectSchemaConstraint(schema)).toEqual<
+				Record<keyof Schema.Schema.Type<typeof schema> | string, Constraint>
+			>({
+				tuple: {
+					required: true,
+				},
+				'tuple[0]': { required: true },
+				'tuple[1]': { required: true },
+			});
+		});
+	});
+
 	describe('Nested Schemas', () => {
 		test.todo('Struct', () => {
 			const schema = Schema.Struct({
