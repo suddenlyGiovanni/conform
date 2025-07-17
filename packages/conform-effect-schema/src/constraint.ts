@@ -1,4 +1,5 @@
 import { Constraint } from '@conform-to/dom';
+import { Match } from 'effect';
 import { pipe } from 'effect/Function';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
@@ -121,25 +122,35 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(ast);
 				const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(ast);
 
-				// handle MinLengthSchemaId refinement (minLength) e.g. Schema.String.pipe(Schema.minLength(5))
 				pipe(
 					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.MinLengthSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('minLength')),
-					Option.filter(Predicate.struct({ minLength: Predicate.isNumber })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ minLength }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									minLength,
-								}),
-							);
-							return Option.void;
-						},
-					}),
+					Option.flatMap((schemaIdAnnotation) =>
+						Match.value(schemaIdAnnotation).pipe(
+							Match.when(Schema.MinLengthSchemaId, () =>
+								pipe(
+									maybeJsonSchemaAnnotation,
+									Option.filter(Predicate.hasProperty('minLength')),
+									Option.filter(
+										Predicate.struct({ minLength: Predicate.isNumber }),
+									),
+									Option.map(({ minLength }): Constraint => ({ minLength })),
+								),
+							),
+							Match.orElse(() => Option.none()),
+							Option.match({
+								onNone: () => Option.none(),
+								onSome: (refinementConstraint) => {
+									MutableHashMap.modifyAt(data, name, (constraint) =>
+										Option.some({
+											...constraint.pipe(Option.getOrElse(() => ({}))),
+											...refinementConstraint,
+										}),
+									);
+									return Option.void;
+								},
+							}),
+						),
+					),
 				);
 
 				// handle MaxLengthSchemaId refinement (maxLength) e.g. Schema.String.pipe(Schema.maxLength(42))
