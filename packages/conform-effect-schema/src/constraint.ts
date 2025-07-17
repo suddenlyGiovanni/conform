@@ -136,6 +136,18 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									Option.map(({ minLength }): Constraint => ({ minLength })),
 								),
 							),
+
+							Match.when(Schema.MaxLengthSchemaId, () =>
+								pipe(
+									maybeJsonSchemaAnnotation,
+									Option.filter(Predicate.hasProperty('maxLength')),
+									Option.filter(
+										Predicate.struct({ maxLength: Predicate.isNumber }),
+									),
+									Option.map(({ maxLength }): Constraint => ({ maxLength })),
+								),
+							),
+
 							Match.orElse(() => Option.none()),
 							Option.match({
 								onNone: () => Option.none(),
@@ -151,27 +163,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 							}),
 						),
 					),
-				);
-
-				// handle MaxLengthSchemaId refinement (maxLength) e.g. Schema.String.pipe(Schema.maxLength(42))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.MaxLengthSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('maxLength')),
-					Option.filter(Predicate.struct({ maxLength: Predicate.isNumber })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ maxLength }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									maxLength,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle LengthSchemaId refinement (length) e.g. Schema.String.pipe(Schema.length(100))
