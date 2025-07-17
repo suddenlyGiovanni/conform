@@ -97,6 +97,25 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					);
 				} else if (ast.elements.length > 0 && ast.rest.length >= 0) {
 					// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
+
+					ast.elements.forEach((optionalType, idx) => {
+						const required = !optionalType.isOptional;
+
+						updateConstraint(
+							optionalType.type,
+							pipe(
+								data,
+								MutableHashMap.modifyAt(name, (constraint) =>
+									Option.some({
+										...constraint.pipe(Option.getOrElse(() => ({}))),
+									}),
+								),
+								(_) =>
+									MutableHashMap.set(_, `${name}[${idx}]`, { required }),
+							),
+							`${name}[${idx}]`,
+						);
+					});
 				}
 
 				break;
