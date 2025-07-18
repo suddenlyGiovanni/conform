@@ -234,31 +234,30 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// // handle IncludesSchemaId e.g. Schema.String.pipe(Schema.includes('substring'))
+								Schema.IncludesSchemaId,
+								() =>
+									pipe(
+										AST.getAnnotation<{ includes: string }>(
+											ast,
+											Schema.IncludesSchemaId,
+										),
+										Option.filter(Predicate.hasProperty('includes')),
+										Option.filter(
+											Predicate.struct({ includes: Predicate.isString }),
+										),
+										Option.map(
+											({ includes }): Constraint => ({
+												pattern: new RegExp(`.*${includes}.*`).source,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle IncludesSchemaId e.g. Schema.String.pipe(Schema.includes('substring'))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.IncludesSchemaId)),
-					Option.andThen(AST.getAnnotation(ast, Schema.IncludesSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('pattern')),
-					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ pattern }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									pattern,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle TrimmedSchemaId e.g. Schema.String.pipe(Schema.trimmed())
