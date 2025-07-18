@@ -122,7 +122,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(ast);
 				const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(ast);
 
-				pipe(
+				const constraintOption: Option.Option<Constraint> = pipe(
 					maybeSchemaIdAnnotation,
 					Option.flatMap((schemaIdAnnotation) =>
 						Match.value(schemaIdAnnotation).pipe(
@@ -235,18 +235,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 							),
 
 							Match.orElse(() => Option.none()),
-							Option.match({
-								onNone: () => Option.none(),
-								onSome: (refinementConstraint) => {
-									MutableHashMap.modifyAt(data, name, (constraint) =>
-										Option.some({
-											...constraint.pipe(Option.getOrElse(() => ({}))),
-											...refinementConstraint,
-										}),
-									);
-									return Option.void;
-								},
-							}),
 						),
 					),
 				);
@@ -801,7 +789,23 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				);
 
 				// done refining the ast, now recursively continue to process the `from` AST part
-				updateConstraint(ast.from, data, name);
+				updateConstraint(
+					ast.from,
+					pipe(
+						constraintOption,
+						Option.match({
+							onNone: () => data,
+							onSome: (refinementConstraint) =>
+								MutableHashMap.modifyAt(data, name, (constraint) =>
+									Option.some({
+										...constraint.pipe(Option.getOrElse(() => ({}))),
+										...refinementConstraint,
+									}),
+								),
+						}),
+					),
+					name,
+				);
 				break;
 			}
 
