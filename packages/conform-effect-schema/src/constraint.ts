@@ -193,6 +193,26 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle StartsWithSchemaId e.g. Schema.String.pipe(Schema.startsWith('prefix'))
+								Schema.StartsWithSchemaId,
+								() =>
+									pipe(
+										AST.getAnnotation<{
+											startsWith: string;
+										}>(ast, Schema.StartsWithSchemaId),
+										Option.filter(Predicate.hasProperty('startsWith')),
+										Option.filter(
+											Predicate.struct({ startsWith: Predicate.isString }),
+										),
+										Option.map(
+											({ startsWith }): Constraint => ({
+												pattern: new RegExp(`^${startsWith}`).source,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 							Option.match({
 								onNone: () => Option.none(),
@@ -208,27 +228,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 							}),
 						),
 					),
-				);
-
-				// handle StartsWithSchemaId e.g. Schema.String.pipe(Schema.startsWith('prefix'))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.StartsWithSchemaId)),
-					Option.andThen(AST.getAnnotation(ast, Schema.StartsWithSchemaId)),
-					Option.filter(Predicate.hasProperty('startsWith')),
-					Option.filter(Predicate.struct({ startsWith: Predicate.isString })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ startsWith }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									pattern: new RegExp(`^${startsWith}`).source,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle EndsWithSchemaId e.g. Schema.String.pipe(Schema.endsWith('suffix'))
