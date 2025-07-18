@@ -213,6 +213,27 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle EndsWithSchemaId e.g. Schema.String.pipe(Schema.endsWith('suffix'))
+								Schema.EndsWithSchemaId,
+								() =>
+									pipe(
+										AST.getAnnotation<{ endsWith: string }>(
+											ast,
+											Schema.EndsWithSchemaId,
+										),
+										Option.filter(Predicate.hasProperty('endsWith')),
+										Option.filter(
+											Predicate.struct({ endsWith: Predicate.isString }),
+										),
+										Option.map(
+											({ endsWith }): Constraint => ({
+												pattern: new RegExp(`^.*${endsWith}$`).source,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 							Option.match({
 								onNone: () => Option.none(),
@@ -228,28 +249,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 							}),
 						),
 					),
-				);
-
-				// handle EndsWithSchemaId e.g. Schema.String.pipe(Schema.endsWith('suffix'))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.EndsWithSchemaId)),
-					Option.andThen(AST.getAnnotation(ast, Schema.EndsWithSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('pattern')),
-					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ pattern }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									pattern,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle IncludesSchemaId e.g. Schema.String.pipe(Schema.includes('substring'))
