@@ -430,31 +430,26 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle MultipleOfSchemaId e.g. Schema.Number.pipe(Schema.multipleOf(5))
+								Schema.MultipleOfSchemaId,
+								() =>
+									pipe(
+										maybeJsonSchemaAnnotation,
+										Option.filter(Predicate.hasProperty('multipleOf')),
+										Option.filter(
+											Predicate.struct({ multipleOf: Predicate.isNumber }),
+										),
+
+										Option.map(
+											({ multipleOf }): Constraint => ({ step: multipleOf }),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle MultipleOfSchemaId e.g. Schema.Number.pipe(Schema.multipleOf(5))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.MultipleOfSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('multipleOf')),
-					Option.filter(Predicate.struct({ multipleOf: Predicate.isNumber })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ multipleOf }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									step: multipleOf,
-								}),
-							);
-
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle GreaterThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanBigInt(10n))
