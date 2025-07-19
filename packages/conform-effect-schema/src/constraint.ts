@@ -219,10 +219,9 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 								Schema.EndsWithSchemaId,
 								() =>
 									pipe(
-										AST.getAnnotation<{ endsWith: string }>(
-											ast,
-											Schema.EndsWithSchemaId,
-										),
+										AST.getAnnotation<{
+											endsWith: string;
+										}>(ast, Schema.EndsWithSchemaId),
 										Option.filter(Predicate.hasProperty('endsWith')),
 										Option.filter(
 											Predicate.struct({ endsWith: Predicate.isString }),
@@ -240,10 +239,9 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 								Schema.IncludesSchemaId,
 								() =>
 									pipe(
-										AST.getAnnotation<{ includes: string }>(
-											ast,
-											Schema.IncludesSchemaId,
-										),
+										AST.getAnnotation<{
+											includes: string;
+										}>(ast, Schema.IncludesSchemaId),
 										Option.filter(Predicate.hasProperty('includes')),
 										Option.filter(
 											Predicate.struct({ includes: Predicate.isString }),
@@ -346,30 +344,29 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle GreaterThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.greaterThanOrEqualTo(10))
+								Schema.GreaterThanOrEqualToSchemaId,
+								() =>
+									pipe(
+										maybeJsonSchemaAnnotation,
+										Option.filter(Predicate.hasProperty('minimum')),
+										Option.filter(
+											Predicate.struct({
+												minimum: Predicate.isNumber,
+											}),
+										),
+										Option.map(
+											({ minimum }): Constraint => ({
+												min: minimum,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle GreaterThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.greaterThanOrEqualTo(10))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.GreaterThanOrEqualToSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('minimum')),
-					Option.filter(Predicate.struct({ minimum: Predicate.isNumber })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ minimum }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									min: minimum,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle LessThanSchemaId e.g. Schema.Number.pipe(Schema.lessThan(10))
