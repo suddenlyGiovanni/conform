@@ -3,6 +3,7 @@ import { Match } from 'effect';
 import { pipe } from 'effect/Function';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
+import * as Struct from 'effect/Struct';
 import * as AST from 'effect/SchemaAST';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
@@ -235,7 +236,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 							),
 
 							Match.when(
-								// // handle IncludesSchemaId e.g. Schema.String.pipe(Schema.includes('substring'))
+								// handle IncludesSchemaId e.g. Schema.String.pipe(Schema.includes('substring'))
 								Schema.IncludesSchemaId,
 								() =>
 									pipe(
@@ -255,30 +256,23 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle TrimmedSchemaId e.g. Schema.String.pipe(Schema.trimmed())
+								Schema.TrimmedSchemaId,
+								() =>
+									pipe(
+										maybeJsonSchemaAnnotation,
+										Option.filter(Predicate.hasProperty('pattern')),
+										Option.filter(
+											Predicate.struct({ pattern: Predicate.isString }),
+										),
+										Option.map(Struct.pick('pattern')),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle TrimmedSchemaId e.g. Schema.String.pipe(Schema.trimmed())
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.TrimmedSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('pattern')),
-					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ pattern }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									pattern,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle LowercasedSchemaId e.g. Schema.String.pipe(Schema.lowercased())
