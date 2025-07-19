@@ -270,30 +270,23 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle LowercasedSchemaId e.g. Schema.String.pipe(Schema.lowercased())
+								Schema.LowercasedSchemaId,
+								() =>
+									pipe(
+										maybeJsonSchemaAnnotation,
+										Option.filter(Predicate.hasProperty('pattern')),
+										Option.filter(
+											Predicate.struct({ pattern: Predicate.isString }),
+										),
+										Option.map(Struct.pick('pattern')),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle LowercasedSchemaId e.g. Schema.String.pipe(Schema.lowercased())
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.LowercasedSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('pattern')),
-					Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ pattern }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									pattern,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle UppercasedSchemaId e.g. Schema.String.pipe(Schema.uppercased())
