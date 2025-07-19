@@ -364,33 +364,29 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle LessThanSchemaId e.g. Schema.Number.pipe(Schema.lessThan(10))
+								Schema.LessThanSchemaId,
+								() =>
+									pipe(
+										maybeJsonSchemaAnnotation,
+										Option.filter(Predicate.hasProperty('exclusiveMaximum')),
+										Option.filter(
+											Predicate.struct({
+												exclusiveMaximum: Predicate.isNumber,
+											}),
+										),
+										Option.map(
+											({ exclusiveMaximum }): Constraint => ({
+												max: exclusiveMaximum,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle LessThanSchemaId e.g. Schema.Number.pipe(Schema.lessThan(10))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.LessThanSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('exclusiveMaximum')),
-					Option.filter(
-						Predicate.struct({ exclusiveMaximum: Predicate.isNumber }),
-					),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ exclusiveMaximum }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									max: exclusiveMaximum,
-								}),
-							);
-
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle LessThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.lessThanOrEqualTo(10))
