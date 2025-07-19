@@ -384,30 +384,27 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle LessThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.lessThanOrEqualTo(10))
+								Schema.LessThanOrEqualToSchemaId,
+								() =>
+									pipe(
+										maybeJsonSchemaAnnotation,
+										Option.filter(Predicate.hasProperty('maximum')),
+										Option.filter(
+											Predicate.struct({ maximum: Predicate.isNumber }),
+										),
+										Option.map(
+											({ maximum }): Constraint => ({
+												max: maximum,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle LessThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.lessThanOrEqualTo(10))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.LessThanOrEqualToSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('maximum')),
-					Option.filter(Predicate.struct({ maximum: Predicate.isNumber })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ maximum }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									max: maximum,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle BetweenSchemaId e.g. Schema.Number.pipe(Schema.between(10, 20))
