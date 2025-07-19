@@ -447,35 +447,30 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle GreaterThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanBigInt(10n))
+								Schema.GreaterThanBigIntSchemaId,
+								() =>
+									pipe(
+										AST.getAnnotation<{
+											min: bigint;
+										}>(ast, Schema.GreaterThanBigIntSchemaId),
+
+										Option.filter(Predicate.hasProperty('min')),
+										Option.filter(
+											Predicate.struct({ min: Predicate.isBigInt }),
+										),
+										Option.map(
+											({ min }): Constraint => ({
+												min: min as unknown as number,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle GreaterThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanBigInt(10n))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.GreaterThanBigIntSchemaId)),
-					Option.andThen(() =>
-						AST.getAnnotation<{
-							min: bigint;
-						}>(ast, Schema.GreaterThanBigIntSchemaId),
-					),
-					Option.filter(Predicate.hasProperty('min')),
-					Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ min }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									min: min as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
-								}),
-							);
-
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle GreaterThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanOrEqualToBigInt(10n))
