@@ -402,41 +402,37 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle BetweenSchemaId e.g. Schema.Number.pipe(Schema.between(10, 20))
+								Schema.BetweenSchemaId,
+								() =>
+									pipe(
+										maybeJsonSchemaAnnotation,
+										Option.filter(
+											pipe(
+												Predicate.hasProperty('minimum'),
+												Predicate.and(Predicate.hasProperty('maximum')),
+											),
+										),
+										Option.filter(
+											Predicate.struct({
+												minimum: Predicate.isNumber,
+												maximum: Predicate.isNumber,
+											}),
+										),
+
+										Option.map(
+											({ maximum, minimum }): Constraint => ({
+												max: maximum,
+												min: minimum,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle BetweenSchemaId e.g. Schema.Number.pipe(Schema.between(10, 20))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.BetweenSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(
-						pipe(
-							Predicate.hasProperty('minimum'),
-							Predicate.and(Predicate.hasProperty('maximum')),
-						),
-					),
-					Option.filter(
-						Predicate.struct({
-							minimum: Predicate.isNumber,
-							maximum: Predicate.isNumber,
-						}),
-					),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ maximum, minimum }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									max: maximum,
-									min: minimum,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle MultipleOfSchemaId e.g. Schema.Number.pipe(Schema.multipleOf(5))
