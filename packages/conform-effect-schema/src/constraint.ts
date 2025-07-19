@@ -326,32 +326,29 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 									),
 							),
 
+							Match.when(
+								// handle GreaterThanSchemaId e.g. Schema.Number.pipe(Schema.greaterThan(10))
+								Schema.GreaterThanSchemaId,
+								() =>
+									pipe(
+										maybeJsonSchemaAnnotation,
+										Option.filter(Predicate.hasProperty('exclusiveMinimum')),
+										Option.filter(
+											Predicate.struct({
+												exclusiveMinimum: Predicate.isNumber,
+											}),
+										),
+										Option.map(
+											({ exclusiveMinimum }): Constraint => ({
+												min: exclusiveMinimum,
+											}),
+										),
+									),
+							),
+
 							Match.orElse(() => Option.none()),
 						),
 					),
-				);
-
-				// handle GreaterThanSchemaId e.g. Schema.Number.pipe(Schema.greaterThan(10))
-				pipe(
-					maybeSchemaIdAnnotation,
-					Option.filter(Equal.equals(Schema.GreaterThanSchemaId)),
-					Option.andThen(maybeJsonSchemaAnnotation),
-					Option.filter(Predicate.hasProperty('exclusiveMinimum')),
-					Option.filter(
-						Predicate.struct({ exclusiveMinimum: Predicate.isNumber }),
-					),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ exclusiveMinimum }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									min: exclusiveMinimum,
-								}),
-							);
-							return Option.void;
-						},
-					}),
 				);
 
 				// handle GreaterThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.greaterThanOrEqualTo(10))
