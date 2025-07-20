@@ -429,6 +429,23 @@ export const dateRefinement = <From extends AST.AST>(
 			Match.value(schemaIdAnnotation).pipe(
 				Match.withReturnType<Option.Option<Constraint>>(),
 
+				Match.when(
+					// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
+					Schema.GreaterThanDateSchemaId,
+					() =>
+						pipe(
+							AST.getAnnotation<{
+								min: Date;
+							}>(ast, Schema.GreaterThanDateSchemaId),
+
+							Option.filter(Predicate.hasProperty('min')),
+							Option.filter(Predicate.struct({ min: Predicate.isDate })),
+							Option.map(({ min }) => ({
+								min: min.toISOString().split('T')[0]!,
+							})),
+						),
+				),
+
 				Match.orElse(() => Option.none()),
 			),
 		),
