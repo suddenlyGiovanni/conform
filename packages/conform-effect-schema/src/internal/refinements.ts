@@ -478,6 +478,22 @@ export const dateRefinement = <From extends AST.AST>(
 						),
 				),
 
+				Match.when(
+					// handle LessThanOrEqualToDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanOrEqualToDate(new Date(1)))
+					Schema.LessThanOrEqualToDateSchemaId,
+					() =>
+						pipe(
+							AST.getAnnotation<{
+								max: Date;
+							}>(ast, Schema.LessThanOrEqualToDateSchemaId),
+							Option.filter(Predicate.hasProperty('max')),
+							Option.filter(Predicate.struct({ max: Predicate.isDate })),
+							Option.map(({ max }) => ({
+								max: max.toISOString().split('T')[0]!,
+							})),
+						),
+				),
+
 				Match.orElse(() => Option.none()),
 			),
 		),
