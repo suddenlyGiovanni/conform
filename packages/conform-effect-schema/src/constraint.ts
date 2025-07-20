@@ -124,32 +124,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 
 			case 'Refinement': {
-				// handle LessThanDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanDate(new Date(1)))
-				pipe(
-					AST.getSchemaIdAnnotation(ast),
-					Option.filter(Equal.equals(Schema.LessThanDateSchemaId)),
-					Option.andThen(() =>
-						AST.getAnnotation<{
-							max: Date;
-						}>(ast, Schema.LessThanDateSchemaId),
-					),
-					Option.filter(Predicate.hasProperty('max')),
-					Option.filter(Predicate.struct({ max: Predicate.isDate })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ max }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									max: max.toISOString().split('T')[0],
-								}),
-							);
-
-							return Option.void;
-						},
-					}),
-				);
-
 				// handle LessThanOrEqualToDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanOrEqualToDate(new Date(1)))
 				pipe(
 					AST.getSchemaIdAnnotation(ast),
