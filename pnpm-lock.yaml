@@ -772,8 +772,8 @@ importers:
         specifier: workspace:*
         version: link:../conform-dom
       effect:
-        specifier: ^3.16.13
-        version: 3.16.13
+        specifier: ^3.16.16
+        version: 3.16.16
     devDependencies:
       '@babel/core':
         specifier: ^7.17.8
@@ -785,8 +785,8 @@ importers:
         specifier: ^7.20.2
         version: 7.23.3(@babel/core@7.27.3)
       '@effect/language-service':
-        specifier: ^0.27.0
-        version: 0.27.0
+        specifier: ^0.27.2
+        version: 0.27.2
       '@rollup/plugin-babel':
         specifier: ^5.3.1
         version: 5.3.1(@babel/core@7.27.3)(@types/babel__core@7.20.5)(rollup@2.79.1)
@@ -2374,8 +2374,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@effect/language-service@0.27.0':
-    resolution: {integrity: sha512-ILN6c7s1rb7JhR2+yHNtAP+nygkRdsrEWZZRGyEuskGzOJ4QCUjXQk+K3yn6TYoulnzFzOEwW/KvfuKrA3jmAQ==}
+  '@effect/language-service@0.27.2':
+    resolution: {integrity: sha512-AFgxoIZ6xpfwCZp7+1mj3f1HsK3Yqe9I0iUfpf8Iu2gl9F3dmdFiOvuoLRVSkfVsK2BTQr8kv2zPi53Lst2haw==}
     hasBin: true
 
   '@emotion/babel-plugin@11.11.0':
@@ -7143,6 +7143,9 @@ packages:
 
   effect@3.16.13:
     resolution: {integrity: sha512-xJDgOhD7+3qIY1d8PGfkaPZMfmdJuSp2XAQgc9dVF8pSl1FJL6WK4ZUpMh177R+GH8XgPloT8dlZsEYUYDo1Ag==}
+
+  effect@3.16.16:
+    resolution: {integrity: sha512-q8jsuAJykQJJ9jDkR9VaAR1JeHnEDn49g6+LkveIcfW3nIPUJw6BrC9ZPaVCJWmU23vKoVj9XqJmC/EW8kiI8g==}
 
   electron-to-chromium@1.4.758:
     resolution: {integrity: sha512-/o9x6TCdrYZBMdGeTifAP3wlF/gVT+TtWJe3BSmtNh92Mw81U9hrYwW9OAGUh+sEOX/yz5e34sksqRruZbjYrw==}
@@ -13564,7 +13567,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@effect/language-service@0.27.0': {}
+  '@effect/language-service@0.27.2': {}
 
   '@emotion/babel-plugin@11.11.0':
     dependencies:
@@ -19362,6 +19365,11 @@ snapshots:
   ee-first@1.1.1: {}
 
   effect@3.16.13:
+    dependencies:
+      '@standard-schema/spec': 1.0.0
+      fast-check: 3.23.2
+
+  effect@3.16.16:
     dependencies:
       '@standard-schema/spec': 1.0.0
       fast-check: 3.23.2
