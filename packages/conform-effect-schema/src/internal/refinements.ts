@@ -402,6 +402,25 @@ export const bigintRefinement = (ast: AST.AST): Option.Option<Constraint> =>
 						),
 				),
 
+				Match.when(
+					// handle LessThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanOrEqualToBigInt(42n))
+					Schema.LessThanOrEqualToBigIntSchemaId,
+					() =>
+						pipe(
+							AST.getAnnotation<{
+								max: bigint;
+							}>(ast, Schema.LessThanOrEqualToBigIntSchemaId),
+
+							Option.filter(Predicate.hasProperty('max')),
+							Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
+							Option.map(
+								({ max }): Constraint => ({
+									max: max as unknown as number,
+								}),
+							),
+						),
+				),
+
 				Match.orElse(() => Option.none()),
 			),
 		),
