@@ -1,6 +1,6 @@
 import { Constraint } from '@conform-to/dom';
 import * as Match from 'effect/Match';
-import { pipe } from 'effect/Function';
+import { pipe, hole } from 'effect/Function';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as Struct from 'effect/Struct';
@@ -119,137 +119,11 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 
 			case 'Refinement': {
-				// handle refinements
-				const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(ast);
-				const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(ast);
-
 				const constraintOption: Option.Option<Constraint> = pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.flatMap((schemaIdAnnotation) =>
 						Match.value(schemaIdAnnotation).pipe(
 							Match.withReturnType<Option.Option<Constraint>>(),
-							Match.when(
-								// handle GreaterThanSchemaId e.g. Schema.Number.pipe(Schema.greaterThan(10))
-								Schema.GreaterThanSchemaId,
-								() =>
-									pipe(
-										maybeJsonSchemaAnnotation,
-										Option.filter(Predicate.hasProperty('exclusiveMinimum')),
-										Option.filter(
-											Predicate.struct({
-												exclusiveMinimum: Predicate.isNumber,
-											}),
-										),
-										Option.map(
-											({ exclusiveMinimum }): Constraint => ({
-												min: exclusiveMinimum,
-											}),
-										),
-									),
-							),
-
-							Match.when(
-								// handle GreaterThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.greaterThanOrEqualTo(10))
-								Schema.GreaterThanOrEqualToSchemaId,
-								() =>
-									pipe(
-										maybeJsonSchemaAnnotation,
-										Option.filter(Predicate.hasProperty('minimum')),
-										Option.filter(
-											Predicate.struct({
-												minimum: Predicate.isNumber,
-											}),
-										),
-										Option.map(
-											({ minimum }): Constraint => ({
-												min: minimum,
-											}),
-										),
-									),
-							),
-
-							Match.when(
-								// handle LessThanSchemaId e.g. Schema.Number.pipe(Schema.lessThan(10))
-								Schema.LessThanSchemaId,
-								() =>
-									pipe(
-										maybeJsonSchemaAnnotation,
-										Option.filter(Predicate.hasProperty('exclusiveMaximum')),
-										Option.filter(
-											Predicate.struct({
-												exclusiveMaximum: Predicate.isNumber,
-											}),
-										),
-										Option.map(
-											({ exclusiveMaximum }): Constraint => ({
-												max: exclusiveMaximum,
-											}),
-										),
-									),
-							),
-
-							Match.when(
-								// handle LessThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.lessThanOrEqualTo(10))
-								Schema.LessThanOrEqualToSchemaId,
-								() =>
-									pipe(
-										maybeJsonSchemaAnnotation,
-										Option.filter(Predicate.hasProperty('maximum')),
-										Option.filter(
-											Predicate.struct({ maximum: Predicate.isNumber }),
-										),
-										Option.map(
-											({ maximum }): Constraint => ({
-												max: maximum,
-											}),
-										),
-									),
-							),
-
-							Match.when(
-								// handle BetweenSchemaId e.g. Schema.Number.pipe(Schema.between(10, 20))
-								Schema.BetweenSchemaId,
-								() =>
-									pipe(
-										maybeJsonSchemaAnnotation,
-										Option.filter(
-											pipe(
-												Predicate.hasProperty('minimum'),
-												Predicate.and(Predicate.hasProperty('maximum')),
-											),
-										),
-										Option.filter(
-											Predicate.struct({
-												minimum: Predicate.isNumber,
-												maximum: Predicate.isNumber,
-											}),
-										),
-
-										Option.map(
-											({ maximum, minimum }): Constraint => ({
-												max: maximum,
-												min: minimum,
-											}),
-										),
-									),
-							),
-
-							Match.when(
-								// handle MultipleOfSchemaId e.g. Schema.Number.pipe(Schema.multipleOf(5))
-								Schema.MultipleOfSchemaId,
-								() =>
-									pipe(
-										maybeJsonSchemaAnnotation,
-										Option.filter(Predicate.hasProperty('multipleOf')),
-										Option.filter(
-											Predicate.struct({ multipleOf: Predicate.isNumber }),
-										),
-
-										Option.map(
-											({ multipleOf }): Constraint => ({ step: multipleOf }),
-										),
-									),
-							),
 
 							Match.when(
 								// handle GreaterThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanBigInt(10n))
@@ -279,7 +153,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				// handle GreaterThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanOrEqualToBigInt(10n))
 				pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.filter(
 						Equal.equals(Schema.GreaterThanOrEqualToBigIntSchemaId),
 					),
@@ -306,7 +180,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				// handle LessThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanBigInt(10n))
 				pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.filter(Equal.equals(Schema.LessThanBigIntSchemaId)),
 					Option.andThen(() =>
 						AST.getAnnotation<{
@@ -331,7 +205,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				// handle LessThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanOrEqualToBigInt(42n))
 				pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.filter(Equal.equals(Schema.LessThanOrEqualToBigIntSchemaId)),
 					Option.andThen(() =>
 						AST.getAnnotation<{
@@ -356,7 +230,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				// handle BetweenBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
 				pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.filter(Equal.equals(Schema.BetweenBigIntSchemaId)),
 					Option.andThen(() =>
 						AST.getAnnotation<{
@@ -393,7 +267,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
 				pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.filter(Equal.equals(Schema.GreaterThanDateSchemaId)),
 					Option.andThen(() =>
 						AST.getAnnotation<{
@@ -418,7 +292,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
 				pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.filter(Equal.equals(Schema.GreaterThanOrEqualToDateSchemaId)),
 					Option.andThen(() =>
 						AST.getAnnotation<{
@@ -443,7 +317,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				// handle LessThanDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanDate(new Date(1)))
 				pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.filter(Equal.equals(Schema.LessThanDateSchemaId)),
 					Option.andThen(() =>
 						AST.getAnnotation<{
@@ -469,7 +343,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				// handle LessThanOrEqualToDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanOrEqualToDate(new Date(1)))
 				pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.filter(Equal.equals(Schema.LessThanOrEqualToDateSchemaId)),
 					Option.andThen(() =>
 						AST.getAnnotation<{
@@ -495,7 +369,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				// handle BetweenDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.betweenDate(new Date(1), new Date(2)))
 				pipe(
-					maybeSchemaIdAnnotation,
+					AST.getSchemaIdAnnotation(ast),
 					Option.filter(Equal.equals(Schema.BetweenDateSchemaId)),
 					Option.andThen(() =>
 						AST.getAnnotation<{
@@ -530,22 +404,24 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					}),
 				);
 
-				const x = Option.reduceCompact(
-					[constraintOption, stringRefinement(ast)],
-					{} as Constraint,
-					(accumulatedConstraint, _constraint) => ({
-						...accumulatedConstraint,
-						..._constraint,
-					}),
-				);
-
 				// done refining the ast, now recursively continue to process the `from` AST part
 				updateConstraint(
 					ast.from,
 					MutableHashMap.modifyAt(data, name, (constraint) =>
 						Option.some({
 							...constraint.pipe(Option.getOrElse(() => ({}))),
-							...x,
+							...Option.reduceCompact(
+								[
+									constraintOption,
+									stringRefinement(ast),
+									numberRefinement(ast),
+								],
+								{} as Constraint,
+								(accumulatedConstraint, _constraint) => ({
+									...accumulatedConstraint,
+									..._constraint,
+								}),
+							),
 						}),
 					),
 					name,
@@ -766,9 +642,135 @@ function stringRefinement(ast: AST.AST): Option.Option<Constraint> {
 	);
 }
 
-// function numberRefinement(ast: AST.AST): Option.Option<Constraint> {
-// 	const maybeSchemaIdAnnotation = AST.getSchemaIdAnnotation(ast);
-// 	const maybeJsonSchemaAnnotation = AST.getJSONSchemaAnnotation(ast);
-//
-// 	return hole();
-// }
+function numberRefinement(ast: AST.AST): Option.Option<Constraint> {
+	return pipe(
+		AST.getSchemaIdAnnotation(ast),
+		Option.flatMap((schemaIdAnnotation) =>
+			Match.value(schemaIdAnnotation).pipe(
+				Match.withReturnType<Option.Option<Constraint>>(),
+				Match.when(
+					// handle GreaterThanSchemaId e.g. Schema.Number.pipe(Schema.greaterThan(10))
+					Schema.GreaterThanSchemaId,
+					() =>
+						pipe(
+							AST.getJSONSchemaAnnotation(ast),
+							Option.filter(Predicate.hasProperty('exclusiveMinimum')),
+							Option.filter(
+								Predicate.struct({
+									exclusiveMinimum: Predicate.isNumber,
+								}),
+							),
+							Option.map(
+								({ exclusiveMinimum }): Constraint => ({
+									min: exclusiveMinimum,
+								}),
+							),
+						),
+				),
+
+				Match.when(
+					// handle GreaterThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.greaterThanOrEqualTo(10))
+					Schema.GreaterThanOrEqualToSchemaId,
+					() =>
+						pipe(
+							AST.getJSONSchemaAnnotation(ast),
+							Option.filter(Predicate.hasProperty('minimum')),
+							Option.filter(
+								Predicate.struct({
+									minimum: Predicate.isNumber,
+								}),
+							),
+							Option.map(
+								({ minimum }): Constraint => ({
+									min: minimum,
+								}),
+							),
+						),
+				),
+
+				Match.when(
+					// handle LessThanSchemaId e.g. Schema.Number.pipe(Schema.lessThan(10))
+					Schema.LessThanSchemaId,
+					() =>
+						pipe(
+							AST.getJSONSchemaAnnotation(ast),
+							Option.filter(Predicate.hasProperty('exclusiveMaximum')),
+							Option.filter(
+								Predicate.struct({
+									exclusiveMaximum: Predicate.isNumber,
+								}),
+							),
+							Option.map(
+								({ exclusiveMaximum }): Constraint => ({
+									max: exclusiveMaximum,
+								}),
+							),
+						),
+				),
+
+				Match.when(
+					// handle LessThanOrEqualToSchemaId e.g. Schema.Number.pipe(Schema.lessThanOrEqualTo(10))
+					Schema.LessThanOrEqualToSchemaId,
+					() =>
+						pipe(
+							AST.getJSONSchemaAnnotation(ast),
+							Option.filter(Predicate.hasProperty('maximum')),
+							Option.filter(Predicate.struct({ maximum: Predicate.isNumber })),
+							Option.map(
+								({ maximum }): Constraint => ({
+									max: maximum,
+								}),
+							),
+						),
+				),
+
+				Match.when(
+					// handle BetweenSchemaId e.g. Schema.Number.pipe(Schema.between(10, 20))
+					Schema.BetweenSchemaId,
+					() =>
+						pipe(
+							AST.getJSONSchemaAnnotation(ast),
+							Option.filter(
+								pipe(
+									Predicate.hasProperty('minimum'),
+									Predicate.and(Predicate.hasProperty('maximum')),
+								),
+							),
+							Option.filter(
+								Predicate.struct({
+									minimum: Predicate.isNumber,
+									maximum: Predicate.isNumber,
+								}),
+							),
+
+							Option.map(
+								({ maximum, minimum }): Constraint => ({
+									max: maximum,
+									min: minimum,
+								}),
+							),
+						),
+				),
+
+				Match.when(
+					// handle MultipleOfSchemaId e.g. Schema.Number.pipe(Schema.multipleOf(5))
+					Schema.MultipleOfSchemaId,
+					() =>
+						pipe(
+							AST.getJSONSchemaAnnotation(ast),
+							Option.filter(Predicate.hasProperty('multipleOf')),
+							Option.filter(
+								Predicate.struct({ multipleOf: Predicate.isNumber }),
+							),
+
+							Option.map(
+								({ multipleOf }): Constraint => ({ step: multipleOf }),
+							),
+						),
+				),
+
+				Match.orElse(() => Option.none()),
+			),
+		),
+	);
+}
