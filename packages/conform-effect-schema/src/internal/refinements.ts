@@ -364,6 +364,25 @@ export const bigintRefinement = (ast: AST.AST): Option.Option<Constraint> =>
 						),
 				),
 
+				Match.when(
+					// handle GreaterThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanOrEqualToBigInt(10n))
+					Schema.GreaterThanOrEqualToBigIntSchemaId,
+					() =>
+						pipe(
+							AST.getAnnotation<{
+								min: bigint;
+							}>(ast, Schema.GreaterThanOrEqualToBigIntSchemaId),
+
+							Option.filter(Predicate.hasProperty('min')),
+							Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
+							Option.map(
+								({ min }): Constraint => ({
+									min: min as unknown as number,
+								}),
+							),
+						),
+				),
+
 				Match.orElse(() => Option.none()),
 			),
 		),
