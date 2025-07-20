@@ -123,31 +123,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 
 			case 'Refinement': {
-				// handle LessThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanBigInt(10n))
-				pipe(
-					AST.getSchemaIdAnnotation(ast),
-					Option.filter(Equal.equals(Schema.LessThanBigIntSchemaId)),
-					Option.andThen(() =>
-						AST.getAnnotation<{
-							max: bigint;
-						}>(ast, Schema.LessThanBigIntSchemaId),
-					),
-					Option.filter(Predicate.hasProperty('max')),
-					Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ max }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									max: max as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
-								}),
-							);
-							return Option.void;
-						},
-					}),
-				);
-
 				// handle LessThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.lessThanOrEqualToBigInt(42n))
 				pipe(
 					AST.getSchemaIdAnnotation(ast),
