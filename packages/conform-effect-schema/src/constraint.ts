@@ -1,7 +1,6 @@
 import { Constraint } from '@conform-to/dom';
 import * as Equal from 'effect/Equal';
 import { pipe } from 'effect/Function';
-import * as Match from 'effect/Match';
 import * as MutableHashMap from 'effect/MutableHashMap';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
@@ -9,7 +8,11 @@ import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
-import { numberRefinement, stringRefinement } from './internal/refinements';
+import {
+	bigintRefinement,
+	numberRefinement,
+	stringRefinement,
+} from './internal/refinements';
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
@@ -120,38 +123,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 
 			case 'Refinement': {
-				const constraintOption: Option.Option<Constraint> = pipe(
-					AST.getSchemaIdAnnotation(ast),
-					Option.flatMap((schemaIdAnnotation) =>
-						Match.value(schemaIdAnnotation).pipe(
-							Match.withReturnType<Option.Option<Constraint>>(),
-
-							Match.when(
-								// handle GreaterThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanBigInt(10n))
-								Schema.GreaterThanBigIntSchemaId,
-								() =>
-									pipe(
-										AST.getAnnotation<{
-											min: bigint;
-										}>(ast, Schema.GreaterThanBigIntSchemaId),
-
-										Option.filter(Predicate.hasProperty('min')),
-										Option.filter(
-											Predicate.struct({ min: Predicate.isBigInt }),
-										),
-										Option.map(
-											({ min }): Constraint => ({
-												min: min as unknown as number,
-											}),
-										),
-									),
-							),
-
-							Match.orElse(() => Option.none()),
-						),
-					),
-				);
-
 				// handle GreaterThanOrEqualToBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanOrEqualToBigInt(10n))
 				pipe(
 					AST.getSchemaIdAnnotation(ast),
@@ -413,9 +384,9 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 							...maybeConstraint.pipe(Option.getOrElse(() => ({}))),
 							...Option.reduceCompact(
 								[
-									constraintOption,
 									stringRefinement(ast),
 									numberRefinement(ast),
+									bigintRefinement(ast),
 								],
 								{} as Constraint,
 								(constraints, constraint) => ({

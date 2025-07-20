@@ -1,5 +1,5 @@
 import type { Constraint } from '@conform-to/dom';
-import { pipe } from 'effect/Function';
+import { hole, pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
@@ -329,6 +329,37 @@ export const numberRefinement = (ast: AST.AST): Option.Option<Constraint> =>
 
 							Option.map(
 								({ multipleOf }): Constraint => ({ step: multipleOf }),
+							),
+						),
+				),
+
+				Match.orElse(() => Option.none()),
+			),
+		),
+	);
+
+export const bigintRefinement = (ast: AST.AST): Option.Option<Constraint> =>
+	pipe(
+		AST.getSchemaIdAnnotation(ast),
+		Option.flatMap((schemaIdAnnotation) =>
+			Match.value(schemaIdAnnotation).pipe(
+				Match.withReturnType<Option.Option<Constraint>>(),
+
+				Match.when(
+					// handle GreaterThanBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.greaterThanBigInt(10n))
+					Schema.GreaterThanBigIntSchemaId,
+					() =>
+						pipe(
+							AST.getAnnotation<{
+								min: bigint;
+							}>(ast, Schema.GreaterThanBigIntSchemaId),
+
+							Option.filter(Predicate.hasProperty('min')),
+							Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
+							Option.map(
+								({ min }): Constraint => ({
+									min: min as unknown as number,
+								}),
 							),
 						),
 				),
