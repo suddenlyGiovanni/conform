@@ -1,5 +1,5 @@
 import type { Constraint } from '@conform-to/dom';
-import { hole, pipe } from 'effect/Function';
+import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as Option from 'effect/Option';
 import * as Predicate from 'effect/Predicate';
@@ -7,7 +7,9 @@ import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 import * as Struct from 'effect/Struct';
 
-export const stringRefinement = (ast: AST.AST): Option.Option<Constraint> =>
+export const stringRefinement = <From extends AST.AST>(
+	ast: AST.Refinement<From>,
+): Option.Option<Constraint> =>
 	pipe(
 		AST.getSchemaIdAnnotation(ast),
 		Option.flatMap((schemaIdAnnotation) =>
@@ -206,7 +208,9 @@ export const stringRefinement = (ast: AST.AST): Option.Option<Constraint> =>
 		),
 	);
 
-export const numberRefinement = (ast: AST.AST): Option.Option<Constraint> =>
+export const numberRefinement = <From extends AST.AST>(
+	ast: AST.Refinement<From>,
+): Option.Option<Constraint> =>
 	pipe(
 		AST.getSchemaIdAnnotation(ast),
 		Option.flatMap((schemaIdAnnotation) =>
@@ -338,7 +342,9 @@ export const numberRefinement = (ast: AST.AST): Option.Option<Constraint> =>
 		),
 	);
 
-export const bigintRefinement = (ast: AST.AST): Option.Option<Constraint> =>
+export const bigintRefinement = <From extends AST.AST>(
+	ast: AST.Refinement<From>,
+): Option.Option<Constraint> =>
 	pipe(
 		AST.getSchemaIdAnnotation(ast),
 		Option.flatMap((schemaIdAnnotation) =>
@@ -451,6 +457,20 @@ export const bigintRefinement = (ast: AST.AST): Option.Option<Constraint> =>
 							),
 						),
 				),
+
+				Match.orElse(() => Option.none()),
+			),
+		),
+	);
+
+export const dateRefinement = <From extends AST.AST>(
+	ast: AST.Refinement<From>,
+): Option.Option<Constraint> =>
+	pipe(
+		AST.getSchemaIdAnnotation(ast),
+		Option.flatMap((schemaIdAnnotation) =>
+			Match.value(schemaIdAnnotation).pipe(
+				Match.withReturnType<Option.Option<Constraint>>(),
 
 				Match.orElse(() => Option.none()),
 			),
