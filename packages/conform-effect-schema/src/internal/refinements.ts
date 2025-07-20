@@ -26,7 +26,7 @@ export const stringRefinement = <From extends AST.AST>(
 							Option.filter(
 								Predicate.struct({ minLength: Predicate.isNumber }),
 							),
-							Option.map(({ minLength }) => ({ minLength })),
+							Option.map(Struct.pick('minLength')),
 						),
 				),
 
@@ -40,7 +40,7 @@ export const stringRefinement = <From extends AST.AST>(
 							Option.filter(
 								Predicate.struct({ maxLength: Predicate.isNumber }),
 							),
-							Option.map(({ maxLength }) => ({ maxLength })),
+							Option.map(Struct.pick('maxLength')),
 						),
 				),
 
@@ -62,10 +62,7 @@ export const stringRefinement = <From extends AST.AST>(
 									maxLength: Predicate.isNumber,
 								}),
 							),
-							Option.map(({ maxLength, minLength }) => ({
-								maxLength,
-								minLength,
-							})),
+							Option.map(Struct.pick('minLength', 'maxLength')),
 						),
 				),
 
@@ -218,9 +215,7 @@ export const numberRefinement = <From extends AST.AST>(
 									exclusiveMinimum: Predicate.isNumber,
 								}),
 							),
-							Option.map(({ exclusiveMinimum }) => ({
-								min: exclusiveMinimum,
-							})),
+							Option.map(({ exclusiveMinimum }) => ({ min: exclusiveMinimum })),
 						),
 				),
 
@@ -236,9 +231,7 @@ export const numberRefinement = <From extends AST.AST>(
 									minimum: Predicate.isNumber,
 								}),
 							),
-							Option.map(({ minimum }) => ({
-								min: minimum,
-							})),
+							Option.map(({ minimum }) => ({ min: minimum })),
 						),
 				),
 
@@ -254,9 +247,7 @@ export const numberRefinement = <From extends AST.AST>(
 									exclusiveMaximum: Predicate.isNumber,
 								}),
 							),
-							Option.map(({ exclusiveMaximum }) => ({
-								max: exclusiveMaximum,
-							})),
+							Option.map(({ exclusiveMaximum }) => ({ max: exclusiveMaximum })),
 						),
 				),
 
@@ -268,9 +259,7 @@ export const numberRefinement = <From extends AST.AST>(
 							AST.getJSONSchemaAnnotation(ast),
 							Option.filter(Predicate.hasProperty('maximum')),
 							Option.filter(Predicate.struct({ maximum: Predicate.isNumber })),
-							Option.map(({ maximum }) => ({
-								max: maximum,
-							})),
+							Option.map(({ maximum }) => ({ max: maximum })),
 						),
 				),
 
