@@ -26,7 +26,7 @@ export const stringRefinement = <From extends AST.AST>(
 							Option.filter(
 								Predicate.struct({ minLength: Predicate.isNumber }),
 							),
-							Option.map(({ minLength }): Constraint => ({ minLength })),
+							Option.map(({ minLength }) => ({ minLength })),
 						),
 				),
 
@@ -40,7 +40,7 @@ export const stringRefinement = <From extends AST.AST>(
 							Option.filter(
 								Predicate.struct({ maxLength: Predicate.isNumber }),
 							),
-							Option.map(({ maxLength }): Constraint => ({ maxLength })),
+							Option.map(({ maxLength }) => ({ maxLength })),
 						),
 				),
 
@@ -62,12 +62,10 @@ export const stringRefinement = <From extends AST.AST>(
 									maxLength: Predicate.isNumber,
 								}),
 							),
-							Option.map(
-								({ maxLength, minLength }): Constraint => ({
-									maxLength,
-									minLength,
-								}),
-							),
+							Option.map(({ maxLength, minLength }) => ({
+								maxLength,
+								minLength,
+							})),
 						),
 				),
 
@@ -81,9 +79,7 @@ export const stringRefinement = <From extends AST.AST>(
 							}>(ast, Schema.PatternSchemaId),
 							Option.filter(Predicate.hasProperty('regex')),
 							Option.filter(Predicate.struct({ regex: Predicate.isRegExp })),
-							Option.map(
-								({ regex }): Constraint => ({ pattern: regex.source }),
-							),
+							Option.map(({ regex }) => ({ pattern: regex.source })),
 						),
 				),
 
@@ -99,11 +95,9 @@ export const stringRefinement = <From extends AST.AST>(
 							Option.filter(
 								Predicate.struct({ startsWith: Predicate.isString }),
 							),
-							Option.map(
-								({ startsWith }): Constraint => ({
-									pattern: new RegExp(`^${startsWith}`).source,
-								}),
-							),
+							Option.map(({ startsWith }) => ({
+								pattern: new RegExp(`^${startsWith}`).source,
+							})),
 						),
 				),
 
@@ -117,11 +111,9 @@ export const stringRefinement = <From extends AST.AST>(
 							}>(ast, Schema.EndsWithSchemaId),
 							Option.filter(Predicate.hasProperty('endsWith')),
 							Option.filter(Predicate.struct({ endsWith: Predicate.isString })),
-							Option.map(
-								({ endsWith }): Constraint => ({
-									pattern: new RegExp(`^.*${endsWith}$`).source,
-								}),
-							),
+							Option.map(({ endsWith }) => ({
+								pattern: new RegExp(`^.*${endsWith}$`).source,
+							})),
 						),
 				),
 
@@ -135,11 +127,9 @@ export const stringRefinement = <From extends AST.AST>(
 							}>(ast, Schema.IncludesSchemaId),
 							Option.filter(Predicate.hasProperty('includes')),
 							Option.filter(Predicate.struct({ includes: Predicate.isString })),
-							Option.map(
-								({ includes }): Constraint => ({
-									pattern: new RegExp(`.*${includes}.*`).source,
-								}),
-							),
+							Option.map(({ includes }) => ({
+								pattern: new RegExp(`.*${includes}.*`).source,
+							})),
 						),
 				),
 
@@ -228,11 +218,9 @@ export const numberRefinement = <From extends AST.AST>(
 									exclusiveMinimum: Predicate.isNumber,
 								}),
 							),
-							Option.map(
-								({ exclusiveMinimum }): Constraint => ({
-									min: exclusiveMinimum,
-								}),
-							),
+							Option.map(({ exclusiveMinimum }) => ({
+								min: exclusiveMinimum,
+							})),
 						),
 				),
 
@@ -248,11 +236,9 @@ export const numberRefinement = <From extends AST.AST>(
 									minimum: Predicate.isNumber,
 								}),
 							),
-							Option.map(
-								({ minimum }): Constraint => ({
-									min: minimum,
-								}),
-							),
+							Option.map(({ minimum }) => ({
+								min: minimum,
+							})),
 						),
 				),
 
@@ -268,11 +254,9 @@ export const numberRefinement = <From extends AST.AST>(
 									exclusiveMaximum: Predicate.isNumber,
 								}),
 							),
-							Option.map(
-								({ exclusiveMaximum }): Constraint => ({
-									max: exclusiveMaximum,
-								}),
-							),
+							Option.map(({ exclusiveMaximum }) => ({
+								max: exclusiveMaximum,
+							})),
 						),
 				),
 
@@ -284,11 +268,9 @@ export const numberRefinement = <From extends AST.AST>(
 							AST.getJSONSchemaAnnotation(ast),
 							Option.filter(Predicate.hasProperty('maximum')),
 							Option.filter(Predicate.struct({ maximum: Predicate.isNumber })),
-							Option.map(
-								({ maximum }): Constraint => ({
-									max: maximum,
-								}),
-							),
+							Option.map(({ maximum }) => ({
+								max: maximum,
+							})),
 						),
 				),
 
@@ -311,12 +293,10 @@ export const numberRefinement = <From extends AST.AST>(
 								}),
 							),
 
-							Option.map(
-								({ maximum, minimum }): Constraint => ({
-									max: maximum,
-									min: minimum,
-								}),
-							),
+							Option.map(({ maximum, minimum }) => ({
+								max: maximum,
+								min: minimum,
+							})),
 						),
 				),
 
@@ -331,9 +311,7 @@ export const numberRefinement = <From extends AST.AST>(
 								Predicate.struct({ multipleOf: Predicate.isNumber }),
 							),
 
-							Option.map(
-								({ multipleOf }): Constraint => ({ step: multipleOf }),
-							),
+							Option.map(({ multipleOf }) => ({ step: multipleOf })),
 						),
 				),
 
@@ -362,11 +340,9 @@ export const bigintRefinement = <From extends AST.AST>(
 
 							Option.filter(Predicate.hasProperty('min')),
 							Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
-							Option.map(
-								({ min }): Constraint => ({
-									min: min as unknown as number,
-								}),
-							),
+							Option.map(({ min }) => ({
+								min: min as unknown as number,
+							})),
 						),
 				),
 
@@ -381,11 +357,9 @@ export const bigintRefinement = <From extends AST.AST>(
 
 							Option.filter(Predicate.hasProperty('min')),
 							Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
-							Option.map(
-								({ min }): Constraint => ({
-									min: min as unknown as number,
-								}),
-							),
+							Option.map(({ min }) => ({
+								min: min as unknown as number,
+							})),
 						),
 				),
 
@@ -400,11 +374,9 @@ export const bigintRefinement = <From extends AST.AST>(
 
 							Option.filter(Predicate.hasProperty('max')),
 							Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
-							Option.map(
-								({ max }): Constraint => ({
-									max: max as unknown as number,
-								}),
-							),
+							Option.map(({ max }) => ({
+								max: max as unknown as number,
+							})),
 						),
 				),
 
@@ -419,11 +391,9 @@ export const bigintRefinement = <From extends AST.AST>(
 
 							Option.filter(Predicate.hasProperty('max')),
 							Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
-							Option.map(
-								({ max }): Constraint => ({
-									max: max as unknown as number,
-								}),
-							),
+							Option.map(({ max }) => ({
+								max: max as unknown as number,
+							})),
 						),
 				),
 
@@ -449,12 +419,10 @@ export const bigintRefinement = <From extends AST.AST>(
 									min: Predicate.isBigInt,
 								}),
 							),
-							Option.map(
-								({ max, min }): Constraint => ({
-									max: max as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
-									min: min as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
-								}),
-							),
+							Option.map(({ max, min }) => ({
+								max: max as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+								min: min as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+							})),
 						),
 				),
 
