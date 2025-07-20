@@ -445,6 +445,7 @@ export const dateRefinement = <From extends AST.AST>(
 							})),
 						),
 				),
+
 				Match.when(
 					// handle GreaterThanOrEqualToDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanOrEqualToDate(new Date(1)))
 					Schema.GreaterThanOrEqualToDateSchemaId,
@@ -457,6 +458,22 @@ export const dateRefinement = <From extends AST.AST>(
 							Option.filter(Predicate.struct({ min: Predicate.isDate })),
 							Option.map(({ min }) => ({
 								min: min.toISOString().split('T')[0]!,
+							})),
+						),
+				),
+
+				Match.when(
+					// handle LessThanDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.lessThanDate(new Date(1)))
+					Schema.LessThanDateSchemaId,
+					() =>
+						pipe(
+							AST.getAnnotation<{
+								max: Date;
+							}>(ast, Schema.LessThanDateSchemaId),
+							Option.filter(Predicate.hasProperty('max')),
+							Option.filter(Predicate.struct({ max: Predicate.isDate })),
+							Option.map(({ max }) => ({
+								max: max.toISOString().split('T')[0]!,
 							})),
 						),
 				),
