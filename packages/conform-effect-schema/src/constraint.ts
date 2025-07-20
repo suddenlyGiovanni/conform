@@ -123,43 +123,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 
 			case 'Refinement': {
-				// handle BetweenBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
-				pipe(
-					AST.getSchemaIdAnnotation(ast),
-					Option.filter(Equal.equals(Schema.BetweenBigIntSchemaId)),
-					Option.andThen(() =>
-						AST.getAnnotation<{
-							max: bigint;
-							min: bigint;
-						}>(ast, Schema.BetweenBigIntSchemaId),
-					),
-					Option.filter(
-						pipe(
-							Predicate.hasProperty('max'),
-							Predicate.and(Predicate.hasProperty('max')),
-						),
-					),
-					Option.filter(
-						Predicate.struct({
-							max: Predicate.isBigInt,
-							min: Predicate.isBigInt,
-						}),
-					),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ max, min }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									max: max as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
-									min: min as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
-								}),
-							);
-							return Option.void;
-						},
-					}),
-				);
-
 				// handle GreaterThanDateSchemaId e.g. Schema.Date.pipe(Schema.greaterThanDate(new Date(1)))
 				pipe(
 					AST.getSchemaIdAnnotation(ast),
