@@ -421,6 +421,37 @@ export const bigintRefinement = (ast: AST.AST): Option.Option<Constraint> =>
 						),
 				),
 
+				Match.when(
+					// handle BetweenBigIntSchemaId e.g. Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
+					Schema.BetweenBigIntSchemaId,
+					() =>
+						pipe(
+							AST.getAnnotation<{
+								max: bigint;
+								min: bigint;
+							}>(ast, Schema.BetweenBigIntSchemaId),
+
+							Option.filter(
+								pipe(
+									Predicate.hasProperty('max'),
+									Predicate.and(Predicate.hasProperty('max')),
+								),
+							),
+							Option.filter(
+								Predicate.struct({
+									max: Predicate.isBigInt,
+									min: Predicate.isBigInt,
+								}),
+							),
+							Option.map(
+								({ max, min }): Constraint => ({
+									max: max as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+									min: min as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
+								}),
+							),
+						),
+				),
+
 				Match.orElse(() => Option.none()),
 			),
 		),
