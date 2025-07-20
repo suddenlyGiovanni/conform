@@ -494,6 +494,34 @@ export const dateRefinement = <From extends AST.AST>(
 						),
 				),
 
+				Match.when(
+					// handle BetweenDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.betweenDate(new Date(1), new Date(2)))
+					Schema.BetweenDateSchemaId,
+					() =>
+						pipe(
+							AST.getAnnotation<{
+								max: Date;
+								min: Date;
+							}>(ast, Schema.BetweenDateSchemaId),
+							Option.filter(
+								pipe(
+									Predicate.hasProperty('min'),
+									Predicate.and(Predicate.hasProperty('max')),
+								),
+							),
+							Option.filter(
+								Predicate.struct({
+									min: Predicate.isDate,
+									max: Predicate.isDate,
+								}),
+							),
+							Option.map(({ max, min }) => ({
+								max: max.toISOString().split('T')[0]!,
+								min: min.toISOString().split('T')[0]!,
+							})),
+						),
+				),
+
 				Match.orElse(() => Option.none()),
 			),
 		),
