@@ -1,9 +1,7 @@
 import { Constraint } from '@conform-to/dom';
-import * as Equal from 'effect/Equal';
 import { pipe } from 'effect/Function';
 import * as MutableHashMap from 'effect/MutableHashMap';
 import * as Option from 'effect/Option';
-import * as Predicate from 'effect/Predicate';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
@@ -124,44 +122,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 
 			case 'Refinement': {
-				// handle BetweenDateSchemaId e.g. Schema.DateFromSelf.pipe(Schema.betweenDate(new Date(1), new Date(2)))
-				pipe(
-					AST.getSchemaIdAnnotation(ast),
-					Option.filter(Equal.equals(Schema.BetweenDateSchemaId)),
-					Option.andThen(() =>
-						AST.getAnnotation<{
-							max: Date;
-							min: Date;
-						}>(ast, Schema.BetweenDateSchemaId),
-					),
-					Option.filter(
-						pipe(
-							Predicate.hasProperty('min'),
-							Predicate.and(Predicate.hasProperty('max')),
-						),
-					),
-					Option.filter(
-						Predicate.struct({
-							min: Predicate.isDate,
-							max: Predicate.isDate,
-						}),
-					),
-					Option.match({
-						onNone: () => Option.none(),
-						onSome: ({ max, min }) => {
-							MutableHashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...constraint.pipe(Option.getOrElse(() => ({}))),
-									max: max.toISOString().split('T')[0],
-									min: min.toISOString().split('T')[0],
-								}),
-							);
-							return Option.void;
-						},
-					}),
-				);
-
-				// done refining the ast, now recursively continue to process the `from` AST part
 				updateConstraint(
 					ast.from,
 					MutableHashMap.modifyAt(data, name, (maybeConstraint) =>
