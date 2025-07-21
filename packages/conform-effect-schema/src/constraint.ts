@@ -53,7 +53,8 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 			case 'TypeLiteral': {
 				// a Schema.Struct is a TypeLiteral AST node
 				ast.propertySignatures.forEach((propertySignature) => {
-					const key = Match.value(name).pipe(
+					const keyStruct = Match.value(name).pipe(
+						Match.withReturnType<`${string}.${string}` | string>(),
 						Match.when(
 							Match.nonEmptyString,
 							(parentPath) =>
@@ -62,17 +63,20 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 						Match.orElse(() => propertySignature.name.toString()),
 					);
 
-					const required = !propertySignature.isOptional;
-
-					updateConstraint(
-						propertySignature.type,
-						MutableHashMap.modifyAt(data, key, (constraint) =>
+					const structData = MutableHashMap.modifyAt(
+						data,
+						keyStruct,
+						(constraint) =>
 							Option.some({
-								...Option.getOrElse(constraint, () => Record.empty()),
-								required,
+								...Option.getOrElse(constraint, Record.empty),
+								required: !propertySignature.isOptional,
 							}),
-						),
-						key,
+					);
+
+					return updateConstraint(
+						propertySignature.type,
+						structData,
+						keyStruct,
 					);
 				});
 				break;
@@ -92,34 +96,38 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 				if (ast.elements.length === 0 && ast.rest.length > 0) {
 					// its an array such as [...elements: string[]]
-					const arrayNestedKey = `${name}[]`;
-					ast.rest.forEach((type) =>
-						updateConstraint(
-							type.type,
-							pipe(
-								data,
-								MutableHashMap.modifyAt(name, (constraint) =>
-									Option.some({
-										...Option.getOrElse(constraint, () => Record.empty()),
-										multiple: true,
-									}),
-								),
-								(_) =>
-									MutableHashMap.set(_, arrayNestedKey, { required: true }),
-							),
-							arrayNestedKey,
-						),
-					);
+					const keyNestedArray = `${name}[]` as const;
+
+					ast.rest.forEach((type) => {
+						const arrayData = MutableHashMap.modifyAt(
+							data,
+							name,
+							(constraint) =>
+								Option.some({
+									...Option.getOrElse(constraint, Record.empty),
+									multiple: true,
+								}),
+						).pipe(
+							MutableHashMap.set<string, Constraint>(keyNestedArray, {
+								required: true,
+							}),
+						);
+
+						return updateConstraint(type.type, arrayData, keyNestedArray);
+					});
 				} else if (ast.elements.length > 0 && ast.rest.length >= 0) {
 					// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
 
 					ast.elements.forEach((optionalType, idx) => {
-						const tupleNestedKey = `${name}[${idx}]`;
-						const required = !optionalType.isOptional;
+						const tupleNestedKey = `${name}[${idx}]` as const;
 
-						updateConstraint(
+						const tupleData = MutableHashMap.set(data, tupleNestedKey, {
+							required: !optionalType.isOptional,
+						});
+
+						return updateConstraint(
 							optionalType.type,
-							MutableHashMap.set(data, tupleNestedKey, { required }),
+							tupleData,
 							tupleNestedKey,
 						);
 					});
@@ -132,29 +140,31 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 
 			case 'Refinement': {
-				updateConstraint(
-					ast.from,
-					MutableHashMap.modifyAt(data, name, (maybeConstraint) =>
-						Option.some({
-							...Option.getOrElse(maybeConstraint, () => ({})),
-							...Option.reduceCompact(
-								[
-									stringRefinement(ast),
-									numberRefinement(ast),
-									bigintRefinement(ast),
-									dateRefinement(ast),
-								],
-								{},
-								(constraints, constraint): Constraint => ({
-									...constraints,
-									...constraint,
-								}),
-							),
-						}),
-					),
-					name,
+				const refinementConstraint = Option.reduceCompact<
+					Constraint,
+					Constraint
+				>(
+					[
+						stringRefinement(ast),
+						numberRefinement(ast),
+						bigintRefinement(ast),
+						dateRefinement(ast),
+					],
+					{},
+					(constraints, constraint) => ({ ...constraints, ...constraint }),
 				);
-				break;
+
+				const refinementData = MutableHashMap.modifyAt(
+					data,
+					name,
+					(maybeConstraint) =>
+						Option.some({
+							...Option.getOrElse(maybeConstraint, Record.empty),
+							...refinementConstraint,
+						}),
+				);
+
+				return updateConstraint(ast.from, refinementData, name);
 			}
 
 			default:
