@@ -761,7 +761,7 @@ describe('constraint', () => {
 	});
 
 	describe('Nested Schemas', () => {
-		test.todo('Struct', () => {
+		test('Struct', () => {
 			const schema = Schema.Struct({
 				nested: Schema.Struct({
 					key: Schema.String.pipe(Schema.minLength(1)),
