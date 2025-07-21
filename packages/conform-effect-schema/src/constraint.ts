@@ -1,4 +1,5 @@
 import { Constraint } from '@conform-to/dom';
+import * as Match from 'effect/Match';
 import { pipe } from 'effect/Function';
 import * as MutableHashMap from 'effect/MutableHashMap';
 import * as Option from 'effect/Option';
@@ -52,17 +53,26 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 			case 'TypeLiteral': {
 				// a Schema.Struct is a TypeLiteral AST node
 				ast.propertySignatures.forEach((propertySignature) => {
-					const propertyKey = propertySignature.name as string;
+					const key = Match.value(name).pipe(
+						Match.when(
+							Match.nonEmptyString,
+							(parentPath) =>
+								`${parentPath}.${propertySignature.name.toString()}`,
+						),
+						Match.orElse(() => propertySignature.name.toString()),
+					);
+
+					const required = !propertySignature.isOptional;
 
 					updateConstraint(
 						propertySignature.type,
-						MutableHashMap.modifyAt(data, propertyKey, (constraint) =>
+						MutableHashMap.modifyAt(data, key, (constraint) =>
 							Option.some({
-								...constraint.pipe(Option.getOrElse(() => ({}))),
-								required: !propertySignature.isOptional,
+								...Option.getOrElse(constraint, () => Record.empty()),
+								required,
 							}),
 						),
-						name ? `${name}.${propertyKey}` : propertyKey,
+						key,
 					);
 				});
 				break;
@@ -90,7 +100,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 								data,
 								MutableHashMap.modifyAt(name, (constraint) =>
 									Option.some({
-										...constraint.pipe(Option.getOrElse(() => ({}))),
+										...Option.getOrElse(constraint, () => Record.empty()),
 										multiple: true,
 									}),
 								),
