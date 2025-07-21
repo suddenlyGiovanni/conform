@@ -52,7 +52,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 			case 'TypeLiteral': {
 				// a Schema.Struct is a TypeLiteral AST node
-				ast.propertySignatures.forEach((propertySignature) => {
+				return ast.propertySignatures.forEach((propertySignature) => {
 					const keyStruct = Match.value(name).pipe(
 						Match.withReturnType<`${string}.${string}` | string>(),
 						Match.when(
@@ -79,7 +79,6 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 						keyStruct,
 					);
 				});
-				break;
 			}
 			case 'TupleType': {
 				// Schema.Array is represented as special case of Schema.Tuple where it is defined as [...rest: Schema.Any]
@@ -105,7 +104,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 						}),
 					);
 
-					ast.rest.forEach((type) =>
+					return ast.rest.forEach((type) =>
 						updateConstraint(
 							type.type,
 							MutableHashMap.set(arrayData, keyNestedArray, { required: true }),
@@ -115,7 +114,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				} else if (ast.elements.length > 0 && ast.rest.length >= 0) {
 					// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
 
-					ast.elements.forEach((optionalType, idx) => {
+					return ast.elements.forEach((optionalType, idx) => {
 						const tupleNestedKey = `${name}[${idx}]` as const;
 
 						const tupleData = MutableHashMap.set(data, tupleNestedKey, {
