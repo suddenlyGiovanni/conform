@@ -716,32 +716,60 @@ describe('constraint', () => {
 			});
 		});
 
-		test('with nested Struct', () => {
-			const schema = Schema.Struct({
-				list: Schema.Array(
-					Schema.Struct({
-						key: Schema.String.pipe(Schema.minLength(1)),
-						value: Schema.Number.pipe(Schema.greaterThanOrEqualTo(42)),
-					}),
-				).pipe(Schema.minItems(1)),
+		describe('with nested data', () => {
+			test('Struct', () => {
+				const schema = Schema.Struct({
+					list: Schema.Array(
+						Schema.Struct({
+							key: Schema.String.pipe(Schema.minLength(1)),
+							value: Schema.Number.pipe(Schema.greaterThanOrEqualTo(42)),
+						}),
+					).pipe(Schema.minItems(1)),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema> | string, Constraint>
+				>({
+					list: {
+						required: true,
+						multiple: true,
+					},
+					'list[]': { required: true },
+					'list[].key': {
+						required: true,
+						minLength: 1,
+					},
+					'list[].value': {
+						required: true,
+						min: 42,
+					},
+				});
 			});
 
-			expect(getEffectSchemaConstraint(schema)).toEqual<
-				Record<keyof Schema.Schema.Type<typeof schema> | string, Constraint>
-			>({
-				list: {
-					required: true,
-					multiple: true,
-				},
-				'list[]': { required: true },
-				'list[].key': {
-					required: true,
-					minLength: 1,
-				},
-				'list[].value': {
-					required: true,
-					min: 42,
-				},
+			test('Union', () => {
+				const schema = Schema.Struct({
+					list: Schema.Array(
+						Schema.Struct({
+							value: Schema.optional(
+								Schema.Number.pipe(Schema.greaterThanOrEqualTo(42)),
+							),
+						}),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema> | string, Constraint>
+				>({
+					list: {
+						required: true,
+						multiple: true,
+					},
+					'list[]': { required: true },
+					'list[].value': {
+						required: false,
+						min: 42,
+					},
+				});
 			});
 		});
 	});
