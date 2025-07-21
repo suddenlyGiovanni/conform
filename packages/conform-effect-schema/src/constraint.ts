@@ -1,6 +1,5 @@
 import { Constraint } from '@conform-to/dom';
 import * as Match from 'effect/Match';
-import { pipe } from 'effect/Function';
 import * as MutableHashMap from 'effect/MutableHashMap';
 import * as Option from 'effect/Option';
 import * as Record from 'effect/Record';
@@ -34,22 +33,30 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 			case 'NumberKeyword': // Schema.Number
 			case 'BigIntKeyword': // Schema.BigIntFromSelf
 			case 'BooleanKeyword': // Schema.Boolean
+			case 'UndefinedKeyword': {
+				// Schema.Undefined
+				// for these AST nodes we do not need to process them further
 				break;
+			}
 			case 'AnyKeyword': // Schema.Any
 			case 'NeverKeyword': // Schema.Never
 			case 'ObjectKeyword': // Schema.Object
 			case 'SymbolKeyword': // Schema.SymbolFromSelf
 			case 'VoidKeyword': // Schema.Void
-			case 'UnknownKeyword': // Schema.Unknown
-			case 'UndefinedKeyword': // Schema.Undefined
+			case 'UnknownKeyword': {
+				// Schema.Unknown
+				// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
 				throw new Error(
 					'Unsupported AST type for Constraint extraction AST: ' + ast._tag,
 				);
+			}
 			case 'Literal': // string | number | boolean | null | bigint
 			case 'Declaration':
 			case 'TemplateLiteral':
-			case 'Enums':
+			case 'Enums': {
+				// for these AST nodes we do not need to process them further
 				break;
+			}
 			case 'TypeLiteral': {
 				// a Schema.Struct is a TypeLiteral AST node
 				return ast.propertySignatures.forEach((propertySignature) => {
@@ -132,8 +139,11 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				break;
 			}
 
-			case 'Union':
-				break;
+			case 'Union': {
+				return ast.types.forEach((member) =>
+					updateConstraint(member, data, name),
+				);
+			}
 
 			case 'Refinement': {
 				const refinementConstraint = Option.reduceCompact<
