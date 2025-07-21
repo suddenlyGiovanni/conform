@@ -155,5 +155,5 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	const result = MutableHashMap.empty<string, Constraint>();
 	updateConstraint(schema.ast, result);
 
-	return result.pipe((hm) => Record.fromEntries(hm));
+	return Record.fromEntries(result);
 }
