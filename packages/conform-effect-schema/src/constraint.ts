@@ -98,23 +98,20 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					// its an array such as [...elements: string[]]
 					const keyNestedArray = `${name}[]` as const;
 
-					ast.rest.forEach((type) => {
-						const arrayData = MutableHashMap.modifyAt(
-							data,
-							name,
-							(constraint) =>
-								Option.some({
-									...Option.getOrElse(constraint, Record.empty),
-									multiple: true,
-								}),
-						).pipe(
-							MutableHashMap.set<string, Constraint>(keyNestedArray, {
-								required: true,
-							}),
-						);
+					const arrayData = MutableHashMap.modifyAt(data, name, (constraint) =>
+						Option.some({
+							...Option.getOrElse(constraint, Record.empty),
+							multiple: true,
+						}),
+					);
 
-						return updateConstraint(type.type, arrayData, keyNestedArray);
-					});
+					ast.rest.forEach((type) =>
+						updateConstraint(
+							type.type,
+							MutableHashMap.set(arrayData, keyNestedArray, { required: true }),
+							keyNestedArray,
+						),
+					);
 				} else if (ast.elements.length > 0 && ast.rest.length >= 0) {
 					// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
 
