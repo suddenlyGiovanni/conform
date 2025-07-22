@@ -144,13 +144,15 @@ const updateConstraint = (
 			return data;
 		}),
 
-		Match.when(AST.isUnion, ({ types }) => {
-			let _data = data;
-			for (const member of types) {
-				_data = updateConstraint(member, _data, name);
-			}
-			return _data;
-		}),
+		Match.when(AST.isUnion, (union) =>
+			pipe(
+				union,
+				Struct.get('types'),
+				ReadonlyArray.reduce(data, (_data, member) =>
+					updateConstraint(member, _data, name),
+				),
+			),
+		),
 
 		Match.when(AST.isRefinement, (refinement) => {
 			const refinementConstraint = Option.reduceCompact<Constraint, Constraint>(
