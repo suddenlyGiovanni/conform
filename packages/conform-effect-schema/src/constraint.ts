@@ -1,9 +1,11 @@
 import { Constraint } from '@conform-to/dom';
 import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
+import * as ReadonlyArray from 'effect/Array';
 import * as HashMap from 'effect/HashMap';
 import * as Option from 'effect/Option';
 import * as Record from 'effect/Record';
+import * as Struct from 'effect/Struct';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
@@ -18,8 +20,8 @@ const updateConstraint = (
 	ast: AST.AST,
 	data: HashMap.HashMap<string, Constraint>,
 	name: string = '',
-): HashMap.HashMap<string, Constraint> =>
-	Match.value(ast).pipe(
+): HashMap.HashMap<string, Constraint> => {
+	return Match.value(ast).pipe(
 		Match.withReturnType<HashMap.HashMap<string, Constraint>>(),
 
 		// for these AST nodes we do not need to process them further
@@ -59,32 +61,35 @@ const updateConstraint = (
 
 		Match.when(
 			AST.isTypeLiteral, // Schema.Struct
-			({ propertySignatures }) => {
-				let _data = data;
-				for (const { isOptional, name: _name, type } of propertySignatures) {
-					const key = Match.value(name).pipe(
-						Match.withReturnType<`${string}.${string}` | string>(),
-						Match.when(
-							Match.nonEmptyString,
-							(parentPath) => `${parentPath}.${_name.toString()}`,
-						),
-						Match.orElse(() => _name.toString()),
-					);
+			(typeLiteral) =>
+				pipe(
+					typeLiteral,
+					Struct.get('propertySignatures'),
+					ReadonlyArray.reduce(
+						data,
+						(_data, { isOptional, name: _name, type }) => {
+							const key = Match.value(name).pipe(
+								Match.withReturnType<`${string}.${string}` | string>(),
+								Match.when(
+									Match.nonEmptyString,
+									(parentPath) => `${parentPath}.${_name.toString()}`,
+								),
+								Match.orElse(() => _name.toString()),
+							);
 
-					_data = updateConstraint(
-						type,
-						HashMap.modifyAt(_data, key, (constraint) =>
-							Option.some({
-								...Option.getOrElse(constraint, Record.empty),
-								required: !isOptional,
-							}),
-						),
-						key,
-					);
-				}
-
-				return _data;
-			},
+							return updateConstraint(
+								type,
+								HashMap.modifyAt(_data, key, (constraint) =>
+									Option.some({
+										...Option.getOrElse(constraint, Record.empty),
+										required: !isOptional,
+									}),
+								),
+								key,
+							);
+						},
+					),
+				),
 		),
 
 		Match.when(AST.isTupleType, ({ elements, rest }) => {
@@ -178,6 +183,7 @@ const updateConstraint = (
 
 		Match.exhaustive,
 	);
+};
 
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
