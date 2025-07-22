@@ -1,4 +1,5 @@
 import { Constraint } from '@conform-to/dom';
+import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as MutableHashMap from 'effect/MutableHashMap';
 import * as Option from 'effect/Option';
@@ -23,23 +24,25 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 		);
 	}
 
-	function updateConstraint(
+	const updateConstraint = (
 		ast: AST.AST,
 		data: MutableHashMap.MutableHashMap<string, Constraint>,
 		name: string = '',
-	): void {
+	): MutableHashMap.MutableHashMap<string, Constraint> =>
 		Match.value(ast).pipe(
+			Match.withReturnType<MutableHashMap.MutableHashMap<string, Constraint>>(),
+
+			// for these AST nodes we do not need to process them further
 			Match.whenOr(
 				AST.isStringKeyword, // Schema.String
 				AST.isNumberKeyword, // Schema.Number
 				AST.isBigIntKeyword, // Schema.BigIntFromSelf
 				AST.isBooleanKeyword, // Schema.Boolean
 				AST.isUndefinedKeyword, // Schema.Undefined
-				() => {
-					// for these AST nodes we do not need to process them further
-				},
+				() => data,
 			),
 
+			// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
 			Match.whenOr(
 				AST.isAnyKeyword, // Schema.Any
 				AST.isNeverKeyword, // Schema.Never
@@ -49,26 +52,25 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				AST.isUnknownKeyword, // Schema.Unknown,
 				AST.isUniqueSymbol,
 				(_) => {
-					// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
 					throw new Error(
 						'Unsupported AST type for Constraint extraction AST: ' + _._tag,
 					);
 				},
 			),
 
+			// for these AST nodes we do not need to process them further
 			Match.whenOr(
 				AST.isLiteral, // string | number | boolean | null | bigint
 				AST.isDeclaration,
 				AST.isTemplateLiteral,
 				AST.isEnums,
-				() => {
-					// for these AST nodes we do not need to process them further
-				},
+				() => data,
 			),
 
 			Match.when(
 				AST.isTypeLiteral, // Schema.Struct
 				({ propertySignatures }) => {
+					let _data = data;
 					propertySignatures.forEach(({ isOptional, name: _name, type }) => {
 						const keyStruct = Match.value(name).pipe(
 							Match.withReturnType<`${string}.${string}` | string>(),
@@ -80,7 +82,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 						);
 
 						const structData = MutableHashMap.modifyAt(
-							data,
+							_data,
 							keyStruct,
 							(constraint) =>
 								Option.some({
@@ -89,8 +91,10 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 								}),
 						);
 
-						updateConstraint(type, structData, keyStruct);
+						_data = updateConstraint(type, structData, keyStruct);
 					});
+
+					return _data;
 				},
 			),
 
@@ -111,39 +115,46 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 					// its an array such as [...elements: string[]]
 					const keyNestedArray = `${name}[]` as const;
 
-					const arrayData = MutableHashMap.modifyAt(data, name, (constraint) =>
+					let _data = MutableHashMap.modifyAt(data, name, (constraint) =>
 						Option.some({
 							...Option.getOrElse(constraint, Record.empty),
 							multiple: true,
 						}),
 					);
 
-					return rest.forEach((type) => {
-						updateConstraint(
+					rest.forEach((type) => {
+						_data = updateConstraint(
 							type.type,
-							MutableHashMap.set(arrayData, keyNestedArray, { required: true }),
+							MutableHashMap.set(_data, keyNestedArray, { required: true }),
 							keyNestedArray,
 						);
 					});
+					return _data;
 				} else if (elements.length > 0 && rest.length >= 0) {
 					// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
 
-					return elements.forEach(({ isOptional, type }, idx) => {
+					let _data = data;
+
+					elements.forEach(({ isOptional, type }, idx) => {
 						const tupleNestedKey = `${name}[${idx}]` as const;
 
-						const tupleData = MutableHashMap.set(data, tupleNestedKey, {
+						const tupleData = MutableHashMap.set(_data, tupleNestedKey, {
 							required: !isOptional,
 						});
 
-						updateConstraint(type, tupleData, tupleNestedKey);
+						_data = updateConstraint(type, tupleData, tupleNestedKey);
 					});
+					return _data;
 				}
+				return data;
 			}),
 
 			Match.when(AST.isUnion, ({ types }) => {
+				let _data = data;
 				types.forEach((member) => {
-					updateConstraint(member, data, name);
+					_data = updateConstraint(member, _data, name);
 				});
+				return _data;
 			}),
 
 			Match.when(AST.isRefinement, (refinement) => {
@@ -171,20 +182,22 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 						}),
 				);
 
-				updateConstraint(refinement.from, refinementData, name);
+				return updateConstraint(refinement.from, refinementData, name);
 			}),
 
 			// Unsupported AST types for Constraint extraction
 			Match.whenOr(AST.isTransformation, AST.isSuspend, (_) => {
-				throw new Error(`Unsupported AST type: ${_._tag}`);
+				throw new Error(
+					`TODO: add support for this AST Node type: "${_._tag}"`,
+				);
 			}),
 
 			Match.exhaustive,
 		);
-	}
 
-	const result = MutableHashMap.empty<string, Constraint>();
-	updateConstraint(schema.ast, result);
-
-	return Record.fromEntries(result);
+	return pipe(
+		MutableHashMap.empty<string, Constraint>(),
+		(data) => updateConstraint(schema.ast, data, ''),
+		Record.fromEntries,
+	);
 }
