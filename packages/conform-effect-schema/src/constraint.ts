@@ -28,66 +28,73 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 		data: MutableHashMap.MutableHashMap<string, Constraint>,
 		name: string = '',
 	): void {
-		switch (ast._tag) {
-			case 'StringKeyword': // Schema.String
-			case 'NumberKeyword': // Schema.Number
-			case 'BigIntKeyword': // Schema.BigIntFromSelf
-			case 'BooleanKeyword': // Schema.Boolean
-			case 'UndefinedKeyword': {
-				// Schema.Undefined
-				// for these AST nodes we do not need to process them further
-				break;
-			}
-			case 'AnyKeyword': // Schema.Any
-			case 'NeverKeyword': // Schema.Never
-			case 'ObjectKeyword': // Schema.Object
-			case 'SymbolKeyword': // Schema.SymbolFromSelf
-			case 'VoidKeyword': // Schema.Void
-			case 'UnknownKeyword': {
-				// Schema.Unknown
-				// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
-				throw new Error(
-					'Unsupported AST type for Constraint extraction AST: ' + ast._tag,
-				);
-			}
-			case 'Literal': // string | number | boolean | null | bigint
-			case 'Declaration':
-			case 'TemplateLiteral':
-			case 'Enums': {
-				// for these AST nodes we do not need to process them further
-				break;
-			}
-			case 'TypeLiteral': {
-				// a Schema.Struct is a TypeLiteral AST node
-				return ast.propertySignatures.forEach((propertySignature) => {
-					const keyStruct = Match.value(name).pipe(
-						Match.withReturnType<`${string}.${string}` | string>(),
-						Match.when(
-							Match.nonEmptyString,
-							(parentPath) =>
-								`${parentPath}.${propertySignature.name.toString()}`,
-						),
-						Match.orElse(() => propertySignature.name.toString()),
-					);
+		Match.value(ast).pipe(
+			Match.whenOr(
+				AST.isStringKeyword, // Schema.String
+				AST.isNumberKeyword, // Schema.Number
+				AST.isBigIntKeyword, // Schema.BigIntFromSelf
+				AST.isBooleanKeyword, // Schema.Boolean
+				AST.isUndefinedKeyword, // Schema.Undefined
+				() => {
+					// for these AST nodes we do not need to process them further
+				},
+			),
 
-					const structData = MutableHashMap.modifyAt(
-						data,
-						keyStruct,
-						(constraint) =>
-							Option.some({
-								...Option.getOrElse(constraint, Record.empty),
-								required: !propertySignature.isOptional,
-							}),
+			Match.whenOr(
+				AST.isAnyKeyword, // Schema.Any
+				AST.isNeverKeyword, // Schema.Never
+				AST.isObjectKeyword, // Schema.Object
+				AST.isSymbolKeyword, // Schema.SymbolFromSelf
+				AST.isVoidKeyword, // Schema.Void
+				AST.isUnknownKeyword, // Schema.Unknown,
+				AST.isUniqueSymbol,
+				(_) => {
+					// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
+					throw new Error(
+						'Unsupported AST type for Constraint extraction AST: ' + _._tag,
 					);
+				},
+			),
 
-					return updateConstraint(
-						propertySignature.type,
-						structData,
-						keyStruct,
-					);
-				});
-			}
-			case 'TupleType': {
+			Match.whenOr(
+				AST.isLiteral, // string | number | boolean | null | bigint
+				AST.isDeclaration,
+				AST.isTemplateLiteral,
+				AST.isEnums,
+				() => {
+					// for these AST nodes we do not need to process them further
+				},
+			),
+
+			Match.when(
+				AST.isTypeLiteral, // Schema.Struct
+				({ propertySignatures }) => {
+					propertySignatures.forEach(({ isOptional, name: _name, type }) => {
+						const keyStruct = Match.value(name).pipe(
+							Match.withReturnType<`${string}.${string}` | string>(),
+							Match.when(
+								Match.nonEmptyString,
+								(parentPath) => `${parentPath}.${_name.toString()}`,
+							),
+							Match.orElse(() => _name.toString()),
+						);
+
+						const structData = MutableHashMap.modifyAt(
+							data,
+							keyStruct,
+							(constraint) =>
+								Option.some({
+									...Option.getOrElse(constraint, Record.empty),
+									required: !isOptional,
+								}),
+						);
+
+						updateConstraint(type, structData, keyStruct);
+					});
+				},
+			),
+
+			Match.when(AST.isTupleType, ({ elements, rest }) => {
 				// Schema.Array is represented as special case of Schema.Tuple where it is defined as [...rest: Schema.Any]
 				// we need to distinguish between Schema.Array and Schema.Tuple
 				// Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
@@ -100,7 +107,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 				// 	requiredTypes = requiredTypes.concat(ast.rest.slice(1));
 				// }
 
-				if (ast.elements.length === 0 && ast.rest.length > 0) {
+				if (elements.length === 0 && rest.length > 0) {
 					// its an array such as [...elements: string[]]
 					const keyNestedArray = `${name}[]` as const;
 
@@ -111,50 +118,44 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 						}),
 					);
 
-					return ast.rest.forEach((type) =>
+					return rest.forEach((type) => {
 						updateConstraint(
 							type.type,
 							MutableHashMap.set(arrayData, keyNestedArray, { required: true }),
 							keyNestedArray,
-						),
-					);
-				} else if (ast.elements.length > 0 && ast.rest.length >= 0) {
+						);
+					});
+				} else if (elements.length > 0 && rest.length >= 0) {
 					// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
 
-					return ast.elements.forEach((optionalType, idx) => {
+					return elements.forEach(({ isOptional, type }, idx) => {
 						const tupleNestedKey = `${name}[${idx}]` as const;
 
 						const tupleData = MutableHashMap.set(data, tupleNestedKey, {
-							required: !optionalType.isOptional,
+							required: !isOptional,
 						});
 
-						return updateConstraint(
-							optionalType.type,
-							tupleData,
-							tupleNestedKey,
-						);
+						updateConstraint(type, tupleData, tupleNestedKey);
 					});
 				}
+			}),
 
-				break;
-			}
+			Match.when(AST.isUnion, ({ types }) => {
+				types.forEach((member) => {
+					updateConstraint(member, data, name);
+				});
+			}),
 
-			case 'Union': {
-				return ast.types.forEach((member) =>
-					updateConstraint(member, data, name),
-				);
-			}
-
-			case 'Refinement': {
+			Match.when(AST.isRefinement, (refinement) => {
 				const refinementConstraint = Option.reduceCompact<
 					Constraint,
 					Constraint
 				>(
 					[
-						stringRefinement(ast),
-						numberRefinement(ast),
-						bigintRefinement(ast),
-						dateRefinement(ast),
+						stringRefinement(refinement),
+						numberRefinement(refinement),
+						bigintRefinement(refinement),
+						dateRefinement(refinement),
 					],
 					{},
 					(constraints, constraint) => ({ ...constraints, ...constraint }),
@@ -170,12 +171,16 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 						}),
 				);
 
-				return updateConstraint(ast.from, refinementData, name);
-			}
+				updateConstraint(refinement.from, refinementData, name);
+			}),
 
-			default:
-				throw new Error(`Unsupported AST type: ${ast._tag}`);
-		}
+			// Unsupported AST types for Constraint extraction
+			Match.whenOr(AST.isTransformation, AST.isSuspend, (_) => {
+				throw new Error(`Unsupported AST type: ${_._tag}`);
+			}),
+
+			Match.exhaustive,
+		);
 	}
 
 	const result = MutableHashMap.empty<string, Constraint>();
