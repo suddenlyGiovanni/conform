@@ -127,19 +127,18 @@ const updateConstraint = (
 			} else if (elements.length > 0 && rest.length >= 0) {
 				// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
 
-				let _data = data;
+				return pipe(
+					elements,
+					ReadonlyArray.reduce(data, (_data, { isOptional, type }, idx) => {
+						const key = `${name}[${idx}]` as const;
 
-				elements.forEach(({ isOptional, type }, idx) => {
-					const key = `${name}[${idx}]` as const;
-
-					_data = updateConstraint(
-						type,
-						HashMap.set(_data, key, { required: !isOptional }),
-						key,
-					);
-				});
-
-				return _data;
+						return updateConstraint(
+							type,
+							HashMap.set(_data, key, { required: !isOptional }),
+							key,
+						);
+					}),
+				);
 			}
 			return data;
 		}),
