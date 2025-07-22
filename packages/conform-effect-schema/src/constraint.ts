@@ -67,7 +67,7 @@ const updateConstraint = (
 					Struct.get('propertySignatures'),
 					ReadonlyArray.reduce(
 						data,
-						(_data, { isOptional, name: _name, type }) => {
+						(hashMap, { isOptional, name: _name, type }) => {
 							const key = Match.value(name).pipe(
 								Match.withReturnType<`${string}.${string}` | string>(),
 								Match.when(
@@ -79,7 +79,7 @@ const updateConstraint = (
 
 							return updateConstraint(
 								type,
-								HashMap.modifyAt(_data, key, (constraint) =>
+								HashMap.modifyAt(hashMap, key, (constraint) =>
 									Option.some({
 										...Option.getOrElse(constraint, Record.empty),
 										required: !isOptional,
@@ -92,7 +92,7 @@ const updateConstraint = (
 				),
 		),
 
-		Match.when(AST.isTupleType, ({ elements, rest }) => {
+		Match.when(AST.isTupleType, (tupleType) => {
 			// Schema.Array is represented as special case of Schema.Tuple where it is defined as [...rest: Schema.Any]
 			// we need to distinguish between Schema.Array and Schema.Tuple
 			// Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
@@ -105,41 +105,48 @@ const updateConstraint = (
 			// 	requiredTypes = requiredTypes.concat(ast.rest.slice(1));
 			// }
 
-			if (elements.length === 0 && rest.length > 0) {
+			if (tupleType.elements.length === 0 && tupleType.rest.length > 0) {
 				// its an array such as [...elements: string[]]
-				const keyNestedArray = `${name}[]` as const;
+				const key = `${name}[]` as const;
 
-				let _data = HashMap.modifyAt(data, name, (constraint) =>
+				const arrayData = HashMap.modifyAt(data, name, (constraint) =>
 					Option.some({
 						...Option.getOrElse(constraint, Record.empty),
 						multiple: true,
 					}),
 				);
 
-				for (const type of rest) {
-					_data = updateConstraint(
-						type.type,
-						HashMap.set(_data, keyNestedArray, { required: true }),
-						keyNestedArray,
-					);
-				}
-				return _data;
-			} else if (elements.length > 0 && rest.length >= 0) {
+				return pipe(
+					tupleType,
+					Struct.get('rest'),
+					ReadonlyArray.reduce(arrayData, (hashMap, type) =>
+						updateConstraint(
+							type.type,
+							HashMap.set(hashMap, key, { required: true }),
+							key,
+						),
+					),
+				);
+			}
+
+			if (tupleType.elements.length > 0 && tupleType.rest.length >= 0) {
 				// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
 
 				return pipe(
-					elements,
-					ReadonlyArray.reduce(data, (_data, { isOptional, type }, idx) => {
+					tupleType,
+					Struct.get('elements'),
+					ReadonlyArray.reduce(data, (hashMap, { isOptional, type }, idx) => {
 						const key = `${name}[${idx}]` as const;
 
 						return updateConstraint(
 							type,
-							HashMap.set(_data, key, { required: !isOptional }),
+							HashMap.set(hashMap, key, { required: !isOptional }),
 							key,
 						);
 					}),
 				);
 			}
+
 			return data;
 		}),
 
@@ -147,8 +154,8 @@ const updateConstraint = (
 			pipe(
 				union,
 				Struct.get('types'),
-				ReadonlyArray.reduce(data, (_data, member) =>
-					updateConstraint(member, _data, name),
+				ReadonlyArray.reduce(data, (hashMap, member) =>
+					updateConstraint(member, hashMap, name),
 				),
 			),
 		),
