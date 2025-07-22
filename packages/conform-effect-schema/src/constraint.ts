@@ -1,5 +1,5 @@
 import { Constraint } from '@conform-to/dom';
-import { pipe } from 'effect/Function';
+import { flow, pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as ReadonlyArray from 'effect/Array';
 import * as HashMap from 'effect/HashMap';
@@ -113,54 +113,54 @@ const updateConstraint: {
 				 * Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
 				 * need to set the filed name e.g. {'list[]': { required: true }}
 				 */
-				(tupleType) =>
-					Match.value(tupleType).pipe(
-						Match.whenAnd(
-							({ elements }) => elements.length === 0,
-							({ rest }) => rest.length > 0,
-							({ rest }) => {
-								const key = `${name}[]` as const;
+				flow(
+					Match.value<AST.TupleType>,
+					Match.whenAnd(
+						({ elements }) => elements.length === 0,
+						({ rest }) => rest.length > 0,
+						({ rest }) => {
+							const key = `${name}[]` as const;
 
-								return pipe(
-									rest,
-									ReadonlyArray.reduce(
-										HashMap.modifyAt(data, name, (constraint) =>
-											Option.some({
-												...Option.getOrElse(constraint, Record.empty),
-												multiple: true,
-											}),
+							return pipe(
+								rest,
+								ReadonlyArray.reduce(
+									HashMap.modifyAt(data, name, (constraint) =>
+										Option.some({
+											...Option.getOrElse(constraint, Record.empty),
+											multiple: true,
+										}),
+									),
+									(hashMap, type) =>
+										pipe(
+											HashMap.set(hashMap, key, { required: true }),
+											updateConstraint(type.type, key),
 										),
-										(hashMap, type) =>
-											pipe(
-												HashMap.set(hashMap, key, { required: true }),
-												updateConstraint(type.type, key),
-											),
-									),
-								);
-							},
-						),
-
-						Match.whenAnd(
-							({ elements }) => elements.length > 0,
-							({ rest }) => rest.length >= 0,
-							({ elements }) =>
-								pipe(
-									elements,
-									ReadonlyArray.reduce(
-										data,
-										(hashMap, { isOptional, type }, idx) =>
-											pipe(
-												HashMap.set(hashMap, `${name}[${idx}]`, {
-													required: !isOptional,
-												}),
-												updateConstraint(type, `${name}[${idx}]`),
-											),
-									),
 								),
-						),
-
-						Match.orElse(() => data),
+							);
+						},
 					),
+
+					Match.whenAnd(
+						({ elements }) => elements.length > 0,
+						({ rest }) => rest.length >= 0,
+						({ elements }) =>
+							pipe(
+								elements,
+								ReadonlyArray.reduce(
+									data,
+									(hashMap, { isOptional, type }, idx) =>
+										pipe(
+											HashMap.set(hashMap, `${name}[${idx}]`, {
+												required: !isOptional,
+											}),
+											updateConstraint(type, `${name}[${idx}]`),
+										),
+								),
+							),
+					),
+
+					Match.orElse(() => data),
+				),
 			),
 
 			Match.when(AST.isUnion, (union) =>
