@@ -1,7 +1,7 @@
 import { Constraint } from '@conform-to/dom';
 import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
-import * as MutableHashMap from 'effect/MutableHashMap';
+import * as HashMap from 'effect/HashMap';
 import * as Option from 'effect/Option';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
@@ -16,11 +16,11 @@ import {
 
 const updateConstraint = (
 	ast: AST.AST,
-	data: MutableHashMap.MutableHashMap<string, Constraint>,
+	data: HashMap.HashMap<string, Constraint>,
 	name: string = '',
-): MutableHashMap.MutableHashMap<string, Constraint> =>
+): HashMap.HashMap<string, Constraint> =>
 	Match.value(ast).pipe(
-		Match.withReturnType<MutableHashMap.MutableHashMap<string, Constraint>>(),
+		Match.withReturnType<HashMap.HashMap<string, Constraint>>(),
 
 		// for these AST nodes we do not need to process them further
 		Match.whenOr(
@@ -61,8 +61,8 @@ const updateConstraint = (
 			AST.isTypeLiteral, // Schema.Struct
 			({ propertySignatures }) => {
 				let _data = data;
-				propertySignatures.forEach(({ isOptional, name: _name, type }) => {
-					const keyStruct = Match.value(name).pipe(
+				for (const { isOptional, name: _name, type } of propertySignatures) {
+					const key = Match.value(name).pipe(
 						Match.withReturnType<`${string}.${string}` | string>(),
 						Match.when(
 							Match.nonEmptyString,
@@ -71,18 +71,17 @@ const updateConstraint = (
 						Match.orElse(() => _name.toString()),
 					);
 
-					const structData = MutableHashMap.modifyAt(
-						_data,
-						keyStruct,
-						(constraint) =>
+					_data = updateConstraint(
+						type,
+						HashMap.modifyAt(_data, key, (constraint) =>
 							Option.some({
 								...Option.getOrElse(constraint, Record.empty),
 								required: !isOptional,
 							}),
+						),
+						key,
 					);
-
-					_data = updateConstraint(type, structData, keyStruct);
-				});
+				}
 
 				return _data;
 			},
@@ -105,20 +104,20 @@ const updateConstraint = (
 				// its an array such as [...elements: string[]]
 				const keyNestedArray = `${name}[]` as const;
 
-				let _data = MutableHashMap.modifyAt(data, name, (constraint) =>
+				let _data = HashMap.modifyAt(data, name, (constraint) =>
 					Option.some({
 						...Option.getOrElse(constraint, Record.empty),
 						multiple: true,
 					}),
 				);
 
-				rest.forEach((type) => {
+				for (const type of rest) {
 					_data = updateConstraint(
 						type.type,
-						MutableHashMap.set(_data, keyNestedArray, { required: true }),
+						HashMap.set(_data, keyNestedArray, { required: true }),
 						keyNestedArray,
 					);
-				});
+				}
 				return _data;
 			} else if (elements.length > 0 && rest.length >= 0) {
 				// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
@@ -126,14 +125,15 @@ const updateConstraint = (
 				let _data = data;
 
 				elements.forEach(({ isOptional, type }, idx) => {
-					const tupleNestedKey = `${name}[${idx}]` as const;
+					const key = `${name}[${idx}]` as const;
 
-					const tupleData = MutableHashMap.set(_data, tupleNestedKey, {
-						required: !isOptional,
-					});
-
-					_data = updateConstraint(type, tupleData, tupleNestedKey);
+					_data = updateConstraint(
+						type,
+						HashMap.set(_data, key, { required: !isOptional }),
+						key,
+					);
 				});
+
 				return _data;
 			}
 			return data;
@@ -141,9 +141,9 @@ const updateConstraint = (
 
 		Match.when(AST.isUnion, ({ types }) => {
 			let _data = data;
-			types.forEach((member) => {
+			for (const member of types) {
 				_data = updateConstraint(member, _data, name);
-			});
+			}
 			return _data;
 		}),
 
@@ -159,17 +159,16 @@ const updateConstraint = (
 				(constraints, constraint) => ({ ...constraints, ...constraint }),
 			);
 
-			const refinementData = MutableHashMap.modifyAt(
-				data,
-				name,
-				(maybeConstraint) =>
+			return updateConstraint(
+				refinement.from,
+				HashMap.modifyAt(data, name, (maybeConstraint) =>
 					Option.some({
 						...Option.getOrElse(maybeConstraint, Record.empty),
 						...refinementConstraint,
 					}),
+				),
+				name,
 			);
-
-			return updateConstraint(refinement.from, refinementData, name);
 		}),
 
 		// Unsupported AST types for Constraint extraction
@@ -191,7 +190,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	}
 
 	return pipe(
-		MutableHashMap.empty<string, Constraint>(),
+		HashMap.empty<string, Constraint>(),
 		(data) => updateConstraint(schema.ast, data, ''),
 		Record.fromEntries,
 	);
