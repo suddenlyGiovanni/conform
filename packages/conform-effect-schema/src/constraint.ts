@@ -105,61 +105,63 @@ const updateConstraint: {
 					),
 			),
 
-			Match.when(AST.isTupleType, (tupleType) => {
-				// Schema.Array is represented as special case of Schema.Tuple where it is defined as [...rest: Schema.Any]
-				// we need to distinguish between Schema.Array and Schema.Tuple
-				// Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
-				// need to set the filed name e.g. {'list[]': { required: true }}
+			Match.when(
+				AST.isTupleType,
+				/**
+				 * Schema.Array is represented as special case of Schema.Tuple where it is defined as [...rest: Schema.Any]
+				 * we need to distinguish between Schema.Array and Schema.Tuple
+				 * Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
+				 * need to set the filed name e.g. {'list[]': { required: true }}
+				 */
+				(tupleType) =>
+					Match.value(tupleType).pipe(
+						Match.whenAnd(
+							({ elements }) => elements.length === 0,
+							({ rest }) => rest.length > 0,
+							({ rest }) => {
+								const key = `${name}[]` as const;
 
-				// let requiredTypes: Array<AST.Type> = ast.elements.filter(
-				// 	(e) => !e.isOptional,
-				// );
-				// if (ast.rest.length > 0) {
-				// 	requiredTypes = requiredTypes.concat(ast.rest.slice(1));
-				// }
+								return pipe(
+									rest,
+									ReadonlyArray.reduce(
+										HashMap.modifyAt(data, name, (constraint) =>
+											Option.some({
+												...Option.getOrElse(constraint, Record.empty),
+												multiple: true,
+											}),
+										),
+										(hashMap, type) =>
+											pipe(
+												HashMap.set(hashMap, key, { required: true }),
+												updateConstraint(type.type, key),
+											),
+									),
+								);
+							},
+						),
 
-				if (tupleType.elements.length === 0 && tupleType.rest.length > 0) {
-					// its an array such as [...elements: string[]]
-					const key = `${name}[]` as const;
-
-					return pipe(
-						tupleType,
-						Struct.get('rest'),
-						ReadonlyArray.reduce(
-							HashMap.modifyAt(data, name, (constraint) =>
-								Option.some({
-									...Option.getOrElse(constraint, Record.empty),
-									multiple: true,
-								}),
-							),
-							(hashMap, type) =>
+						Match.whenAnd(
+							({ elements }) => elements.length > 0,
+							({ rest }) => rest.length >= 0,
+							({ elements }) =>
 								pipe(
-									HashMap.set(hashMap, key, { required: true }),
-									updateConstraint(type.type, key),
+									elements,
+									ReadonlyArray.reduce(
+										data,
+										(hashMap, { isOptional, type }, idx) =>
+											pipe(
+												HashMap.set(hashMap, `${name}[${idx}]`, {
+													required: !isOptional,
+												}),
+												updateConstraint(type, `${name}[${idx}]`),
+											),
+									),
 								),
 						),
-					);
-				}
 
-				if (tupleType.elements.length > 0 && tupleType.rest.length >= 0) {
-					// it is a tuple with possibly rest elements, such as [head: string, ...tail: number[]]
-
-					return pipe(
-						tupleType,
-						Struct.get('elements'),
-						ReadonlyArray.reduce(data, (hashMap, { isOptional, type }, idx) =>
-							pipe(
-								HashMap.set(hashMap, `${name}[${idx}]`, {
-									required: !isOptional,
-								}),
-								updateConstraint(type, `${name}[${idx}]`),
-							),
-						),
-					);
-				}
-
-				return data;
-			}),
+						Match.orElse(() => data),
+					),
+			),
 
 			Match.when(AST.isUnion, (union) =>
 				pipe(
