@@ -74,35 +74,33 @@ const updateConstraint: {
 			),
 
 			Match.when(
-				AST.isTypeLiteral, // Schema.Struct
-				(typeLiteral) =>
-					pipe(
-						typeLiteral,
-						Struct.get('propertySignatures'),
-						ReadonlyArray.reduce(
-							data,
-							(hashMap, { isOptional, name: _name, type }) => {
-								const key = Match.value(name).pipe(
-									Match.withReturnType<`${string}.${string}` | string>(),
-									Match.when(
-										Match.nonEmptyString,
-										(parentPath) => `${parentPath}.${_name.toString()}`,
-									),
-									Match.orElse(() => _name.toString()),
-								);
+				AST.isTypeLiteral, // Schema.Struct | Schema.Record ??
+				flow(
+					Struct.get('propertySignatures')<AST.TypeLiteral>,
+					ReadonlyArray.reduce(
+						data,
+						(hashMap, { isOptional, name: _name, type }) => {
+							const key = Match.value(name).pipe(
+								Match.withReturnType<`${string}.${string}` | string>(),
+								Match.when(
+									Match.nonEmptyString,
+									(parentPath) => `${parentPath}.${_name.toString()}`,
+								),
+								Match.orElse(() => _name.toString()),
+							);
 
-								return pipe(
-									HashMap.modifyAt(hashMap, key, (constraint) =>
-										Option.some({
-											...Option.getOrElse(constraint, Record.empty),
-											required: !isOptional,
-										}),
-									),
-									updateConstraint(type, key),
-								);
-							},
-						),
+							return pipe(
+								HashMap.modifyAt(hashMap, key, (constraint) =>
+									Option.some({
+										...Option.getOrElse(constraint, Record.empty),
+										required: !isOptional,
+									}),
+								),
+								updateConstraint(type, key),
+							);
+						},
 					),
+				),
 			),
 
 			Match.when(
@@ -118,55 +116,48 @@ const updateConstraint: {
 					Match.whenAnd(
 						({ elements }) => elements.length === 0,
 						({ rest }) => rest.length > 0,
-						({ rest }) => {
-							const key = `${name}[]` as const;
-
-							return pipe(
-								rest,
-								ReadonlyArray.reduce(
-									HashMap.modifyAt(data, name, (constraint) =>
-										Option.some({
-											...Option.getOrElse(constraint, Record.empty),
-											multiple: true,
-										}),
-									),
-									(hashMap, type) =>
-										pipe(
-											HashMap.set(hashMap, key, { required: true }),
-											updateConstraint(type.type, key),
-										),
+						flow(
+							Struct.get('rest')<AST.TupleType>,
+							ReadonlyArray.reduce(
+								HashMap.modifyAt(data, name, (constraint) =>
+									Option.some({
+										...Option.getOrElse(constraint, Record.empty),
+										multiple: true,
+									}),
 								),
-							);
-						},
+								(hashMap, type) =>
+									pipe(
+										HashMap.set(hashMap, `${name}[]`, { required: true }),
+										updateConstraint(type.type, `${name}[]`),
+									),
+							),
+						),
 					),
 
 					Match.whenAnd(
 						({ elements }) => elements.length > 0,
 						({ rest }) => rest.length >= 0,
-						({ elements }) =>
-							pipe(
-								elements,
-								ReadonlyArray.reduce(
-									data,
-									(hashMap, { isOptional, type }, idx) =>
-										pipe(
-											HashMap.set(hashMap, `${name}[${idx}]`, {
-												required: !isOptional,
-											}),
-											updateConstraint(type, `${name}[${idx}]`),
-										),
+						flow(
+							Struct.get('elements')<AST.TupleType>,
+							ReadonlyArray.reduce(data, (hashMap, { isOptional, type }, idx) =>
+								pipe(
+									HashMap.set(hashMap, `${name}[${idx}]`, {
+										required: !isOptional,
+									}),
+									updateConstraint(type, `${name}[${idx}]`),
 								),
 							),
+						),
 					),
 
 					Match.orElse(() => data),
 				),
 			),
 
-			Match.when(AST.isUnion, (union) =>
-				pipe(
-					union,
-					Struct.get('types'),
+			Match.when(
+				AST.isUnion,
+				flow(
+					Struct.get('types')<AST.Union>,
 					ReadonlyArray.reduce(data, (hashMap, member) =>
 						updateConstraint(member, name)(hashMap),
 					),
