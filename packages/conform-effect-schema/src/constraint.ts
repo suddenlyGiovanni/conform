@@ -159,7 +159,7 @@ const updateConstraint: {
 				flow(
 					Struct.get('types')<AST.Union>,
 					ReadonlyArray.reduce(data, (hashMap, member) =>
-						updateConstraint(member, name)(hashMap),
+						pipe(hashMap, updateConstraint(member, name)),
 					),
 				),
 			),
