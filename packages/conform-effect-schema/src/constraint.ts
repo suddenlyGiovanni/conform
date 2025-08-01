@@ -190,8 +190,12 @@ const updateConstraint: {
 				);
 			}),
 
+			Match.when(AST.isTransformation, (transformation) =>
+				pipe(data, updateConstraint(transformation.to, name)),
+			),
+
 			// Unsupported AST types for Constraint extraction
-			Match.whenOr(AST.isTransformation, AST.isSuspend, (_) => {
+			Match.when(AST.isSuspend, (_) => {
 				throw new Error(
 					`TODO: add support for this AST Node type: "${_._tag}"`,
 				);

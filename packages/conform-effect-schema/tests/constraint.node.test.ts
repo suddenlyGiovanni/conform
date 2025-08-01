@@ -426,6 +426,27 @@ describe('constraint', () => {
 				},
 			});
 		});
+
+		describe('with Transformation', () => {
+			test('NumberFromString', () => {
+				const exclusiveMinimum = 5;
+
+				const schema = Schema.Struct({
+					numberFromString: Schema.NumberFromString.pipe(
+						Schema.greaterThan(exclusiveMinimum),
+					),
+				});
+
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					numberFromString: {
+						required: true,
+						min: exclusiveMinimum,
+					},
+				});
+			});
+		});
 	});
 
 	describe('BigInt ', () => {
