@@ -7,6 +7,10 @@ import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 import * as Struct from 'effect/Struct';
 
+const pickMinLength = Struct.pick('minLength');
+const pickMaxLength = Struct.pick('maxLength');
+const pickPattern = Struct.pick('pattern');
+
 export const stringRefinement = <From extends AST.AST>(
 	ast: AST.Refinement<From>,
 ): Option.Option<Constraint> =>
@@ -22,11 +26,14 @@ export const stringRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('minLength')),
+
 							Option.filter(
-								Predicate.struct({ minLength: Predicate.isNumber }),
+								Predicate.compose(
+									Predicate.hasProperty('minLength'),
+									Predicate.struct({ minLength: Predicate.isNumber }),
+								),
 							),
-							Option.map(Struct.pick('minLength')),
+							Option.map(pickMinLength),
 						),
 				),
 
@@ -36,11 +43,13 @@ export const stringRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('maxLength')),
 							Option.filter(
-								Predicate.struct({ maxLength: Predicate.isNumber }),
+								Predicate.compose(
+									Predicate.hasProperty('maxLength'),
+									Predicate.struct({ maxLength: Predicate.isNumber }),
+								),
 							),
-							Option.map(Struct.pick('maxLength')),
+							Option.map(pickMaxLength),
 						),
 				),
 
@@ -51,16 +60,16 @@ export const stringRefinement = <From extends AST.AST>(
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
 							Option.filter(
-								pipe(
-									Predicate.hasProperty('minLength'),
-									Predicate.and(Predicate.hasProperty('maxLength')),
+								Predicate.compose(
+									Predicate.and(
+										Predicate.hasProperty('minLength'),
+										Predicate.hasProperty('maxLength'),
+									),
+									Predicate.struct({
+										minLength: Predicate.isNumber,
+										maxLength: Predicate.isNumber,
+									}),
 								),
-							),
-							Option.filter(
-								Predicate.struct({
-									minLength: Predicate.isNumber,
-									maxLength: Predicate.isNumber,
-								}),
 							),
 							Option.map(Struct.pick('minLength', 'maxLength')),
 						),
@@ -74,8 +83,12 @@ export const stringRefinement = <From extends AST.AST>(
 							AST.getAnnotation<{
 								regex: RegExp;
 							}>(ast, Schema.PatternSchemaId),
-							Option.filter(Predicate.hasProperty('regex')),
-							Option.filter(Predicate.struct({ regex: Predicate.isRegExp })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('regex'),
+									Predicate.struct({ regex: Predicate.isRegExp }),
+								),
+							),
 							Option.map(({ regex }) => ({ pattern: regex.source })),
 						),
 				),
@@ -88,9 +101,12 @@ export const stringRefinement = <From extends AST.AST>(
 							AST.getAnnotation<{
 								startsWith: string;
 							}>(ast, Schema.StartsWithSchemaId),
-							Option.filter(Predicate.hasProperty('startsWith')),
+
 							Option.filter(
-								Predicate.struct({ startsWith: Predicate.isString }),
+								Predicate.compose(
+									Predicate.hasProperty('startsWith'),
+									Predicate.struct({ startsWith: Predicate.isString }),
+								),
 							),
 							Option.map(({ startsWith }) => ({
 								pattern: new RegExp(`^${startsWith}`).source,
@@ -106,8 +122,13 @@ export const stringRefinement = <From extends AST.AST>(
 							AST.getAnnotation<{
 								endsWith: string;
 							}>(ast, Schema.EndsWithSchemaId),
-							Option.filter(Predicate.hasProperty('endsWith')),
-							Option.filter(Predicate.struct({ endsWith: Predicate.isString })),
+
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('endsWith'),
+									Predicate.struct({ endsWith: Predicate.isString }),
+								),
+							),
 							Option.map(({ endsWith }) => ({
 								pattern: new RegExp(`^.*${endsWith}$`).source,
 							})),
@@ -122,8 +143,12 @@ export const stringRefinement = <From extends AST.AST>(
 							AST.getAnnotation<{
 								includes: string;
 							}>(ast, Schema.IncludesSchemaId),
-							Option.filter(Predicate.hasProperty('includes')),
-							Option.filter(Predicate.struct({ includes: Predicate.isString })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('includes'),
+									Predicate.struct({ includes: Predicate.isString }),
+								),
+							),
 							Option.map(({ includes }) => ({
 								pattern: new RegExp(`.*${includes}.*`).source,
 							})),
@@ -136,9 +161,13 @@ export const stringRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('pattern')),
-							Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-							Option.map(Struct.pick('pattern')),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('pattern'),
+									Predicate.struct({ pattern: Predicate.isString }),
+								),
+							),
+							Option.map(pickPattern),
 						),
 				),
 
@@ -148,9 +177,13 @@ export const stringRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('pattern')),
-							Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-							Option.map(Struct.pick('pattern')),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('pattern'),
+									Predicate.struct({ pattern: Predicate.isString }),
+								),
+							),
+							Option.map(pickPattern),
 						),
 				),
 
@@ -160,9 +193,13 @@ export const stringRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('pattern')),
-							Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-							Option.map(Struct.pick('pattern')),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('pattern'),
+									Predicate.struct({ pattern: Predicate.isString }),
+								),
+							),
+							Option.map(pickPattern),
 						),
 				),
 
@@ -172,9 +209,13 @@ export const stringRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('pattern')),
-							Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-							Option.map(Struct.pick('pattern')),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('pattern'),
+									Predicate.struct({ pattern: Predicate.isString }),
+								),
+							),
+							Option.map(pickPattern),
 						),
 				),
 
@@ -184,9 +225,13 @@ export const stringRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('pattern')),
-							Option.filter(Predicate.struct({ pattern: Predicate.isString })),
-							Option.map(Struct.pick('pattern')),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('pattern'),
+									Predicate.struct({ pattern: Predicate.isString }),
+								),
+							),
+							Option.map(pickPattern),
 						),
 				),
 
@@ -209,11 +254,11 @@ export const numberRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('exclusiveMinimum')),
 							Option.filter(
-								Predicate.struct({
-									exclusiveMinimum: Predicate.isNumber,
-								}),
+								Predicate.compose(
+									Predicate.hasProperty('exclusiveMinimum'),
+									Predicate.struct({ exclusiveMinimum: Predicate.isNumber }),
+								),
 							),
 							Option.map(({ exclusiveMinimum }) => ({ min: exclusiveMinimum })),
 						),
@@ -225,11 +270,11 @@ export const numberRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('minimum')),
 							Option.filter(
-								Predicate.struct({
-									minimum: Predicate.isNumber,
-								}),
+								Predicate.compose(
+									Predicate.hasProperty('minimum'),
+									Predicate.struct({ minimum: Predicate.isNumber }),
+								),
 							),
 							Option.map(({ minimum }) => ({ min: minimum })),
 						),
@@ -241,11 +286,11 @@ export const numberRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('exclusiveMaximum')),
 							Option.filter(
-								Predicate.struct({
-									exclusiveMaximum: Predicate.isNumber,
-								}),
+								Predicate.compose(
+									Predicate.hasProperty('exclusiveMaximum'),
+									Predicate.struct({ exclusiveMaximum: Predicate.isNumber }),
+								),
 							),
 							Option.map(({ exclusiveMaximum }) => ({ max: exclusiveMaximum })),
 						),
@@ -257,8 +302,12 @@ export const numberRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('maximum')),
-							Option.filter(Predicate.struct({ maximum: Predicate.isNumber })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('maximum'),
+									Predicate.struct({ maximum: Predicate.isNumber }),
+								),
+							),
 							Option.map(({ maximum }) => ({ max: maximum })),
 						),
 				),
@@ -270,16 +319,16 @@ export const numberRefinement = <From extends AST.AST>(
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
 							Option.filter(
-								pipe(
-									Predicate.hasProperty('minimum'),
-									Predicate.and(Predicate.hasProperty('maximum')),
+								Predicate.compose(
+									Predicate.and(
+										Predicate.hasProperty('minimum'),
+										Predicate.hasProperty('maximum'),
+									),
+									Predicate.struct({
+										minimum: Predicate.isNumber,
+										maximum: Predicate.isNumber,
+									}),
 								),
-							),
-							Option.filter(
-								Predicate.struct({
-									minimum: Predicate.isNumber,
-									maximum: Predicate.isNumber,
-								}),
 							),
 
 							Option.map(({ maximum, minimum }) => ({
@@ -295,11 +344,12 @@ export const numberRefinement = <From extends AST.AST>(
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(Predicate.hasProperty('multipleOf')),
 							Option.filter(
-								Predicate.struct({ multipleOf: Predicate.isNumber }),
+								Predicate.compose(
+									Predicate.hasProperty('multipleOf'),
+									Predicate.struct({ multipleOf: Predicate.isNumber }),
+								),
 							),
-
 							Option.map(({ multipleOf }) => ({ step: multipleOf })),
 						),
 				),
@@ -327,8 +377,12 @@ export const bigintRefinement = <From extends AST.AST>(
 								min: bigint;
 							}>(ast, Schema.GreaterThanBigIntSchemaId),
 
-							Option.filter(Predicate.hasProperty('min')),
-							Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('min'),
+									Predicate.struct({ min: Predicate.isBigInt }),
+								),
+							),
 							Option.map(({ min }) => ({
 								min: min as unknown as number,
 							})),
@@ -344,8 +398,12 @@ export const bigintRefinement = <From extends AST.AST>(
 								min: bigint;
 							}>(ast, Schema.GreaterThanOrEqualToBigIntSchemaId),
 
-							Option.filter(Predicate.hasProperty('min')),
-							Option.filter(Predicate.struct({ min: Predicate.isBigInt })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('min'),
+									Predicate.struct({ min: Predicate.isBigInt }),
+								),
+							),
 							Option.map(({ min }) => ({
 								min: min as unknown as number,
 							})),
@@ -361,8 +419,12 @@ export const bigintRefinement = <From extends AST.AST>(
 								max: bigint;
 							}>(ast, Schema.LessThanBigIntSchemaId),
 
-							Option.filter(Predicate.hasProperty('max')),
-							Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('max'),
+									Predicate.struct({ max: Predicate.isBigInt }),
+								),
+							),
 							Option.map(({ max }) => ({
 								max: max as unknown as number,
 							})),
@@ -377,9 +439,12 @@ export const bigintRefinement = <From extends AST.AST>(
 							AST.getAnnotation<{
 								max: bigint;
 							}>(ast, Schema.LessThanOrEqualToBigIntSchemaId),
-
-							Option.filter(Predicate.hasProperty('max')),
-							Option.filter(Predicate.struct({ max: Predicate.isBigInt })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('max'),
+									Predicate.struct({ max: Predicate.isBigInt }),
+								),
+							),
 							Option.map(({ max }) => ({
 								max: max as unknown as number,
 							})),
@@ -397,16 +462,16 @@ export const bigintRefinement = <From extends AST.AST>(
 							}>(ast, Schema.BetweenBigIntSchemaId),
 
 							Option.filter(
-								pipe(
-									Predicate.hasProperty('max'),
-									Predicate.and(Predicate.hasProperty('max')),
+								Predicate.compose(
+									Predicate.and(
+										Predicate.hasProperty('max'),
+										Predicate.hasProperty('max'),
+									),
+									Predicate.struct({
+										max: Predicate.isBigInt,
+										min: Predicate.isBigInt,
+									}),
 								),
-							),
-							Option.filter(
-								Predicate.struct({
-									max: Predicate.isBigInt,
-									min: Predicate.isBigInt,
-								}),
 							),
 							Option.map(({ max, min }) => ({
 								max: max as unknown as number, // cast bigint type to number as the Constraint type does not support bigint
@@ -438,8 +503,12 @@ export const dateRefinement = <From extends AST.AST>(
 								min: Date;
 							}>(ast, Schema.GreaterThanDateSchemaId),
 
-							Option.filter(Predicate.hasProperty('min')),
-							Option.filter(Predicate.struct({ min: Predicate.isDate })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('min'),
+									Predicate.struct({ min: Predicate.isDate }),
+								),
+							),
 							Option.map(({ min }) => ({
 								min: min.toISOString().split('T')[0]!,
 							})),
@@ -454,8 +523,12 @@ export const dateRefinement = <From extends AST.AST>(
 							AST.getAnnotation<{
 								min: Date;
 							}>(ast, Schema.GreaterThanOrEqualToDateSchemaId),
-							Option.filter(Predicate.hasProperty('min')),
-							Option.filter(Predicate.struct({ min: Predicate.isDate })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('min'),
+									Predicate.struct({ min: Predicate.isDate }),
+								),
+							),
 							Option.map(({ min }) => ({
 								min: min.toISOString().split('T')[0]!,
 							})),
@@ -470,8 +543,12 @@ export const dateRefinement = <From extends AST.AST>(
 							AST.getAnnotation<{
 								max: Date;
 							}>(ast, Schema.LessThanDateSchemaId),
-							Option.filter(Predicate.hasProperty('max')),
-							Option.filter(Predicate.struct({ max: Predicate.isDate })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('max'),
+									Predicate.struct({ max: Predicate.isDate }),
+								),
+							),
 							Option.map(({ max }) => ({
 								max: max.toISOString().split('T')[0]!,
 							})),
@@ -486,8 +563,12 @@ export const dateRefinement = <From extends AST.AST>(
 							AST.getAnnotation<{
 								max: Date;
 							}>(ast, Schema.LessThanOrEqualToDateSchemaId),
-							Option.filter(Predicate.hasProperty('max')),
-							Option.filter(Predicate.struct({ max: Predicate.isDate })),
+							Option.filter(
+								Predicate.compose(
+									Predicate.hasProperty('max'),
+									Predicate.struct({ max: Predicate.isDate }),
+								),
+							),
 							Option.map(({ max }) => ({
 								max: max.toISOString().split('T')[0]!,
 							})),
@@ -504,16 +585,16 @@ export const dateRefinement = <From extends AST.AST>(
 								min: Date;
 							}>(ast, Schema.BetweenDateSchemaId),
 							Option.filter(
-								pipe(
-									Predicate.hasProperty('min'),
-									Predicate.and(Predicate.hasProperty('max')),
+								Predicate.compose(
+									Predicate.and(
+										Predicate.hasProperty('min'),
+										Predicate.hasProperty('max'),
+									),
+									Predicate.struct({
+										min: Predicate.isDate,
+										max: Predicate.isDate,
+									}),
 								),
-							),
-							Option.filter(
-								Predicate.struct({
-									min: Predicate.isDate,
-									max: Predicate.isDate,
-								}),
 							),
 							Option.map(({ max, min }) => ({
 								max: max.toISOString().split('T')[0]!,
