@@ -155,73 +155,12 @@ export const stringRefinement = <From extends AST.AST>(
 						),
 				),
 
-				Match.when(
-					// handle TrimmedSchemaId e.g. Schema.String.pipe(Schema.trimmed())
-					Schema.TrimmedSchemaId,
-					() =>
-						pipe(
-							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(
-								Predicate.compose(
-									Predicate.hasProperty('pattern'),
-									Predicate.struct({ pattern: Predicate.isString }),
-								),
-							),
-							Option.map(pickPattern),
-						),
-				),
-
-				Match.when(
-					// handle LowercasedSchemaId e.g. Schema.String.pipe(Schema.lowercased())
-					Schema.LowercasedSchemaId,
-					() =>
-						pipe(
-							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(
-								Predicate.compose(
-									Predicate.hasProperty('pattern'),
-									Predicate.struct({ pattern: Predicate.isString }),
-								),
-							),
-							Option.map(pickPattern),
-						),
-				),
-
-				Match.when(
-					// handle UppercasedSchemaId e.g. Schema.String.pipe(Schema.uppercased())
-					Schema.UppercasedSchemaId,
-					() =>
-						pipe(
-							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(
-								Predicate.compose(
-									Predicate.hasProperty('pattern'),
-									Predicate.struct({ pattern: Predicate.isString }),
-								),
-							),
-							Option.map(pickPattern),
-						),
-				),
-
-				Match.when(
-					// handle CapitalizedSchemaId e.g. Schema.String.pipe(Schema.capitalized())
-					Schema.CapitalizedSchemaId,
-					() =>
-						pipe(
-							AST.getJSONSchemaAnnotation(ast),
-							Option.filter(
-								Predicate.compose(
-									Predicate.hasProperty('pattern'),
-									Predicate.struct({ pattern: Predicate.isString }),
-								),
-							),
-							Option.map(pickPattern),
-						),
-				),
-
-				Match.when(
-					// handle UncapitalizedSchemaId e.g. Schema.String.pipe(Schema.uncapitalized())
-					Schema.UncapitalizedSchemaId,
+				Match.whenOr(
+					Schema.TrimmedSchemaId, // handle TrimmedSchemaId e.g. Schema.String.pipe(Schema.trimmed())
+					Schema.LowercasedSchemaId, // handle LowercasedSchemaId e.g. Schema.String.pipe(Schema.lowercased())
+					Schema.UppercasedSchemaId, // handle UppercasedSchemaId e.g. Schema.String.pipe(Schema.uppercased())
+					Schema.CapitalizedSchemaId, // handle CapitalizedSchemaId e.g. Schema.String.pipe(Schema.capitalized())
+					Schema.UncapitalizedSchemaId, // handle UncapitalizedSchemaId e.g. Schema.String.pipe(Schema.uncapitalized())
 					() =>
 						pipe(
 							AST.getJSONSchemaAnnotation(ast),
