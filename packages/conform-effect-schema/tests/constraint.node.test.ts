@@ -446,6 +446,25 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test('clamp', () => {
+				const minimum = -1;
+				const maximum = 1;
+
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							clamp: Schema.Number.pipe(Schema.clamp(minimum, maximum)),
+						}),
+					),
+				).toEqual({
+					clamp: {
+						max: maximum,
+						min: minimum,
+						required: true,
+					},
+				});
+			});
 		});
 	});
 
