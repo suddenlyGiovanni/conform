@@ -465,6 +465,16 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test('parseNumber', () => {
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							parsedNumber: Schema.String.pipe(Schema.parseNumber),
+						}),
+					),
+				).toEqual({ parsedNumber: { required: true } });
+			});
 		});
 	});
 
