@@ -749,6 +749,14 @@ describe('constraint', () => {
 				literalBoolean: { required: true },
 			});
 		});
+
+		describe('with Transformation', () => {
+			test('not', () => {
+				expect(
+					getEffectSchemaConstraint(Schema.Struct({ not: Schema.Not })),
+				).toEqual({ not: { required: true } });
+			});
+		});
 	});
 
 	describe('Array', () => {
