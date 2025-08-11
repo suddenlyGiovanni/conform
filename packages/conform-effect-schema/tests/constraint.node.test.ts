@@ -601,6 +601,31 @@ describe('constraint', () => {
 				},
 			});
 		});
+
+		describe('with Transformation', () => {
+			test('BigInt', () => {
+				// Converts a string to a BigInt using the BigInt constructor.
+				expect(
+					getEffectSchemaConstraint(Schema.Struct({ bigInt: Schema.BigInt })),
+				).toEqual({ bigInt: { required: true } });
+			});
+
+			test('BigIntFromNumber', () => {
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							bigIntFromNumber: Schema.BigIntFromNumber,
+						}),
+					),
+				).toEqual({
+					bigIntFromNumber: {
+						required: true,
+						max: BigInt(Number.MAX_SAFE_INTEGER),
+						min: BigInt(Number.MIN_SAFE_INTEGER),
+					},
+				});
+			});
+		});
 	});
 
 	describe('Date', () => {
