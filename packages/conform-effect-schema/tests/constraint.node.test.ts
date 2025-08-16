@@ -329,12 +329,46 @@ describe('constraint', () => {
 				expect(
 					getEffectSchemaConstraint(
 						Schema.Struct({
-							trim: Schema.Lowercase.pipe(Schema.minLength(minLength)),
+							lowercase: Schema.Lowercase.pipe(Schema.minLength(minLength)),
 						}),
 					),
 				).toEqual({
-					trim: {
+					lowercase: {
 						pattern: '^[^A-Z]*$',
+						required: true,
+						minLength,
+					},
+				});
+			});
+
+			test('Uppercase: Converts a string to uppercase.', () => {
+				const minLength = 10;
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							uppercase: Schema.Uppercase.pipe(Schema.minLength(minLength)),
+						}),
+					),
+				).toEqual({
+					uppercase: {
+						pattern: '^[^a-z]*$',
+						required: true,
+						minLength,
+					},
+				});
+			});
+
+			test('Capitalize: Converts the first character of a string to uppercase.', () => {
+				const minLength = 10;
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							capitalize: Schema.Capitalize.pipe(Schema.minLength(minLength)),
+						}),
+					),
+				).toEqual({
+					capitalize: {
+						pattern: '^[^a-z]?.*$',
 						required: true,
 						minLength,
 					},
