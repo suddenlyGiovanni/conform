@@ -756,6 +756,24 @@ describe('constraint', () => {
 				});
 			});
 		});
+
+		describe('with transformation', () => {
+			test('Date: Converts a string into a valid Date', () => {
+				const min = '2022-01-01';
+				const max = '2022-12-31';
+
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							date: Schema.Date.pipe(
+								Schema.greaterThanOrEqualToDate(new Date(min)),
+								Schema.lessThanOrEqualToDate(new Date(max)),
+							),
+						}),
+					),
+				).toEqual({ date: { required: true, min, max } });
+			});
+		});
 	});
 
 	describe('Boolean', () => {
