@@ -1106,9 +1106,12 @@ describe('constraint', () => {
 			required: true,
 			min: 1,
 			max: 10,
+			step: 2,
 		},
 		timestamp: {
-			required: false,
+			required: true,
+			max: '2025-08-16',
+			min: '1970-01-01',
 		},
 		flag: {
 			required: false,
