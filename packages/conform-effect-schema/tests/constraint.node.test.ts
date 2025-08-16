@@ -306,6 +306,21 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test('Trim: Removes whitespace from the beginning and end of a string.', () => {
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							trim: Schema.Trim,
+						}),
+					),
+				).toEqual({
+					trim: {
+						"pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
+						required: true,
+					},
+				});
+			});
 		});
 	});
 
