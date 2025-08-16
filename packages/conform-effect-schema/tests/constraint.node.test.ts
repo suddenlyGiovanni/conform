@@ -625,6 +625,26 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test('clampBigInt', () => {
+				const maximum = 1n;
+				const minimum = -maximum;
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							clampBigInt: Schema.BigIntFromSelf.pipe(
+								Schema.clampBigInt(minimum, maximum),
+							),
+						}),
+					),
+				).toEqual({
+					clampBigInt: {
+						required: true,
+						max: maximum,
+						min: minimum,
+					},
+				});
+			});
 		});
 	});
 
