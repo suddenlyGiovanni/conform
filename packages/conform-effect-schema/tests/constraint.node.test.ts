@@ -308,16 +308,18 @@ describe('constraint', () => {
 			});
 
 			test('Trim: Removes whitespace from the beginning and end of a string.', () => {
+				const maxLength = 10;
 				expect(
 					getEffectSchemaConstraint(
 						Schema.Struct({
-							trim: Schema.Trim,
+							trim: Schema.Trim.pipe(Schema.maxLength(maxLength)),
 						}),
 					),
 				).toEqual({
 					trim: {
-						"pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
+						pattern: '^\\S[\\s\\S]*\\S$|^\\S$|^$',
 						required: true,
+						maxLength,
 					},
 				});
 			});
