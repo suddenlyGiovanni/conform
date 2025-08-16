@@ -323,6 +323,23 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test('Lowercase: Converts a string to lowercase.', () => {
+				const minLength = 10;
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							trim: Schema.Lowercase.pipe(Schema.minLength(minLength)),
+						}),
+					),
+				).toEqual({
+					trim: {
+						pattern: '^[^A-Z]*$',
+						required: true,
+						minLength,
+					},
+				});
+			});
 		});
 	});
 
