@@ -374,6 +374,25 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test('Uncapitalize: Converts the first character of a string to lowercase.', () => {
+				const minLength = 10;
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							uncapitalize: Schema.Uncapitalize.pipe(
+								Schema.minLength(minLength),
+							),
+						}),
+					),
+				).toEqual({
+					uncapitalize: {
+						pattern: '^[^A-Z]?.*$',
+						required: true,
+						minLength,
+					},
+				});
+			});
 		});
 	});
 
