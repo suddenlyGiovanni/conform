@@ -287,6 +287,26 @@ describe('constraint', () => {
 				});
 			});
 		});
+
+		describe('with Transformation', () => {
+			test('split: Splits a string by a specified delimiter into an array of substrings.', () => {
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							split: Schema.split(','),
+						}),
+					),
+				).toEqual({
+					split: {
+						multiple: true,
+						required: true,
+					},
+					'split[]': {
+						required: true,
+					},
+				});
+			});
+		});
 	});
 
 	describe('Number', () => {
