@@ -1,2 +1,2 @@
 export { parseWithEffectSchema } from './parse';
-export { getEffectSchemaConstraint } from './constraint';
+export { getEffectSchemaConstraint } from './constraint/index';

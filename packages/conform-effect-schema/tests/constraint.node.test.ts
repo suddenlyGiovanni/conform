@@ -1,7 +1,8 @@
 import type { Constraint } from '@conform-to/dom';
-import { getEffectSchemaConstraint } from '../src/constraint';
-import * as Schema from 'effect/Schema';
 import { describe, expect, expectTypeOf, test } from 'vitest';
+import * as Schema from 'effect/Schema';
+
+import { getEffectSchemaConstraint } from '../src/constraint/index';
 
 describe('constraint', () => {
 	test('Non-object schemas will throw an error', () => {

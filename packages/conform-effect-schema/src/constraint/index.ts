@@ -5,7 +5,7 @@ import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
-import { makeUpdateConstraint } from './internal/update-constraint';
+import { makeUpdateConstraint } from './update-constraint';
 
 /**
  * A default, ready-to-use recursive updater built by {@link makeUpdateConstraint}.
@@ -29,7 +29,7 @@ const updateConstraint = makeUpdateConstraint();
  *   email: Schema.String.pipe(Schema.pattern(/^[^@]+@[^@]+$/)),
  *   tags: Schema.Array(Schema.String)
  * });
- * const constraints = getEffectSchemaConstraint(schema);
+ * const constraints = index(schema);
  * // {
  * //   email: { required: true, pattern: '^[^@]+@[^@]+$' },
  * //   tags: { required: true, multiple: true },
@@ -44,7 +44,7 @@ const updateConstraint = makeUpdateConstraint();
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
 ): Record<string, Constraint> {
-	if (false && !AST.isTypeLiteral(schema.ast)) {
+	if (!AST.isTypeLiteral(schema.ast)) {
 		throw new Error(
 			'root schema must be a TypeLiteral AST node, e.g. Schema.Struct, instead got: ' +
 				schema.ast._tag,
