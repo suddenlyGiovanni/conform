@@ -133,24 +133,7 @@ export function makeUpdateConstraint(): Rec {
 						),
 				),
 
-				Match.when(AST.isUnion, (node) =>
-					pipe(
-						node,
-						Struct.get('types')<AST.Union>,
-						ReadonlyArray.reduce(data, (hashMap, member) => {
-							// edge case to handle `Schema.Array(Schema.Literal('a', 'b', 'c'))` which should return a constraint of type:
-							// `{ required: true, pattern: 'a|b|c' }`
-							// if union of string literals ( eq to enums of strings e.g. Schema.Literal('a', 'b', 'c') )
-							// it is contained by an array
-							// meaning the ts type would equal to `Array<'a' | 'b' | 'c'>`
-							// then we need to add the correct constraint to the hashmap:
-							// a pattern constraint with the correct regex: e.g. /a|b|c/ .
-
-							return pipe(hashMap, rec(member, name));
-						}),
-					),
-				),
-
+				Match.when(AST.isUnion, (node) => visitUnion(rec)(node, name)(data)),
 				Match.when(AST.isRefinement, (node) =>
 					visitRefinement(rec)(node, name)(data),
 				),
