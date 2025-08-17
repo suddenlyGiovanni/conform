@@ -1,11 +1,6 @@
-import { Constraint } from '@conform-to/dom';
-import { flow, pipe } from 'effect/Function';
+import type { Constraint } from '@conform-to/dom';
 import * as Match from 'effect/Match';
-import * as ReadonlyArray from 'effect/Array';
-import * as HashMap from 'effect/HashMap';
-import * as Option from 'effect/Option';
-import * as Record from 'effect/Record';
-import * as Struct from 'effect/Struct';
+import type * as HashMap from 'effect/HashMap';
 import * as AST from 'effect/SchemaAST';
 
 import {
@@ -39,16 +34,6 @@ export function makeUpdateConstraint(): Rec {
 			Match.value(ast).pipe(
 				Match.withReturnType<HashMap.HashMap<string, Constraint>>(),
 
-				// for these AST nodes we do not need to process them further
-				Match.whenOr(
-					AST.isStringKeyword, // Schema.String
-					AST.isNumberKeyword, // Schema.Number
-					AST.isBigIntKeyword, // Schema.BigIntFromSelf
-					AST.isBooleanKeyword, // Schema.Boolean
-					AST.isUndefinedKeyword, // Schema.Undefined
-					() => data,
-				),
-
 				// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
 				Match.whenOr(
 					AST.isAnyKeyword, // Schema.Any
@@ -67,6 +52,16 @@ export function makeUpdateConstraint(): Rec {
 
 				// for these AST nodes we do not need to process them further
 				Match.whenOr(
+					AST.isStringKeyword, // Schema.String
+					AST.isNumberKeyword, // Schema.Number
+					AST.isBigIntKeyword, // Schema.BigIntFromSelf
+					AST.isBooleanKeyword, // Schema.Boolean
+					AST.isUndefinedKeyword, // Schema.Undefined
+					() => data,
+				),
+
+				// for these AST nodes we do not need to process them further
+				Match.whenOr(
 					AST.isLiteral, // string | number | boolean | null | bigint
 					AST.isDeclaration,
 					AST.isTemplateLiteral,
@@ -74,66 +69,12 @@ export function makeUpdateConstraint(): Rec {
 					() => data,
 				),
 
-				Match.when(
-					AST.isTypeLiteral, // Schema.Struct | Schema.Record ??
-					(node) => visitTypeLiteral(rec)(node, name)(data),
+				Match.when(AST.isTypeLiteral, (node) =>
+					visitTypeLiteral(rec)(node, name)(data),
 				),
-
-				Match.when(
-					AST.isTupleType,
-					/**
-					 * Schema.Array is represented as special case of Schema.Tuple where it is defined as [...rest: Schema.Any]
-					 * we need to distinguish between Schema.Array and Schema.Tuple
-					 * Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
-					 * need to set the filed name e.g. {'list[]': { required: true }}
-					 */
-					(node) =>
-						pipe(
-							node,
-							Match.value,
-							Match.whenAnd(
-								({ elements }) => elements.length === 0,
-								({ rest }) => rest.length > 0,
-								flow(
-									Struct.get('rest')<AST.TupleType>,
-									ReadonlyArray.reduce(
-										HashMap.modifyAt(data, name, (constraint) =>
-											Option.some({
-												...Option.getOrElse(constraint, Record.empty),
-												multiple: true,
-											}),
-										),
-										(hashMap, type) =>
-											pipe(
-												HashMap.set(hashMap, `${name}[]`, { required: true }),
-												rec(type.type, `${name}[]`),
-											),
-									),
-								),
-							),
-
-							Match.whenAnd(
-								({ elements }) => elements.length > 0,
-								({ rest }) => rest.length >= 0,
-								flow(
-									Struct.get('elements')<AST.TupleType>,
-									ReadonlyArray.reduce(
-										data,
-										(hashMap, { isOptional, type }, idx) =>
-											pipe(
-												HashMap.set(hashMap, `${name}[${idx}]`, {
-													required: !isOptional,
-												}),
-												rec(type, `${name}[${idx}]`),
-											),
-									),
-								),
-							),
-
-							Match.orElse(() => data),
-						),
+				Match.when(AST.isTupleType, (node) =>
+					visitTupleType(rec)(node, name)(data),
 				),
-
 				Match.when(AST.isUnion, (node) => visitUnion(rec)(node, name)(data)),
 				Match.when(AST.isRefinement, (node) =>
 					visitRefinement(rec)(node, name)(data),

@@ -75,10 +75,53 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
  * @private
  */
 export const visitTupleType: NodeHandler<AST.TupleType> =
-	(rec) => (node, name) => (data) => {
-		// implementation…
-		return data;
-	};
+	(rec) => (node, name) => (data) =>
+		pipe(
+			node,
+			Match.value,
+			Match.whenAnd(
+				({ elements }) => elements.length === 0,
+				({ rest }) => rest.length > 0,
+				(tupleType) =>
+					pipe(
+						tupleType,
+						Struct.get('rest'),
+						ReadonlyArray.reduce(
+							HashMap.modifyAt(data, name, (constraint) =>
+								Option.some({
+									...Option.getOrElse(constraint, Record.empty),
+									multiple: true,
+								}),
+							),
+							(hashMap, type) =>
+								pipe(
+									HashMap.set(hashMap, `${name}[]`, { required: true }),
+									rec(type.type, `${name}[]`),
+								),
+						),
+					),
+			),
+
+			Match.whenAnd(
+				({ elements }) => elements.length > 0,
+				({ rest }) => rest.length >= 0,
+				(tupleType) =>
+					pipe(
+						tupleType,
+						Struct.get('elements'),
+						ReadonlyArray.reduce(data, (hashMap, { isOptional, type }, idx) =>
+							pipe(
+								HashMap.set(hashMap, `${name}[${idx}]`, {
+									required: !isOptional,
+								}),
+								rec(type, `${name}[${idx}]`),
+							),
+						),
+					),
+			),
+
+			Match.orElse(() => data),
+		);
 
 /**
  * Visits a Union node and merges constraints derived from each union member into the same path.
