@@ -16,14 +16,14 @@ import {
 	stringRefinement,
 } from './internal/refinements';
 
-
-import type {
+import {
 	visitRefinement,
 	visitTransformation,
 	visitTupleType,
-	visitTypeLiteral,
 	visitUnion,
 } from './internal/handlers';
+
+import type { Rec } from './internal/types';
 
 /**
  * Processes the Schema abstract syntax tree (AST) and generates a function that operates on a collection of constraints.
@@ -34,14 +34,7 @@ import type {
  * @returns A function that takes a HashMap of constraints as input and returns a transformed HashMap of constraints.
  * @internal
  */
-const updateConstraint: {
-	(
-		ast: AST.AST,
-		name?: string,
-	): (
-		data: HashMap.HashMap<string, Constraint>,
-	) => HashMap.HashMap<string, Constraint>;
-} =
+const updateConstraint: Rec =
 	(ast, name = '') =>
 	(data) =>
 		Match.value(ast).pipe(
@@ -84,32 +77,7 @@ const updateConstraint: {
 
 			Match.when(
 				AST.isTypeLiteral, // Schema.Struct | Schema.Record ??
-				flow(
-					Struct.get('propertySignatures')<AST.TypeLiteral>,
-					ReadonlyArray.reduce(
-						data,
-						(hashMap, { isOptional, name: _name, type }) => {
-							const key = Match.value(name).pipe(
-								Match.withReturnType<`${string}.${string}` | string>(),
-								Match.when(
-									Match.nonEmptyString,
-									(parentPath) => `${parentPath}.${_name.toString()}`,
-								),
-								Match.orElse(() => _name.toString()),
-							);
-
-							return pipe(
-								HashMap.modifyAt(hashMap, key, (constraint) =>
-									Option.some({
-										...Option.getOrElse(constraint, Record.empty),
-										required: !isOptional,
-									}),
-								),
-								updateConstraint(type, key),
-							);
-						},
-					),
-				),
+				(ast) => visitTypeLiteral(ast, name, data),
 			),
 
 			Match.when(
@@ -220,6 +188,37 @@ const updateConstraint: {
 
 			Match.exhaustive,
 		);
+
+function visitTypeLiteral(
+	ast: AST.TypeLiteral,
+	name: string,
+	data: HashMap.HashMap<string, Constraint>,
+): HashMap.HashMap<string, Constraint> {
+	return pipe(
+		ast,
+		Struct.get('propertySignatures')<AST.TypeLiteral>,
+		ReadonlyArray.reduce(data, (hashMap, { isOptional, name: _name, type }) => {
+			const key = Match.value(name).pipe(
+				Match.withReturnType<`${string}.${string}` | string>(),
+				Match.when(
+					Match.nonEmptyString,
+					(parentPath) => `${parentPath}.${_name.toString()}`,
+				),
+				Match.orElse(() => _name.toString()),
+			);
+
+			return pipe(
+				HashMap.modifyAt(hashMap, key, (constraint) =>
+					Option.some({
+						...Option.getOrElse(constraint, Record.empty),
+						required: !isOptional,
+					}),
+				),
+				updateConstraint(type, key),
+			);
+		}),
+	);
+}
 
 /**
  * Traverses a Schema AST and materializes a Record<string, Constraint> describing
