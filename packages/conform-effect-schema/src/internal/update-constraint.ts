@@ -8,7 +8,7 @@ import * as Record from 'effect/Record';
 import * as Struct from 'effect/Struct';
 import * as AST from 'effect/SchemaAST';
 
-import { visitTypeLiteral } from './handlers';
+import { visitTransformation, visitTypeLiteral } from './handlers';
 import {
 	bigintRefinement,
 	dateRefinement,
@@ -178,7 +178,7 @@ export function makeUpdateConstraint(): Rec {
 				}),
 
 				Match.when(AST.isTransformation, (transformation) =>
-					pipe(data, rec(transformation.to, name)),
+					visitTransformation(rec)(transformation, name)(data),
 				),
 
 				// Unsupported AST types for Constraint extraction

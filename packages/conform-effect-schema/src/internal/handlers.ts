@@ -122,7 +122,5 @@ export const visitRefinement: NodeHandler<AST.Refinement> =
  * @private
  */
 export const visitTransformation: NodeHandler<AST.Transformation> =
-	(rec) => (node, name) => (data) => {
-		// implementation…
-		return data;
-	};
+	(rec) => (node, name) => (data) =>
+		pipe(data, rec(node.to, name));
