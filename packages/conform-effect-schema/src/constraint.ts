@@ -21,39 +21,10 @@ import {
 	visitTransformation,
 	visitTupleType,
 	visitUnion,
+	visitTypeLiteral,
 } from './internal/handlers';
 
-import type { NodeHandler, Rec } from './internal/types';
-
-const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
-	(rec) => (node, name) => (data) =>
-		pipe(
-			node,
-			Struct.get('propertySignatures'),
-			ReadonlyArray.reduce(
-				data,
-				(hashMap, { isOptional, name: _name, type }) => {
-					const key = Match.value(name).pipe(
-						Match.withReturnType<`${string}.${string}` | string>(),
-						Match.when(
-							Match.nonEmptyString,
-							(parentPath) => `${parentPath}.${_name.toString()}`,
-						),
-						Match.orElse(() => _name.toString()),
-					);
-
-					return pipe(
-						HashMap.modifyAt(hashMap, key, (constraint) =>
-							Option.some({
-								...Option.getOrElse(constraint, Record.empty),
-								required: !isOptional,
-							}),
-						),
-						rec(type, key),
-					);
-				},
-			),
-		);
+import type { Rec } from './internal/types';
 
 /**
  * Processes the Schema abstract syntax tree (AST) and generates a function that operates on a collection of constraints.

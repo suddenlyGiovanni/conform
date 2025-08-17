@@ -1,6 +1,13 @@
-import { NodeHandler } from './types';
-
+import { pipe } from 'effect/Function';
+import * as Match from 'effect/Match';
+import * as ReadonlyArray from 'effect/Array';
+import * as HashMap from 'effect/HashMap';
+import * as Option from 'effect/Option';
+import * as Record from 'effect/Record';
+import * as Struct from 'effect/Struct';
 import * as AST from 'effect/SchemaAST';
+
+import type { NodeHandler } from './types';
 
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.
@@ -17,10 +24,35 @@ import * as AST from 'effect/SchemaAST';
  * @private
  */
 export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
-	(rec) => (node, name) => (data) => {
-		// implementation…
-		return data;
-	};
+	(rec) => (node, name) => (data) =>
+		pipe(
+			node,
+			Struct.get('propertySignatures'),
+			ReadonlyArray.reduce(
+				data,
+				(hashMap, { isOptional, name: propName, type }) => {
+					const key = pipe(
+						Match.value(name),
+						Match.withReturnType<`${string}.${string}` | string>(),
+						Match.when(
+							Match.nonEmptyString,
+							(parentPath) => `${parentPath}.${propName.toString()}`,
+						),
+						Match.orElse(() => propName.toString()),
+					);
+
+					return pipe(
+						HashMap.modifyAt(hashMap, key, (constraint) =>
+							Option.some({
+								...Option.getOrElse(constraint, Record.empty),
+								required: !isOptional,
+							}),
+						),
+						rec(type, key),
+					);
+				},
+			),
+		);
 
 /**
  * Visits a TupleType node and updates constraints for tuple elements and/or array-like rest elements.
@@ -53,10 +85,11 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
  * @returns An EndoHash that applies updates for this node.
  * @private
  */
-export const visitUnion: NodeHandler<AST.Union> = (rec) => (node, name) => (data) => {
-	// implementation…
-	return data;
-};
+export const visitUnion: NodeHandler<AST.Union> =
+	(rec) => (node, name) => (data) => {
+		// implementation…
+		return data;
+	};
 
 /**
  * Visits a Refinement node and merges refinement-derived constraints into the current path.
