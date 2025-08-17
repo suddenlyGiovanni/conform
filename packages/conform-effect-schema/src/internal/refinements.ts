@@ -11,9 +11,39 @@ const pickMinLength = Struct.pick('minLength');
 const pickMaxLength = Struct.pick('maxLength');
 const pickPattern = Struct.pick('pattern');
 
-export const stringRefinement = <From extends AST.AST>(
+/**
+ * A partial interpreter that derives a Constraint from a Refinement node, if applicable.
+ *
+ * Implementations inspect Effect.Schema annotations present on the given Refinement and
+ * return a Constraint fragment relevant to HTML-like form validation (e.g., min/max,
+ * minLength/maxLength, pattern). When the refinement does not map to a form constraint,
+ * None is returned.
+ *
+ * Use multiple RefinementConstraintRule implementations together and merge their results
+ * to obtain the final constraint patch for the current path.
+ *
+ * @typeParam From - The underlying AST node being refined.
+ * @returns  A constraint fragment to be merged, or None if not applicable.
+ */
+
+type RefinementConstraintRule = <From extends AST.AST>(
 	ast: AST.Refinement<From>,
-): Option.Option<Constraint> =>
+) => Option.Option<Constraint>;
+
+/**
+ * Interprets string-related refinements into Constraint fragments.
+ *
+ * Recognized refinements include:
+ * - minLength / maxLength / length
+ * - pattern / startsWith / endsWith / includes
+ * - trimmed / lowercased / uppercased / capitalized / uncapitalized
+ *
+ * Returns None when the refinement does not correspond to a form-level constraint.
+ *
+ * @param ast - A Refinement wrapping a string-like schema.
+ * @returns An Option with minLength/maxLength/pattern fields as applicable.
+ */
+export const stringRefinement: RefinementConstraintRule = (ast) =>
 	pipe(
 		AST.getSchemaIdAnnotation(ast),
 		Option.flatMap((schemaIdAnnotation) =>
@@ -179,9 +209,21 @@ export const stringRefinement = <From extends AST.AST>(
 		),
 	);
 
-export const numberRefinement = <From extends AST.AST>(
-	ast: AST.Refinement<From>,
-): Option.Option<Constraint> =>
+/**
+ * Interprets number-related refinements into Constraint fragments.
+ *
+ * Recognized refinements include:
+ * - greaterThan / greaterThanOrEqualTo → min
+ * - lessThan / lessThanOrEqualTo → max
+ * - between → min and max
+ * - multipleOf → step
+ *
+ * Returns None when the refinement does not correspond to a form-level constraint.
+ *
+ * @param ast - A Refinement wrapping a number-like schema.
+ * @returns An Option with min/max/step fields as applicable.
+ */
+export const numberRefinement: RefinementConstraintRule = (ast) =>
 	pipe(
 		AST.getSchemaIdAnnotation(ast),
 		Option.flatMap((schemaIdAnnotation) =>
@@ -298,9 +340,21 @@ export const numberRefinement = <From extends AST.AST>(
 		),
 	);
 
-export const bigintRefinement = <From extends AST.AST>(
-	ast: AST.Refinement<From>,
-): Option.Option<Constraint> =>
+/**
+ * Interprets bigint-related refinements into Constraint fragments.
+ *
+ * Recognized refinements include:
+ * - greaterThanBigInt / greaterThanOrEqualToBigInt → min
+ * - lessThanBigInt / lessThanOrEqualToBigInt → max
+ * - betweenBigInt → min and max
+ *
+ * Note: bigint values are cast to number to fit the Constraint shape.
+ * Returns None when the refinement does not correspond to a form-level constraint.
+ *
+ * @param ast - A Refinement wrapping a bigint-like schema.
+ * @returns An Option with min/max fields (cast to number) as applicable.
+ */
+export const bigintRefinement: RefinementConstraintRule = (ast) =>
 	pipe(
 		AST.getSchemaIdAnnotation(ast),
 		Option.flatMap((schemaIdAnnotation) =>
@@ -424,9 +478,22 @@ export const bigintRefinement = <From extends AST.AST>(
 		),
 	);
 
-export const dateRefinement = <From extends AST.AST>(
-	ast: AST.Refinement<From>,
-): Option.Option<Constraint> =>
+/**
+ * Interprets date-related refinements into Constraint fragments.
+ *
+ * Recognized refinements include:
+ * - greaterThanDate / greaterThanOrEqualToDate → min
+ * - lessThanDate / lessThanOrEqualToDate → max
+ * - betweenDate → min and max
+ *
+ * Date values are formatted as ISO date strings (YYYY-MM-DD) to match typical
+ * input[type="date"] constraints. Returns None when not applicable.
+ *
+ * @param ast - A Refinement wrapping a date-like schema.
+ * @returns An Option with min/max fields as ISO date strings, as applicable.
+ */
+
+export const dateRefinement: RefinementConstraintRule = (ast) =>
 	pipe(
 		AST.getSchemaIdAnnotation(ast),
 		Option.flatMap((schemaIdAnnotation) =>

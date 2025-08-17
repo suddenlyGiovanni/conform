@@ -8,13 +8,13 @@ import * as Record from 'effect/Record';
 import * as Struct from 'effect/Struct';
 import * as AST from 'effect/SchemaAST';
 
-import { visitTransformation, visitTypeLiteral } from './handlers';
 import {
-	bigintRefinement,
-	dateRefinement,
-	numberRefinement,
-	stringRefinement,
-} from './refinements';
+	visitRefinement,
+	visitTransformation,
+	visitTypeLiteral,
+	visitTupleType,
+	visitUnion,
+} from './handlers';
 import type { Rec } from './types';
 
 /**
@@ -151,32 +151,9 @@ export function makeUpdateConstraint(): Rec {
 					),
 				),
 
-				Match.when(AST.isRefinement, (refinement) => {
-					const refinementConstraint = Option.reduceCompact<
-						Constraint,
-						Constraint
-					>(
-						[
-							stringRefinement(refinement),
-							numberRefinement(refinement),
-							bigintRefinement(refinement),
-							dateRefinement(refinement),
-						],
-						{},
-						(constraints, constraint) => ({ ...constraints, ...constraint }),
-					);
-
-					return pipe(
-						HashMap.modifyAt(data, name, (maybeConstraint) =>
-							Option.some({
-								...Option.getOrElse(maybeConstraint, Record.empty),
-								...refinementConstraint,
-							}),
-						),
-						rec(refinement.from, name),
-					);
-				}),
-
+				Match.when(AST.isRefinement, (node) =>
+					visitRefinement(rec)(node, name)(data),
+				),
 				Match.when(AST.isTransformation, (transformation) =>
 					visitTransformation(rec)(transformation, name)(data),
 				),

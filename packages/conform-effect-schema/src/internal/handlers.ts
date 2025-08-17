@@ -1,3 +1,4 @@
+import type { Constraint } from '@conform-to/dom';
 import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as ReadonlyArray from 'effect/Array';
@@ -7,6 +8,12 @@ import * as Record from 'effect/Record';
 import * as Struct from 'effect/Struct';
 import * as AST from 'effect/SchemaAST';
 
+import {
+	bigintRefinement,
+	dateRefinement,
+	numberRefinement,
+	stringRefinement,
+} from './refinements';
 import type { NodeHandler } from './types';
 
 /**
@@ -105,8 +112,27 @@ export const visitUnion: NodeHandler<AST.Union> =
  */
 export const visitRefinement: NodeHandler<AST.Refinement> =
 	(rec) => (node, name) => (data) => {
-		// implementation…
-		return data;
+		const refinementConstraint = Option.reduceCompact<Constraint, Constraint>(
+			[
+				stringRefinement(node),
+				numberRefinement(node),
+				bigintRefinement(node),
+				dateRefinement(node),
+			],
+			{},
+			(constraints, constraint) => ({ ...constraints, ...constraint }),
+		);
+
+		return pipe(
+			data,
+			HashMap.modifyAt(name, (maybeConstraint) =>
+				Option.some({
+					...Option.getOrElse(maybeConstraint, Record.empty),
+					...refinementConstraint,
+				}),
+			),
+			rec(node.from, name),
+		);
 	};
 
 /**
