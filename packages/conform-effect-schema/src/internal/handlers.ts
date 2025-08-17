@@ -162,3 +162,8 @@ export const visitRefinement: NodeHandler<AST.Refinement> =
 export const visitTransformation: NodeHandler<AST.Transformation> =
 	(rec) => (node, name) => (data) =>
 		pipe(data, rec(node.to, name));
+
+export const visitSuspend: NodeHandler<AST.Suspend> =
+	(rec) => (node, name) => (data) => {
+		throw new Error(`TODO: add support for this AST Node type: "${node._tag}"`);
+	};

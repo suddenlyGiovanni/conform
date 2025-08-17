@@ -14,6 +14,7 @@ import {
 	visitTypeLiteral,
 	visitTupleType,
 	visitUnion,
+	visitSuspend,
 } from './handlers';
 import type { Rec } from './types';
 
@@ -140,13 +141,9 @@ export function makeUpdateConstraint(): Rec {
 				Match.when(AST.isTransformation, (transformation) =>
 					visitTransformation(rec)(transformation, name)(data),
 				),
-
-				// Unsupported AST types for Constraint extraction
-				Match.when(AST.isSuspend, (_) => {
-					throw new Error(
-						`TODO: add support for this AST Node type: "${_._tag}"`,
-					);
-				}),
+				Match.when(AST.isSuspend, (node) =>
+					visitSuspend(rec)(node, name)(data),
+				),
 
 				Match.exhaustive,
 			);
