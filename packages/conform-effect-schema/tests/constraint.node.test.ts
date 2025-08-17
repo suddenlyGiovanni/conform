@@ -1009,6 +1009,24 @@ describe('constraint', () => {
 					},
 				});
 			});
+
+			test.todo('Union of Literals', () => {
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							listOfUnionOfLiterals: Schema.Array(
+								Schema.Literal('a', 'b', 'c'),
+							),
+						}),
+					),
+				).toEqual({
+					listOfUnionOfLiterals: {
+						required: true,
+						multiple: true,
+					},
+					'listOfUnionOfLiterals[]': { required: true, pattern: 'a|b|c' },
+				});
+			});
 		});
 	});
 
