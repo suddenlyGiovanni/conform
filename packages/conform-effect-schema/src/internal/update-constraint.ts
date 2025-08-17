@@ -86,54 +86,56 @@ export function makeUpdateConstraint(): Rec {
 					 * Schema.Array is a special case of Schema.Tuple where ast.elements is empty and ast.rest contains the element type
 					 * need to set the filed name e.g. {'list[]': { required: true }}
 					 */
-					flow(
-						Match.value<AST.TupleType>,
-						Match.whenAnd(
-							({ elements }) => elements.length === 0,
-							({ rest }) => rest.length > 0,
-							flow(
-								Struct.get('rest')<AST.TupleType>,
-								ReadonlyArray.reduce(
-									HashMap.modifyAt(data, name, (constraint) =>
-										Option.some({
-											...Option.getOrElse(constraint, Record.empty),
-											multiple: true,
-										}),
-									),
-									(hashMap, type) =>
-										pipe(
-											HashMap.set(hashMap, `${name}[]`, { required: true }),
-											rec(type.type, `${name}[]`),
-										),
-								),
-							),
-						),
-
-						Match.whenAnd(
-							({ elements }) => elements.length > 0,
-							({ rest }) => rest.length >= 0,
-							flow(
-								Struct.get('elements')<AST.TupleType>,
-								ReadonlyArray.reduce(
-									data,
-									(hashMap, { isOptional, type }, idx) =>
-										pipe(
-											HashMap.set(hashMap, `${name}[${idx}]`, {
-												required: !isOptional,
+					(node) =>
+						pipe(
+							node,
+							Match.value,
+							Match.whenAnd(
+								({ elements }) => elements.length === 0,
+								({ rest }) => rest.length > 0,
+								flow(
+									Struct.get('rest')<AST.TupleType>,
+									ReadonlyArray.reduce(
+										HashMap.modifyAt(data, name, (constraint) =>
+											Option.some({
+												...Option.getOrElse(constraint, Record.empty),
+												multiple: true,
 											}),
-											rec(type, `${name}[${idx}]`),
 										),
+										(hashMap, type) =>
+											pipe(
+												HashMap.set(hashMap, `${name}[]`, { required: true }),
+												rec(type.type, `${name}[]`),
+											),
+									),
 								),
 							),
-						),
 
-						Match.orElse(() => data),
-					),
+							Match.whenAnd(
+								({ elements }) => elements.length > 0,
+								({ rest }) => rest.length >= 0,
+								flow(
+									Struct.get('elements')<AST.TupleType>,
+									ReadonlyArray.reduce(
+										data,
+										(hashMap, { isOptional, type }, idx) =>
+											pipe(
+												HashMap.set(hashMap, `${name}[${idx}]`, {
+													required: !isOptional,
+												}),
+												rec(type, `${name}[${idx}]`),
+											),
+									),
+								),
+							),
+
+							Match.orElse(() => data),
+						),
 				),
 
-				Match.when(
-					AST.isUnion,
-					flow(
+				Match.when(AST.isUnion, (node) =>
+					pipe(
+						node,
 						Struct.get('types')<AST.Union>,
 						ReadonlyArray.reduce(data, (hashMap, member) => {
 							// edge case to handle `Schema.Array(Schema.Literal('a', 'b', 'c'))` which should return a constraint of type:
