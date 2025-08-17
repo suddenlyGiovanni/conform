@@ -16,54 +16,7 @@ import {
 	stringRefinement,
 } from './internal/refinements';
 
-/**
- * A pure endomorphism over the constraints map.
- *
- * Represents a transformation that takes an existing HashMap of field constraints
- * and returns a new HashMap with edits applied. This shape makes composition and
- * reduction straightforward and testable.
- *
- * @typeParam K - The key type of the map (defaults to string).
- * @typeParam V - The value type of the map (defaults to Constraint).
- * @see Rec
- * @private
- */
-type EndoHash = (
-	data: HashMap.HashMap<string, Constraint>,
-) => HashMap.HashMap<string, Constraint>;
-
-/**
- * The recursive visitor function used to traverse an Effect Schema AST, producing
- * a pure transformation over the constraints map.
- *
- * Callers pass the current AST node and the current logical path (field name)
- * and receive an endomorphism that applies edits for that node and its children.
- *
- * @param ast - The current AST node to visit.
- * @param name - The current path (field name) used to address entries in the constraints map.
- * @returns A pure endomorphism that applies this node's constraints and recurses into children.
- * @see EndoHash
- * @private
- */
-type Rec = (ast: AST.AST, name?: string) => EndoHash;
-
-/**
- * A higher-order node handler that implements the logic for a specific AST node type.
- *
- * Handlers are parameterized by the recursive function (Rec) so they can recurse
- * into child nodes without relying on module-level imports (avoids cycles and
- * improves testability).
- *
- * @typeParam A - The concrete AST node type this handler processes.
- * @param rec - The recursive function used to process child nodes.
- * @returns A function that, given a node of type A and the current path, returns an EndoHash.
- * @see Rec
- * @see EndoHash
- * @private
- */
-type NodeHandler<A extends AST.AST> = (
-	rec: Rec,
-) => (node: A, name: string) => EndoHash;
+import type { EndoHash, NodeHandler, Rec } from './internal/types';
 
 // handlers
 /**
@@ -117,11 +70,10 @@ const visitTupleType: NodeHandler<AST.TupleType> =
  * @returns An EndoHash that applies updates for this node.
  * @private
  */
-const visitUnion: NodeHandler<AST.Union> =
-	(rec) => (node, name) => (data) => {
-		// implementation…
-		return data;
-	};
+const visitUnion: NodeHandler<AST.Union> = (rec) => (node, name) => (data) => {
+	// implementation…
+	return data;
+};
 
 /**
  * Visits a Refinement node and merges refinement-derived constraints into the current path.
