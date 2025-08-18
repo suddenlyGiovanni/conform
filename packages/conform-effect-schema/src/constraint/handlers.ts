@@ -14,7 +14,7 @@ import {
 	numberRefinement,
 	stringRefinement,
 } from './refinements';
-import type { NodeHandler } from './types';
+import type { Ctx, NodeHandler } from './types';
 
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.
@@ -24,14 +24,14 @@ import type { NodeHandler } from './types';
  *
  * @param rec - The recursive visitor used to process child property types.
  * @param node - The TypeLiteral node to process.
- * @param name - The current path of the parent object.
+ * @param ctx - The current traversal context (includes the parent path).
  * @returns An EndoHash that applies updates for this node.
  * @see NodeHandler
  * @see Rec
  * @private
  */
 export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
-	(rec) => (node, name) => (data) =>
+	(rec) => (node, ctx) => (data) =>
 		pipe(
 			node,
 			Struct.get('propertySignatures'),
@@ -39,7 +39,7 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
 				data,
 				(hashMap, { isOptional, name: propName, type }) => {
 					const key = pipe(
-						Match.value(name),
+						Match.value(ctx.path),
 						Match.withReturnType<`${string}.${string}` | string>(),
 						Match.when(
 							Match.nonEmptyString,
@@ -48,6 +48,8 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
 						Match.orElse(() => propName.toString()),
 					);
 
+					const nextCtx: Ctx = { path: key };
+
 					return pipe(
 						HashMap.modifyAt(hashMap, key, (constraint) =>
 							Option.some({
@@ -55,7 +57,7 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
 								required: !isOptional,
 							}),
 						),
-						rec(type, key),
+						rec(type, nextCtx),
 					);
 				},
 			),
@@ -65,17 +67,17 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
  * Visits a TupleType node and updates constraints for tuple elements and/or array-like rest elements.
  *
  * - Distinguishes tuple vs. array-like (empty elements + rest).
- * - For array-like, marks the base field as multiple and emits constraints for "name[]".
- * - For tuple, annotates each element path "name[i]" and recurses.
+ * - For array-like, marks the base field as multiple and emits constraints for "path[]".
+ * - For tuple, annotates each element path "path[i]" and recurses.
  *
  * @param rec - The recursive visitor used to process element types.
  * @param node - The TupleType node to process.
- * @param name - The current path of the tuple/array field.
+ * @param ctx - The current traversal context (includes the base path).
  * @returns An EndoHash that applies updates for this node.
  * @private
  */
 export const visitTupleType: NodeHandler<AST.TupleType> =
-	(rec) => (node, name) => (data) =>
+	(rec) => (node, ctx) => (data) =>
 		pipe(
 			node,
 			Match.value,
@@ -87,17 +89,21 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
 						tupleType,
 						Struct.get('rest'),
 						ReadonlyArray.reduce(
-							HashMap.modifyAt(data, name, (constraint) =>
+							HashMap.modifyAt(data, ctx.path, (constraint) =>
 								Option.some({
 									...Option.getOrElse(constraint, Record.empty),
 									multiple: true,
 								}),
 							),
-							(hashMap, type) =>
-								pipe(
-									HashMap.set(hashMap, `${name}[]`, { required: true }),
-									rec(type.type, `${name}[]`),
-								),
+							(hashMap, type) => {
+								const itemPath = `${ctx.path}[]`;
+								const nextCtx: Ctx = { path: itemPath };
+
+								return pipe(
+									HashMap.set(hashMap, itemPath, { required: true }),
+									rec(type.type, nextCtx),
+								);
+							},
 						),
 					),
 			),
@@ -109,14 +115,17 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
 					pipe(
 						tupleType,
 						Struct.get('elements'),
-						ReadonlyArray.reduce(data, (hashMap, { isOptional, type }, idx) =>
-							pipe(
-								HashMap.set(hashMap, `${name}[${idx}]`, {
+						ReadonlyArray.reduce(data, (hashMap, { isOptional, type }, idx) => {
+							const elemPath = `${ctx.path}[${idx}]`;
+							const nextCtx: Ctx = { path: elemPath };
+
+							return pipe(
+								HashMap.set(hashMap, elemPath, {
 									required: !isOptional,
 								}),
-								rec(type, `${name}[${idx}]`),
-							),
-						),
+								rec(type, nextCtx),
+							);
+						}),
 					),
 			),
 
@@ -131,12 +140,12 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
  *
  * @param rec - The recursive visitor used to process union members.
  * @param node - The Union node to process.
- * @param name - The current path for the union field.
+ * @param ctx - The current traversal context (the path remains unchanged for members).
  * @returns An EndoHash that applies updates for this node.
  * @private
  */
 export const visitUnion: NodeHandler<AST.Union> =
-	(rec) => (node, name) => (data) =>
+	(rec) => (node, ctx) => (data) =>
 		pipe(
 			node,
 			Struct.get('types'),
@@ -149,7 +158,7 @@ export const visitUnion: NodeHandler<AST.Union> =
 				// then we need to add the correct constraint to the hashmap:
 				// a pattern constraint with the correct regex: e.g. /a|b|c/ .
 
-				return pipe(hashMap, rec(member, name));
+				return pipe(hashMap, rec(member, ctx));
 			}),
 		);
 
@@ -161,12 +170,12 @@ export const visitUnion: NodeHandler<AST.Union> =
  *
  * @param rec - The recursive visitor used to process the base ("from") type.
  * @param node - The Refinement node to process.
- * @param name - The current path for the refined field.
+ * @param ctx - The current traversal context (path where the patch is applied).
  * @returns An EndoHash that applies updates for this node.
  * @private
  */
 export const visitRefinement: NodeHandler<AST.Refinement> =
-	(rec) => (node, name) => (data) => {
+	(rec) => (node, ctx) => (data) => {
 		const refinementConstraint = Option.reduceCompact<Constraint, Constraint>(
 			[
 				stringRefinement(node),
@@ -180,13 +189,13 @@ export const visitRefinement: NodeHandler<AST.Refinement> =
 
 		return pipe(
 			data,
-			HashMap.modifyAt(name, (maybeConstraint) =>
+			HashMap.modifyAt(ctx.path, (maybeConstraint) =>
 				Option.some({
 					...Option.getOrElse(maybeConstraint, Record.empty),
 					...refinementConstraint,
 				}),
 			),
-			rec(node.from, name),
+			rec(node.from, ctx),
 		);
 	};
 
@@ -198,15 +207,24 @@ export const visitRefinement: NodeHandler<AST.Refinement> =
  *
  * @param rec - The recursive visitor used to process the "to" type.
  * @param node - The Transformation node to process.
- * @param name - The current path for the transformed field.
+ * @param ctx - The current traversal context (path remains the same).
  * @returns An EndoHash that applies updates for this node.
  * @private
  */
 export const visitTransformation: NodeHandler<AST.Transformation> =
-	(rec) => (node, name) => (data) =>
-		pipe(data, rec(node.to, name));
+	(rec) => (node, ctx) => (data) =>
+		pipe(data, rec(node.to, ctx));
 
+/**
+ * Placeholder handler for unsupported suspended nodes.
+ *
+ * @param _rec - Unused.
+ * @param node - The Suspend node encountered.
+ * @param _ctx - Unused.
+ * @throws Error describing the unsupported node type.
+ * @private
+ */
 export const visitSuspend: NodeHandler<AST.Suspend> =
-	(rec) => (node, name) => (data) => {
+	(rec) => (node, ctx) => (data) => {
 		throw new Error(`TODO: add support for this AST Node type: "${node._tag}"`);
 	};

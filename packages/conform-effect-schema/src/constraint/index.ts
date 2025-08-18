@@ -6,6 +6,7 @@ import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
 import { makeUpdateConstraint } from './update-constraint';
+import type { Ctx } from './types';
 
 /**
  * A default, ready-to-use recursive updater built by {@link makeUpdateConstraint}.
@@ -51,9 +52,11 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 		);
 	}
 
+	const rootCtx: Ctx = { path: '' };
+
 	return pipe(
 		HashMap.empty<string, Constraint>(),
-		updateConstraint(schema.ast),
+		updateConstraint(schema.ast, rootCtx),
 		Record.fromEntries,
 	);
 }

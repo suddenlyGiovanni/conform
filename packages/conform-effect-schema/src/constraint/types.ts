@@ -18,6 +18,10 @@ export type EndoHash = (
 	data: HashMap.HashMap<string, Constraint>,
 ) => HashMap.HashMap<string, Constraint>;
 
+export interface Ctx {
+	path: string;
+}
+
 /**
  * The recursive visitor function used to traverse an Effect Schema AST, producing
  * a pure transformation over the constraints map.
@@ -26,12 +30,12 @@ export type EndoHash = (
  * and receive an endomorphism that applies edits for that node and its children.
  *
  * @param ast - The current AST node to visit.
- * @param name - The current path (field name) used to address entries in the constraints map.
+ * @param ctx - The current traversal context (at minimum, the path).
  * @returns A pure endomorphism that applies this node's constraints and recurses into children.
  * @see EndoHash
  * @private
  */
-export type Rec = (ast: AST.AST, name?: string) => EndoHash;
+export type Rec = (ast: AST.AST, ctx: Ctx) => EndoHash;
 
 /**
  * A higher-order node handler that implements the logic for a specific AST node type.
@@ -42,11 +46,11 @@ export type Rec = (ast: AST.AST, name?: string) => EndoHash;
  *
  * @typeParam A - The concrete AST node type this handler processes.
  * @param rec - The recursive function used to process child nodes.
- * @returns A function that, given a node of type A and the current path, returns an EndoHash.
+ * @returns A function that, given a node of type A and the current context, returns an EndoHash.
  * @see Rec
  * @see EndoHash
  * @private
  */
 export type NodeHandler<A extends AST.AST> = (
 	rec: Rec,
-) => (node: A, name: string) => EndoHash;
+) => (node: A, ctx: Ctx) => EndoHash;

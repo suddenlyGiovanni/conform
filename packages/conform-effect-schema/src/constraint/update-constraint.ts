@@ -18,10 +18,8 @@ import type { Rec } from './types';
  *
  * This factory wires node handlers with the recursive function (Rec), avoiding
  * module-level recursion and enabling future customizations (options, strategies,
- * metadata pre-passes) without changing call sites.
- *
- * @remarks
- * If you do not need customization, export a default instance created by this function.
+ * metadata pre-passes) without changing call sites. The Rec function accepts a
+ * context object (ctx) carrying the current path and any other traversal data.
  *
  * @returns A Rec function that can traverse AST nodes and produce constraint edits.
  * @see Rec
@@ -29,7 +27,7 @@ import type { Rec } from './types';
  */
 export function makeUpdateConstraint(): Rec {
 	const rec: Rec =
-		(ast, name = '') =>
+		(ast, ctx ) =>
 		(data) =>
 			Match.value(ast).pipe(
 				Match.withReturnType<HashMap.HashMap<string, Constraint>>(),
@@ -70,20 +68,20 @@ export function makeUpdateConstraint(): Rec {
 				),
 
 				Match.when(AST.isTypeLiteral, (node) =>
-					visitTypeLiteral(rec)(node, name)(data),
+					visitTypeLiteral(rec)(node, ctx)(data),
 				),
 				Match.when(AST.isTupleType, (node) =>
-					visitTupleType(rec)(node, name)(data),
+					visitTupleType(rec)(node, ctx)(data),
 				),
-				Match.when(AST.isUnion, (node) => visitUnion(rec)(node, name)(data)),
+				Match.when(AST.isUnion, (node) => visitUnion(rec)(node, ctx)(data)),
 				Match.when(AST.isRefinement, (node) =>
-					visitRefinement(rec)(node, name)(data),
+					visitRefinement(rec)(node, ctx)(data),
 				),
 				Match.when(AST.isTransformation, (transformation) =>
-					visitTransformation(rec)(transformation, name)(data),
+					visitTransformation(rec)(transformation, ctx)(data),
 				),
 				Match.when(AST.isSuspend, (node) =>
-					visitSuspend(rec)(node, name)(data),
+					visitSuspend(rec)(node, ctx)(data),
 				),
 
 				Match.exhaustive,
