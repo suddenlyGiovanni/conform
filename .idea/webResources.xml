@@ -5,7 +5,13 @@
       <entry url="file://$PROJECT_DIR$">
         <entryData>
           <resourceRoots>
-            <path value="file://$PROJECT_DIR$/packages/conform-effect-schema/src" />
+            <path value="file://$PROJECT_DIR$/packages/conform-dom" />
+            <path value="file://$PROJECT_DIR$/packages/conform-effect-schema" />
+            <path value="file://$PROJECT_DIR$/packages/conform-react" />
+            <path value="file://$PROJECT_DIR$/packages/conform-valibot" />
+            <path value="file://$PROJECT_DIR$/packages/conform-validitystate" />
+            <path value="file://$PROJECT_DIR$/packages/conform-yup" />
+            <path value="file://$PROJECT_DIR$/packages/conform-zod" />
           </resourceRoots>
         </entryData>
       </entry>
