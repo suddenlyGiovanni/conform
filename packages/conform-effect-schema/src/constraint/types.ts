@@ -73,7 +73,7 @@ export interface Ctx {
  * @see EndoHash
  * @private
  */
-export type Rec = (ast: AST.AST, ctx: Readonly<Ctx>) => EndoHash;
+export type Rec = (ast: Readonly<AST.AST>, ctx: Readonly<Ctx>) => EndoHash;
 
 /**
  * A higher-order node handler that implements the logic for a specific AST node type.
@@ -91,4 +91,4 @@ export type Rec = (ast: AST.AST, ctx: Readonly<Ctx>) => EndoHash;
  */
 export type NodeHandler<A extends AST.AST> = (
 	rec: Rec,
-) => (node: A, ctx: Readonly<Ctx>) => EndoHash;
+) => (node: Readonly<A>, ctx: Readonly<Ctx>) => EndoHash;
