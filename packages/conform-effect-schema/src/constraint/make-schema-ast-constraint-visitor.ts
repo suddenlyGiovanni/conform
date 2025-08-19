@@ -18,7 +18,7 @@ const endoHashIdentity: EndoHash = identity;
  * Builds a recursive visitor (ctx-first) for Effect Schema AST.
  * @private
  */
-export const makeVisitor: () => NodeVisitor = () => {
+export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 	const rec: NodeVisitor = (ctx) => (ast) => {
 		const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
 		const tupleTypeVisitor = makeTupleTypeVisitor(rec);

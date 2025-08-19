@@ -5,20 +5,21 @@ import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
-import { makeVisitor } from './update-constraint';
+import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor';
 import { Ctx, type NodeVisitor } from './types';
 
 /**
- * A default, ready-to-use recursive visitor built by {@link makeVisitor}.
+ * A default, ready-to-use recursive visitor built by {@link makeSchemaAstConstraintVisitor}.
  *
- * Prefer this export for standard behavior. Use {@link makeVisitor} if
+ * Prefer this export for standard behavior. Use {@link makeSchemaAstConstraintVisitor} if
  * you need to customize traversal, add options, or inject alternate handlers.
  *
- * @see makeVisitor
+ * @see makeSchemaAstConstraintVisitor
  * @see NodeVisitor
  * @private
  */
-const visitor: NodeVisitor = makeVisitor();
+const schemaAstConstraintVisitor: NodeVisitor =
+	makeSchemaAstConstraintVisitor();
 
 /**
  * Traverses a Schema AST and materializes a Record<string, Constraint> describing
@@ -30,7 +31,7 @@ const visitor: NodeVisitor = makeVisitor();
  *   email: Schema.String.pipe(Schema.pattern(/^[^@]+@[^@]+$/)),
  *   tags: Schema.Array(Schema.String)
  * });
- * const constraints = index(schema);
+ * const constraints = getEffectSchemaConstraint(schema);
  * // {
  * //   email: { required: true, pattern: '^[^@]+@[^@]+$' },
  * //   tags: { required: true, multiple: true },
@@ -45,16 +46,15 @@ const visitor: NodeVisitor = makeVisitor();
 export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	schema: Schema.Struct<Fields>,
 ): Record<string, Constraint> {
-	if (!AST.isTypeLiteral(schema.ast)) {
+	const ast = schema.ast;
+
+	if (!AST.isTypeLiteral(ast)) {
 		throw new Error(
-			'root schema must be a TypeLiteral AST node, e.g. Schema.Struct, instead got: ' +
-				schema.ast._tag,
+			`root schema must be a TypeLiteral AST node (e.g. Schema.Struct), instead got: ${ast._tag}`,
 		);
 	}
 
-	return pipe(
-		HashMap.empty<string, Constraint>(),
-		visitor(Ctx.root())(schema.ast),
-		Record.fromEntries,
-	);
+	const endo = schemaAstConstraintVisitor(Ctx.root())(ast);
+
+	return pipe(HashMap.empty<string, Constraint>(), endo, Record.fromEntries);
 }
