@@ -111,13 +111,18 @@ export type Rec = (ast: Readonly<AST.AST>, ctx: Readonly<Ctx.Ctx>) => EndoHash;
  * into child nodes without relying on module-level imports (avoids cycles and
  * improves testability).
  *
+ * Order of parameters is chosen for composability:
+ * - First `rec` (stable dependency),
+ * - then `ctx` (bound once per dispatch),
+ * - then `node` (varies per branch).
+ *
  * @typeParam A - The concrete AST node type this handler processes.
  * @param rec - The recursive function used to process child nodes.
- * @returns A function that, given a node of type A and the current context, returns an EndoHash.
+ * @returns A function that, given the current context and a node of type A, returns an {@link EndoHash}.
  * @see Rec
  * @see EndoHash
  * @private
  */
 export type NodeHandler<A extends AST.AST> = (
 	rec: Rec,
-) => (node: Readonly<A>, ctx: Readonly<Ctx.Ctx>) => EndoHash;
+) => (ctx: Readonly<Ctx.Ctx>) => (node: Readonly<A>) => EndoHash;

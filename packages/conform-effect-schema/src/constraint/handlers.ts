@@ -19,19 +19,10 @@ import { Ctx, type NodeHandler } from './types';
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.
  *
- * - Sets required based on optionality of each property.
- * - Recurses into property types using the provided Rec function.
- *
- * @param rec - The recursive visitor used to process child property types.
- * @param node - The TypeLiteral node to process.
- * @param ctx - The current traversal context (includes the parent path).
- * @returns An EndoHash that applies updates for this node.
- * @see NodeHandler
- * @see Rec
  * @private
  */
 export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
-	(rec) => (node, ctx) => (data) =>
+	(rec) => (ctx) => (node) => (data) =>
 		pipe(
 			node,
 			Struct.get('propertySignatures'),
@@ -64,18 +55,10 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
 /**
  * Visits a TupleType node and updates constraints for tuple elements and/or array-like rest elements.
  *
- * - Distinguishes tuple vs. array-like (empty elements + rest).
- * - For array-like, marks the base field as multiple and emits constraints for "path[]".
- * - For tuple, annotates each element path "path[i]" and recurses.
- *
- * @param rec - The recursive visitor used to process element types.
- * @param node - The TupleType node to process.
- * @param ctx - The current traversal context (includes the base path).
- * @returns An EndoHash that applies updates for this node.
  * @private
  */
 export const visitTupleType: NodeHandler<AST.TupleType> =
-	(rec) => (node, ctx) => (data) =>
+	(rec) => (ctx) => (node) => (data) =>
 		pipe(
 			node,
 			Match.value,
@@ -131,17 +114,10 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
 /**
  * Visits a Union node and merges constraints derived from each union member into the same path.
  *
- * - Recurses into each member type at the same path.
- * - Useful for literal unions producing pattern constraints, among others.
- *
- * @param rec - The recursive visitor used to process union members.
- * @param node - The Union node to process.
- * @param ctx - The current traversal context (the path remains unchanged for members).
- * @returns An EndoHash that applies updates for this node.
  * @private
  */
 export const visitUnion: NodeHandler<AST.Union> =
-	(rec) => (node, ctx) => (data) =>
+	(rec) => (ctx) => (node) => (data) =>
 		pipe(
 			node,
 			Struct.get('types'),
@@ -161,17 +137,10 @@ export const visitUnion: NodeHandler<AST.Union> =
 /**
  * Visits a Refinement node and merges refinement-derived constraints into the current path.
  *
- * - Aggregates string/number/bigint/date refinement rules into a single constraint patch.
- * - Recurses into the underlying "from" type to continue traversal.
- *
- * @param rec - The recursive visitor used to process the base ("from") type.
- * @param node - The Refinement node to process.
- * @param ctx - The current traversal context (path where the patch is applied).
- * @returns An EndoHash that applies updates for this node.
  * @private
  */
 export const visitRefinement: NodeHandler<AST.Refinement> =
-	(rec) => (node, ctx) => {
+	(rec) => (ctx) => (node) => {
 		const refinementConstraint = Option.reduceCompact<Constraint, Constraint>(
 			[
 				stringRefinement(node),
@@ -196,29 +165,19 @@ export const visitRefinement: NodeHandler<AST.Refinement> =
 /**
  * Visits a Transformation node and continues traversal to the "to" type.
  *
- * - Some transformations affect constraints indirectly (e.g., string trimming),
- *   so this handler can be extended or combined with refinement logic.
- *
- * @param rec - The recursive visitor used to process the "to" type.
- * @param node - The Transformation node to process.
- * @param ctx - The current traversal context (path remains the same).
- * @returns An EndoHash that applies updates for this node.
  * @private
  */
 export const visitTransformation: NodeHandler<AST.Transformation> =
-	(rec) => (node, ctx) =>
+	(rec) => (ctx) => (node) =>
 		rec(node.to, ctx);
 
 /**
  * Placeholder handler for unsupported suspended nodes.
  *
- * @param _rec - Unused.
- * @param node - The Suspend node encountered.
- * @param _ctx - Unused.
- * @throws Error describing the unsupported node type.
  * @private
  */
+
 export const visitSuspend: NodeHandler<AST.Suspend> =
-	(rec) => (node, ctx) => (data) => {
+	(_rec) => (_ctx) => (node) => (_data) => {
 		throw new Error(`TODO: add support for this AST Node type: "${node._tag}"`);
 	};

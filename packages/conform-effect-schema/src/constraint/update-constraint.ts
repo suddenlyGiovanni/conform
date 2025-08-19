@@ -1,4 +1,4 @@
-import { identity } from 'effect/Function';
+import { identity, pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as AST from 'effect/SchemaAST';
 
@@ -67,14 +67,12 @@ export function makeConstraintVisitor(): Rec {
 				() => endoHashIdentity,
 			),
 
-			Match.when(AST.isTypeLiteral, (node) => visitTypeLiteral(rec)(node, ctx)),
-			Match.when(AST.isTupleType, (node) => visitTupleType(rec)(node, ctx)),
-			Match.when(AST.isUnion, (node) => visitUnion(rec)(node, ctx)),
-			Match.when(AST.isRefinement, (node) => visitRefinement(rec)(node, ctx)),
-			Match.when(AST.isTransformation, (transformation) =>
-				visitTransformation(rec)(transformation, ctx),
-			),
-			Match.when(AST.isSuspend, (node) => visitSuspend(rec)(node, ctx)),
+			Match.when(AST.isTypeLiteral, pipe(ctx, visitTypeLiteral(rec))),
+			Match.when(AST.isTupleType, pipe(ctx, visitTupleType(rec))),
+			Match.when(AST.isUnion, pipe(ctx, visitUnion(rec))),
+			Match.when(AST.isRefinement, pipe(ctx, visitRefinement(rec))),
+			Match.when(AST.isTransformation, pipe(ctx, visitTransformation(rec))),
+			Match.when(AST.isSuspend, pipe(ctx, visitSuspend(rec))),
 
 			Match.exhaustive,
 		);
