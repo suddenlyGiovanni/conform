@@ -54,7 +54,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 	return pipe(
 		HashMap.empty<string, Constraint>(),
-		constraintVisitor(schema.ast, Ctx.root()),
+		constraintVisitor(Ctx.root())(schema.ast),
 		Record.fromEntries,
 	);
 }

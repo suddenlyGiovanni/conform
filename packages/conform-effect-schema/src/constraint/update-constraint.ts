@@ -28,7 +28,7 @@ const endoHashIdentity: EndoHash = identity;
  * @private
  */
 export function makeConstraintVisitor(): Rec {
-	const rec: Rec = (ast, ctx) =>
+	const rec: Rec = (ctx) => (ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<EndoHash>(),
 

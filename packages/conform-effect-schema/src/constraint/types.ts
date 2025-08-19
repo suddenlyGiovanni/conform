@@ -85,44 +85,25 @@ export class Ctx implements Ctx.Ctx {
 }
 
 /**
- * Recursive visitor for Effect Schema AST that builds a pure endomorphism (data-last).
+ * Recursive visitor for Effect Schema AST (ctx-first, data-last).
  *
- * Reader-style: given an AST node and the current immutable traversal context,
- * returns an {@link EndoHash} — a function that, when applied to a constraints HashMap,
- * produces an updated HashMap with all edits for this node and its children.
+ * Reader-style: given the current immutable traversal context, returns a function
+ * that interprets an AST node (optionally a specific subtype) and produces an {@link EndoHash}.
  *
- * This makes the dispatcher and handlers easy to compose: they build an edit program first,
- * and the HashMap is applied only at the boundary (data-last).
- *
- * @param ast - The current AST node to interpret.
- * @param ctx - The current traversal context (see {@link Ctx}). At minimum, `ctx.path` specifies
- *              the logical key where constraints should be written.
- * @returns An {@link EndoHash} to apply against a constraints HashMap.
- * @see EndoHash
+ * @typeParam Ast - The specific AST subtype this visitor accepts (defaults to AST.AST).
  * @private
  */
-
-export type Rec = (ast: Readonly<AST.AST>, ctx: Readonly<Ctx.Ctx>) => EndoHash;
+export type Rec<Ast extends AST.AST = AST.AST> = (
+	ctx: Readonly<Ctx.Ctx>,
+) => (node: Readonly<Ast>) => EndoHash;
 
 /**
- * A higher-order node handler that implements the logic for a specific AST node type.
+ * A node-specific visitor transformer.
  *
- * Handlers are parameterized by the recursive function (Rec) so they can recurse
- * into child nodes without relying on module-level imports (avoids cycles and
- * improves testability).
+ * Given the general recursive visitor `Rec`, returns a specialized visitor `Rec<Ast>`
+ * that handles a specific AST subtype.
  *
- * Order of parameters is chosen for composability:
- * - First `rec` (stable dependency),
- * - then `ctx` (bound once per dispatch),
- * - then `node` (varies per branch).
- *
- * @typeParam A - The concrete AST node type this handler processes.
- * @param rec - The recursive function used to process child nodes.
- * @returns A function that, given the current context and a node of type A, returns an {@link EndoHash}.
- * @see Rec
- * @see EndoHash
+ * @typeParam Ast - The AST subtype handled by this visitor.
  * @private
  */
-export type NodeHandler<A extends AST.AST> = (
-	rec: Rec,
-) => (ctx: Readonly<Ctx.Ctx>) => (node: Readonly<A>) => EndoHash;
+export type AstNodeVisitor<Ast extends AST.AST> = (rec: Rec) => Rec<Ast>;

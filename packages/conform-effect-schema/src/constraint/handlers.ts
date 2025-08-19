@@ -14,14 +14,14 @@ import {
 	numberRefinement,
 	stringRefinement,
 } from './refinements';
-import { Ctx, type NodeHandler } from './types';
+import { Ctx, type AstNodeVisitor } from './types';
 
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.
  *
  * @private
  */
-export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
+export const visitTypeLiteral: AstNodeVisitor<AST.TypeLiteral> =
 	(rec) => (ctx) => (node) => (data) =>
 		pipe(
 			node,
@@ -46,7 +46,7 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
 								required: !isOptional,
 							}),
 						),
-						rec(type, Ctx.make({ path: key })),
+						rec(Ctx.make({ path: key }))(type),
 					);
 				},
 			),
@@ -57,7 +57,7 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
  *
  * @private
  */
-export const visitTupleType: NodeHandler<AST.TupleType> =
+export const visitTupleType: AstNodeVisitor<AST.TupleType> =
 	(rec) => (ctx) => (node) => (data) =>
 		pipe(
 			node,
@@ -81,7 +81,7 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
 
 								return pipe(
 									HashMap.set(hashMap, itemPath, { required: true }),
-									rec(type.type, Ctx.make({ path: itemPath })),
+									rec(Ctx.make({ path: itemPath }))(type.type),
 								);
 							},
 						),
@@ -102,7 +102,7 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
 								HashMap.set(hashMap, elemPath, {
 									required: !isOptional,
 								}),
-								rec(type, Ctx.make({ path: elemPath })),
+								rec(Ctx.make({ path: elemPath }))(type),
 							);
 						}),
 					),
@@ -116,7 +116,7 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
  *
  * @private
  */
-export const visitUnion: NodeHandler<AST.Union> =
+export const visitUnion: AstNodeVisitor<AST.Union> =
 	(rec) => (ctx) => (node) => (data) =>
 		pipe(
 			node,
@@ -130,7 +130,7 @@ export const visitUnion: NodeHandler<AST.Union> =
 				// then we need to add the correct constraint to the hashmap:
 				// a pattern constraint with the correct regex: e.g. /a|b|c/ .
 
-				return pipe(hashMap, rec(member, ctx));
+				return pipe(hashMap, rec(ctx)(member));
 			}),
 		);
 
@@ -139,7 +139,7 @@ export const visitUnion: NodeHandler<AST.Union> =
  *
  * @private
  */
-export const visitRefinement: NodeHandler<AST.Refinement> =
+export const visitRefinement: AstNodeVisitor<AST.Refinement> =
 	(rec) => (ctx) => (node) => {
 		const refinementConstraint = Option.reduceCompact<Constraint, Constraint>(
 			[
@@ -158,7 +158,7 @@ export const visitRefinement: NodeHandler<AST.Refinement> =
 					...refinementConstraint,
 				}),
 			),
-			rec(node.from, ctx),
+			rec(ctx)(node.from),
 		);
 	};
 
@@ -167,9 +167,9 @@ export const visitRefinement: NodeHandler<AST.Refinement> =
  *
  * @private
  */
-export const visitTransformation: NodeHandler<AST.Transformation> =
+export const visitTransformation: AstNodeVisitor<AST.Transformation> =
 	(rec) => (ctx) => (node) =>
-		rec(node.to, ctx);
+		rec(ctx)(node.to);
 
 /**
  * Placeholder handler for unsupported suspended nodes.
@@ -177,7 +177,7 @@ export const visitTransformation: NodeHandler<AST.Transformation> =
  * @private
  */
 
-export const visitSuspend: NodeHandler<AST.Suspend> =
+export const visitSuspend: AstNodeVisitor<AST.Suspend> =
 	(_rec) => (_ctx) => (node) => (_data) => {
 		throw new Error(`TODO: add support for this AST Node type: "${node._tag}"`);
 	};
