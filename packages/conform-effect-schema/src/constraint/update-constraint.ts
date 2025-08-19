@@ -12,19 +12,22 @@ import {
 } from './handlers';
 import type { EndoHash, Rec } from './types';
 
+const endoHashIdentity: EndoHash = identity;
+
 /**
  * Builds a recursive visitor for Effect Schema AST that updates a constraints map.
  *
- * This factory wires node handlers with the recursive function (Rec), avoiding
- * module-level recursion and enabling future customizations (options, strategies,
- * metadata pre-passes) without changing call sites. The Rec function accepts a
- * context object (ctx) carrying the current path and any other traversal data.
+ * The returned function (Rec) is a Reader-style builder: for a given node and context,
+ * it returns an {@link EndoHash}. The dispatcher and handlers consistently return EndoHash,
+ * using the identity endomorphism for no-op branches and delegating to handlers for
+ * AST nodes that produce edits. Application to the actual HashMap remains data-last
+ * at call sites.
  *
- * @returns A Rec function that can traverse AST nodes and produce constraint edits.
+ * @returns A Rec function that can traverse AST nodes and produce constraint edits (as EndoHash).
  * @see Rec
  * @private
  */
-export function makeUpdateConstraint(): Rec {
+export function makeConstraintVisitor(): Rec {
 	const rec: Rec = (ast, ctx) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<EndoHash>(),
@@ -52,7 +55,7 @@ export function makeUpdateConstraint(): Rec {
 				AST.isBigIntKeyword, // Schema.BigIntFromSelf
 				AST.isBooleanKeyword, // Schema.Boolean
 				AST.isUndefinedKeyword, // Schema.Undefined
-				() => identity,
+				() => endoHashIdentity,
 			),
 
 			// for these AST nodes we do not need to process them further
@@ -61,7 +64,7 @@ export function makeUpdateConstraint(): Rec {
 				AST.isDeclaration,
 				AST.isTemplateLiteral,
 				AST.isEnums,
-				() => identity,
+				() => endoHashIdentity,
 			),
 
 			Match.when(AST.isTypeLiteral, (node) => visitTypeLiteral(rec)(node, ctx)),

@@ -85,18 +85,23 @@ export class Ctx implements Ctx.Ctx {
 }
 
 /**
- * The recursive visitor function used to traverse an Effect Schema AST, producing
- * a pure transformation over the constraints map.
+ * Recursive visitor for Effect Schema AST that builds a pure endomorphism (data-last).
  *
- * Callers pass the current AST node and the current logical path (field name)
- * and receive an endomorphism that applies edits for that node and its children.
+ * Reader-style: given an AST node and the current immutable traversal context,
+ * returns an {@link EndoHash} — a function that, when applied to a constraints HashMap,
+ * produces an updated HashMap with all edits for this node and its children.
  *
- * @param ast - The current AST node to visit.
- * @param ctx - The current traversal context (at minimum, the path).
- * @returns A pure endomorphism that applies this node's constraints and recurses into children.
+ * This makes the dispatcher and handlers easy to compose: they build an edit program first,
+ * and the HashMap is applied only at the boundary (data-last).
+ *
+ * @param ast - The current AST node to interpret.
+ * @param ctx - The current traversal context (see {@link Ctx}). At minimum, `ctx.path` specifies
+ *              the logical key where constraints should be written.
+ * @returns An {@link EndoHash} to apply against a constraints HashMap.
  * @see EndoHash
  * @private
  */
+
 export type Rec = (ast: Readonly<AST.AST>, ctx: Readonly<Ctx.Ctx>) => EndoHash;
 
 /**
