@@ -14,14 +14,14 @@ import {
 	numberRefinement,
 	stringRefinement,
 } from './refinements';
-import { Ctx, type AstNodeVisitor } from './types';
+import { Ctx, type MakeNodeVisitor } from './types';
 
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.
  *
  * @private
  */
-export const visitTypeLiteral: AstNodeVisitor<AST.TypeLiteral> =
+export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
 	(rec) => (ctx) => (node) => (data) =>
 		pipe(
 			node,
@@ -57,7 +57,7 @@ export const visitTypeLiteral: AstNodeVisitor<AST.TypeLiteral> =
  *
  * @private
  */
-export const visitTupleType: AstNodeVisitor<AST.TupleType> =
+export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 	(rec) => (ctx) => (node) => (data) =>
 		pipe(
 			node,
@@ -116,7 +116,7 @@ export const visitTupleType: AstNodeVisitor<AST.TupleType> =
  *
  * @private
  */
-export const visitUnion: AstNodeVisitor<AST.Union> =
+export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 	(rec) => (ctx) => (node) => (data) =>
 		pipe(
 			node,
@@ -139,7 +139,7 @@ export const visitUnion: AstNodeVisitor<AST.Union> =
  *
  * @private
  */
-export const visitRefinement: AstNodeVisitor<AST.Refinement> =
+export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
 	(rec) => (ctx) => (node) => {
 		const refinementConstraint = Option.reduceCompact<Constraint, Constraint>(
 			[
@@ -167,7 +167,7 @@ export const visitRefinement: AstNodeVisitor<AST.Refinement> =
  *
  * @private
  */
-export const visitTransformation: AstNodeVisitor<AST.Transformation> =
+export const makeTransformationVisitor: MakeNodeVisitor<AST.Transformation> =
 	(rec) => (ctx) => (node) =>
 		rec(ctx)(node.to);
 
@@ -177,7 +177,7 @@ export const visitTransformation: AstNodeVisitor<AST.Transformation> =
  * @private
  */
 
-export const visitSuspend: AstNodeVisitor<AST.Suspend> =
+export const makeSuspendVisitor: MakeNodeVisitor<AST.Suspend> =
 	(_rec) => (_ctx) => (node) => (_data) => {
 		throw new Error(`TODO: add support for this AST Node type: "${node._tag}"`);
 	};

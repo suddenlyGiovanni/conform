@@ -11,7 +11,7 @@ import type * as AST from 'effect/SchemaAST';
  *
  * @typeParam K - The key type of the map (defaults to string).
  * @typeParam V - The value type of the map (defaults to Constraint).
- * @see Rec
+ * @see NodeVisitor
  * @private
  */
 export type EndoHash = (
@@ -93,7 +93,7 @@ export class Ctx implements Ctx.Ctx {
  * @typeParam Ast - The specific AST subtype this visitor accepts (defaults to AST.AST).
  * @private
  */
-export type Rec<Ast extends AST.AST = AST.AST> = (
+export type NodeVisitor<Ast extends AST.AST = AST.AST> = (
 	ctx: Readonly<Ctx.Ctx>,
 ) => (node: Readonly<Ast>) => EndoHash;
 
@@ -106,4 +106,6 @@ export type Rec<Ast extends AST.AST = AST.AST> = (
  * @typeParam Ast - The AST subtype handled by this visitor.
  * @private
  */
-export type AstNodeVisitor<Ast extends AST.AST> = (rec: Rec) => Rec<Ast>;
+export type MakeNodeVisitor<Ast extends AST.AST> = (
+	rec: NodeVisitor,
+) => NodeVisitor<Ast>;

@@ -5,20 +5,20 @@ import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
-import { makeConstraintVisitor } from './update-constraint';
-import { Ctx, type Rec } from './types';
+import { makeVisitor } from './update-constraint';
+import { Ctx, type NodeVisitor } from './types';
 
 /**
- * A default, ready-to-use recursive visitor built by {@link makeConstraintVisitor}.
+ * A default, ready-to-use recursive visitor built by {@link makeVisitor}.
  *
- * Prefer this export for standard behavior. Use {@link makeConstraintVisitor} if
+ * Prefer this export for standard behavior. Use {@link makeVisitor} if
  * you need to customize traversal, add options, or inject alternate handlers.
  *
- * @see makeConstraintVisitor
- * @see Rec
+ * @see makeVisitor
+ * @see NodeVisitor
  * @private
  */
-const constraintVisitor: Rec = makeConstraintVisitor();
+const visitor: NodeVisitor = makeVisitor();
 
 /**
  * Traverses a Schema AST and materializes a Record<string, Constraint> describing
@@ -54,7 +54,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 
 	return pipe(
 		HashMap.empty<string, Constraint>(),
-		constraintVisitor(Ctx.root())(schema.ast),
+		visitor(Ctx.root())(schema.ast),
 		Record.fromEntries,
 	);
 }

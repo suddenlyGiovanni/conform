@@ -1,35 +1,33 @@
-import { identity, pipe } from 'effect/Function';
+import { identity } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as AST from 'effect/SchemaAST';
 
 import {
-	visitRefinement,
-	visitTransformation,
-	visitTypeLiteral,
-	visitTupleType,
-	visitUnion,
-	visitSuspend,
-} from './handlers';
-import type { EndoHash, Rec } from './types';
+	makeRefinementVisitor,
+	makeTransformationVisitor,
+	makeTypeLiteralVisitor,
+	makeTupleTypeVisitor,
+	makeUnionVisitor,
+	makeSuspendVisitor,
+} from './visitors';
+import type { EndoHash, NodeVisitor } from './types';
 
 const endoHashIdentity: EndoHash = identity;
 
 /**
- * Builds a recursive visitor for Effect Schema AST that updates a constraints map.
- *
- * The returned function (Rec) is a Reader-style builder: for a given node and context,
- * it returns an {@link EndoHash}. The dispatcher and handlers consistently return EndoHash,
- * using the identity endomorphism for no-op branches and delegating to handlers for
- * AST nodes that produce edits. Application to the actual HashMap remains data-last
- * at call sites.
- *
- * @returns A Rec function that can traverse AST nodes and produce constraint edits (as EndoHash).
- * @see Rec
+ * Builds a recursive visitor (ctx-first) for Effect Schema AST.
  * @private
  */
-export function makeConstraintVisitor(): Rec {
-	const rec: Rec = (ctx) => (ast) =>
-		Match.value(ast).pipe(
+export const makeVisitor: () => NodeVisitor = () => {
+	const rec: NodeVisitor = (ctx) => (ast) => {
+		const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
+		const tupleTypeVisitor = makeTupleTypeVisitor(rec);
+		const unionVisitor = makeUnionVisitor(rec);
+		const refinementVisitor = makeRefinementVisitor(rec);
+		const transformationVisitor = makeTransformationVisitor(rec);
+		const suspendVisitor = makeSuspendVisitor(rec);
+
+		return Match.value(ast).pipe(
 			Match.withReturnType<EndoHash>(),
 
 			// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
@@ -67,15 +65,16 @@ export function makeConstraintVisitor(): Rec {
 				() => endoHashIdentity,
 			),
 
-			Match.when(AST.isTypeLiteral, pipe(ctx, visitTypeLiteral(rec))),
-			Match.when(AST.isTupleType, pipe(ctx, visitTupleType(rec))),
-			Match.when(AST.isUnion, pipe(ctx, visitUnion(rec))),
-			Match.when(AST.isRefinement, pipe(ctx, visitRefinement(rec))),
-			Match.when(AST.isTransformation, pipe(ctx, visitTransformation(rec))),
-			Match.when(AST.isSuspend, pipe(ctx, visitSuspend(rec))),
+			Match.when(AST.isTypeLiteral, typeLiteralVisitor(ctx)),
+			Match.when(AST.isTupleType, tupleTypeVisitor(ctx)),
+			Match.when(AST.isUnion, unionVisitor(ctx)),
+			Match.when(AST.isRefinement, refinementVisitor(ctx)),
+			Match.when(AST.isTransformation, transformationVisitor(ctx)),
+			Match.when(AST.isSuspend, suspendVisitor(ctx)),
 
 			Match.exhaustive,
 		);
+	};
 
 	return rec;
-}
+};
