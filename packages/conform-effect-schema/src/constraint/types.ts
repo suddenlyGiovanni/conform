@@ -18,6 +18,7 @@ export type EndoHash = (
 	data: HashMap.HashMap<string, Constraint>,
 ) => HashMap.HashMap<string, Constraint>;
 
+// eslint-disable-next-line @typescript-eslint/no-namespace -- this is a type alias
 export declare namespace Ctx {
 	/**
 	 * Immutable traversal context threaded through the AST visitor.
