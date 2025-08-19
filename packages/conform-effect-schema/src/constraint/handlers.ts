@@ -1,5 +1,5 @@
 import type { Constraint } from '@conform-to/dom';
-import { pipe } from 'effect/Function';
+import { pipe, flow } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as ReadonlyArray from 'effect/Array';
 import * as HashMap from 'effect/HashMap';
@@ -175,7 +175,7 @@ export const visitUnion: NodeHandler<AST.Union> =
  * @private
  */
 export const visitRefinement: NodeHandler<AST.Refinement> =
-	(rec) => (node, ctx) => (data) => {
+	(rec) => (node, ctx) => {
 		const refinementConstraint = Option.reduceCompact<Constraint, Constraint>(
 			[
 				stringRefinement(node),
@@ -186,9 +186,7 @@ export const visitRefinement: NodeHandler<AST.Refinement> =
 			{},
 			(constraints, constraint) => ({ ...constraints, ...constraint }),
 		);
-
-		return pipe(
-			data,
+		return flow(
 			HashMap.modifyAt(ctx.path, (maybeConstraint) =>
 				Option.some({
 					...Option.getOrElse(maybeConstraint, Record.empty),
