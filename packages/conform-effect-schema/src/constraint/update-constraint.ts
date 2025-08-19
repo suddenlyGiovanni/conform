@@ -1,6 +1,5 @@
-import type { Constraint } from '@conform-to/dom';
+import { identity } from 'effect/Function';
 import * as Match from 'effect/Match';
-import type * as HashMap from 'effect/HashMap';
 import * as AST from 'effect/SchemaAST';
 
 import {
@@ -11,7 +10,7 @@ import {
 	visitUnion,
 	visitSuspend,
 } from './handlers';
-import type { Rec } from './types';
+import type { EndoHash, Rec } from './types';
 
 /**
  * Builds a recursive visitor for Effect Schema AST that updates a constraints map.
@@ -26,66 +25,56 @@ import type { Rec } from './types';
  * @private
  */
 export function makeUpdateConstraint(): Rec {
-	const rec: Rec =
-		(ast, ctx ) =>
-		(data) =>
-			Match.value(ast).pipe(
-				Match.withReturnType<HashMap.HashMap<string, Constraint>>(),
+	const rec: Rec = (ast, ctx) => (data) =>
+		Match.value(ast).pipe(
+			Match.withReturnType<EndoHash>(),
 
-				// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
-				Match.whenOr(
-					AST.isAnyKeyword, // Schema.Any
-					AST.isNeverKeyword, // Schema.Never
-					AST.isObjectKeyword, // Schema.Object
-					AST.isSymbolKeyword, // Schema.SymbolFromSelf
-					AST.isVoidKeyword, // Schema.Void
-					AST.isUnknownKeyword, // Schema.Unknown,
-					AST.isUniqueSymbol,
-					(_) => {
-						throw new Error(
-							'Unsupported AST type for Constraint extraction AST: ' + _._tag,
-						);
-					},
-				),
+			// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
+			Match.whenOr(
+				AST.isAnyKeyword, // Schema.Any
+				AST.isNeverKeyword, // Schema.Never
+				AST.isObjectKeyword, // Schema.Object
+				AST.isSymbolKeyword, // Schema.SymbolFromSelf
+				AST.isVoidKeyword, // Schema.Void
+				AST.isUnknownKeyword, // Schema.Unknown,
+				AST.isUniqueSymbol,
+				(_) => {
+					throw new Error(
+						'Unsupported AST type for Constraint extraction AST: ' + _._tag,
+					);
+				},
+			),
 
-				// for these AST nodes we do not need to process them further
-				Match.whenOr(
-					AST.isStringKeyword, // Schema.String
-					AST.isNumberKeyword, // Schema.Number
-					AST.isBigIntKeyword, // Schema.BigIntFromSelf
-					AST.isBooleanKeyword, // Schema.Boolean
-					AST.isUndefinedKeyword, // Schema.Undefined
-					() => data,
-				),
+			// for these AST nodes we do not need to process them further
+			Match.whenOr(
+				AST.isStringKeyword, // Schema.String
+				AST.isNumberKeyword, // Schema.Number
+				AST.isBigIntKeyword, // Schema.BigIntFromSelf
+				AST.isBooleanKeyword, // Schema.Boolean
+				AST.isUndefinedKeyword, // Schema.Undefined
+				() => identity,
+			),
 
-				// for these AST nodes we do not need to process them further
-				Match.whenOr(
-					AST.isLiteral, // string | number | boolean | null | bigint
-					AST.isDeclaration,
-					AST.isTemplateLiteral,
-					AST.isEnums,
-					() => data,
-				),
+			// for these AST nodes we do not need to process them further
+			Match.whenOr(
+				AST.isLiteral, // string | number | boolean | null | bigint
+				AST.isDeclaration,
+				AST.isTemplateLiteral,
+				AST.isEnums,
+				() => identity,
+			),
 
-				Match.when(AST.isTypeLiteral, (node) =>
-					visitTypeLiteral(rec)(node, ctx)(data),
-				),
-				Match.when(AST.isTupleType, (node) =>
-					visitTupleType(rec)(node, ctx)(data),
-				),
-				Match.when(AST.isUnion, (node) => visitUnion(rec)(node, ctx)(data)),
-				Match.when(AST.isRefinement, (node) =>
-					visitRefinement(rec)(node, ctx)(data),
-				),
-				Match.when(AST.isTransformation, (transformation) =>
-					visitTransformation(rec)(transformation, ctx)(data),
-				),
-				Match.when(AST.isSuspend, (node) =>
-					visitSuspend(rec)(node, ctx)(data),
-				),
+			Match.when(AST.isTypeLiteral, (node) => visitTypeLiteral(rec)(node, ctx)),
+			Match.when(AST.isTupleType, (node) => visitTupleType(rec)(node, ctx)),
+			Match.when(AST.isUnion, (node) => visitUnion(rec)(node, ctx)),
+			Match.when(AST.isRefinement, (node) => visitRefinement(rec)(node, ctx)),
+			Match.when(AST.isTransformation, (transformation) =>
+				visitTransformation(rec)(transformation, ctx),
+			),
+			Match.when(AST.isSuspend, (node) => visitSuspend(rec)(node, ctx)),
 
-				Match.exhaustive,
-			);
+			Match.exhaustive,
+		)(data);
 
 	return rec;
 }
