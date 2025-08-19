@@ -73,8 +73,14 @@ export class Ctx implements Ctx.Ctx {
 		return this.#path;
 	}
 
-	static make(arg: Ctx.Ctx): Ctx {
-		return new Ctx(arg);
+	static make(arg: Partial<Ctx.Ctx>): Ctx {
+		return new Ctx({
+			path: arg?.path ?? '',
+		});
+	}
+
+	static root(): Ctx {
+		return Ctx.make({});
 	}
 }
 

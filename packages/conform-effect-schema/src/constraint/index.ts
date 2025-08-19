@@ -6,7 +6,7 @@ import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
 import { makeUpdateConstraint } from './update-constraint';
-import { Ctx } from './types';
+import { Ctx, type Rec } from './types';
 
 /**
  * A default, ready-to-use recursive updater built by {@link makeUpdateConstraint}.
@@ -18,7 +18,7 @@ import { Ctx } from './types';
  * @see Rec
  * @private
  */
-const updateConstraint = makeUpdateConstraint();
+const updateConstraint: Rec = makeUpdateConstraint();
 
 /**
  * Traverses a Schema AST and materializes a Record<string, Constraint> describing
@@ -52,11 +52,10 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 		);
 	}
 
-	const rootCtx = Ctx.make({ path: '' });
 
 	return pipe(
 		HashMap.empty<string, Constraint>(),
-		updateConstraint(schema.ast, rootCtx),
+		updateConstraint(schema.ast, Ctx.root()),
 		Record.fromEntries,
 	);
 }
