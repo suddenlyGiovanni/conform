@@ -210,8 +210,8 @@ export const visitRefinement: NodeHandler<AST.Refinement> =
  * @private
  */
 export const visitTransformation: NodeHandler<AST.Transformation> =
-	(rec) => (node, ctx) => (data) =>
-		pipe(data, rec(node.to, ctx));
+	(rec) => (node, ctx) =>
+		rec(node.to, ctx);
 
 /**
  * Placeholder handler for unsupported suspended nodes.
