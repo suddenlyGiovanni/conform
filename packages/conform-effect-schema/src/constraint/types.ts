@@ -18,46 +18,63 @@ export type EndoHash = (
 	data: HashMap.HashMap<string, Constraint>,
 ) => HashMap.HashMap<string, Constraint>;
 
-/**
- * Immutable traversal context threaded through the AST visitor.
- *
- * Purpose:
- * - Carry the current logical path at which constraints should be written.
- * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
- *
- * Semantics of `path`:
- * - `''` (empty string) denotes the root context (no parent path).
- * - Nested object properties use dot-notation: e.g. `user.email`.
- * - Array-like items use bracket or rest syntax:
- *   - Tuple element: `items[0]`
- *   - Array element (rest): `items[]`
- *
- * Invariants:
- * - `path` is always defined (use `''` for root).
- * - Handlers must not mutate `ctx`; create a new `Ctx` when descending:
- *   - Example: `{ path: ctx.path ? ctx.path + '.' + key : key }`
- *   - Example (array item): `{ path: ctx.path + '[]' }`
- *
- * Extensibility:
- * - Start minimal with `path`. If you later need more context (e.g., parent, ancestors,
- *   discriminant keys, tuple indices), add fields here without changing the public API shape.
- *
- * @example
- * // Root
- * const root: Ctx = { path: '' }
- *
- * // Entering a property "profile" from root
- * const next: Ctx = { path: 'profile' }
- *
- * // Entering nested property "email"
- * const nested: Ctx = { path: 'profile.email' }
- *
- * // Entering an array item of "tags"
- * const arrItem: Ctx = { path: 'tags[]' }
- */
+export declare namespace Ctx {
+	/**
+	 * Immutable traversal context threaded through the AST visitor.
+	 *
+	 * Purpose:
+	 * - Carry the current logical path at which constraints should be written.
+	 * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
+	 *
+	 * Semantics of `path`:
+	 * - `''` (empty string) denotes the root context (no parent path).
+	 * - Nested object properties use dot-notation: e.g. `user.email`.
+	 * - Array-like items use bracket or rest syntax:
+	 *   - Tuple element: `items[0]`
+	 *   - Array element (rest): `items[]`
+	 *
+	 * Invariants:
+	 * - `path` is always defined (use `''` for root).
+	 * - Handlers must not mutate `ctx`; create a new `Ctx` when descending:
+	 *   - Example: `{ path: ctx.path ? ctx.path + '.' + key : key }`
+	 *   - Example (array item): `{ path: ctx.path + '[]' }`
+	 *
+	 * Extensibility:
+	 * - Start minimal with `path`. If you later need more context (e.g., parent, ancestors,
+	 *   discriminant keys, tuple indices), add fields here without changing the public API shape.
+	 *
+	 * @example
+	 * // Root
+	 * const root: Ctx = { path: '' }
+	 *
+	 * // Entering a property "profile" from root
+	 * const next: Ctx = { path: 'profile' }
+	 *
+	 * // Entering nested property "email"
+	 * const nested: Ctx = { path: 'profile.email' }
+	 *
+	 * // Entering an array item of "tags"
+	 * const arrItem: Ctx = { path: 'tags[]' }
+	 */
+	interface Ctx {
+		readonly path: string;
+	}
+}
 
-export interface Ctx {
-	readonly path: string;
+export class Ctx implements Ctx.Ctx {
+	readonly #path: string;
+
+	private constructor(args: Ctx.Ctx) {
+		this.#path = args.path;
+	}
+
+	get path(): string {
+		return this.#path;
+	}
+
+	static make(arg: Ctx.Ctx): Ctx {
+		return new Ctx(arg);
+	}
 }
 
 /**
@@ -73,7 +90,7 @@ export interface Ctx {
  * @see EndoHash
  * @private
  */
-export type Rec = (ast: Readonly<AST.AST>, ctx: Readonly<Ctx>) => EndoHash;
+export type Rec = (ast: Readonly<AST.AST>, ctx: Readonly<Ctx.Ctx>) => EndoHash;
 
 /**
  * A higher-order node handler that implements the logic for a specific AST node type.
@@ -91,4 +108,4 @@ export type Rec = (ast: Readonly<AST.AST>, ctx: Readonly<Ctx>) => EndoHash;
  */
 export type NodeHandler<A extends AST.AST> = (
 	rec: Rec,
-) => (node: Readonly<A>, ctx: Readonly<Ctx>) => EndoHash;
+) => (node: Readonly<A>, ctx: Readonly<Ctx.Ctx>) => EndoHash;

@@ -14,7 +14,7 @@ import {
 	numberRefinement,
 	stringRefinement,
 } from './refinements';
-import type { Ctx, NodeHandler } from './types';
+import { Ctx, type NodeHandler } from './types';
 
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.
@@ -48,8 +48,6 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
 						Match.orElse(() => propName.toString()),
 					);
 
-					const nextCtx: Ctx = { path: key };
-
 					return pipe(
 						HashMap.modifyAt(hashMap, key, (constraint) =>
 							Option.some({
@@ -57,7 +55,7 @@ export const visitTypeLiteral: NodeHandler<AST.TypeLiteral> =
 								required: !isOptional,
 							}),
 						),
-						rec(type, nextCtx),
+						rec(type, Ctx.make({ path: key })),
 					);
 				},
 			),
@@ -97,11 +95,10 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
 							),
 							(hashMap, type) => {
 								const itemPath = `${ctx.path}[]`;
-								const nextCtx: Ctx = { path: itemPath };
 
 								return pipe(
 									HashMap.set(hashMap, itemPath, { required: true }),
-									rec(type.type, nextCtx),
+									rec(type.type, Ctx.make({ path: itemPath })),
 								);
 							},
 						),
@@ -117,13 +114,12 @@ export const visitTupleType: NodeHandler<AST.TupleType> =
 						Struct.get('elements'),
 						ReadonlyArray.reduce(data, (hashMap, { isOptional, type }, idx) => {
 							const elemPath = `${ctx.path}[${idx}]`;
-							const nextCtx: Ctx = { path: elemPath };
 
 							return pipe(
 								HashMap.set(hashMap, elemPath, {
 									required: !isOptional,
 								}),
-								rec(type, nextCtx),
+								rec(type, Ctx.make({ path: elemPath })),
 							);
 						}),
 					),
