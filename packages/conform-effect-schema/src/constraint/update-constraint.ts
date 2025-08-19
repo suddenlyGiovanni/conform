@@ -25,7 +25,7 @@ import type { EndoHash, Rec } from './types';
  * @private
  */
 export function makeUpdateConstraint(): Rec {
-	const rec: Rec = (ast, ctx) => (data) =>
+	const rec: Rec = (ast, ctx) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<EndoHash>(),
 
@@ -74,7 +74,7 @@ export function makeUpdateConstraint(): Rec {
 			Match.when(AST.isSuspend, (node) => visitSuspend(rec)(node, ctx)),
 
 			Match.exhaustive,
-		)(data);
+		);
 
 	return rec;
 }
