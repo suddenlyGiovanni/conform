@@ -5,8 +5,9 @@ import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
 import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor';
-import { Constraints, type NodeVisitor } from './types';
+import { type NodeVisitor } from './types';
 import * as Ctx from './ctx';
+import { Constraints } from './constraints';
 
 /**
  * A default, ready-to-use recursive visitor built by {@link makeSchemaAstConstraintVisitor}.

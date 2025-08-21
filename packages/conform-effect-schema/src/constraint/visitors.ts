@@ -7,6 +7,7 @@ import * as Option from 'effect/Option';
 import * as Record from 'effect/Record';
 import * as Struct from 'effect/Struct';
 import * as AST from 'effect/SchemaAST';
+import type { Constraints } from './constraints';
 
 import {
 	bigintRefinement,
@@ -14,7 +15,7 @@ import {
 	numberRefinement,
 	stringRefinement,
 } from './refinements';
-import { type Constraints, type MakeNodeVisitor } from './types';
+import { type MakeNodeVisitor } from './types';
 
 import * as Ctx from './ctx';
 
@@ -62,7 +63,7 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 		pipe(
 			node,
 			Match.value,
-			Match.withReturnType<Constraints.Constraints>(),
+			Match.withReturnType<Constraints.Type>(),
 
 			Match.whenAnd(
 				({ elements }) => elements.length === 0,

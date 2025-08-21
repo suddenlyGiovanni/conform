@@ -1,34 +1,7 @@
-/* eslint-disable @typescript-eslint/no-namespace */
-
-import type { Constraint } from '@conform-to/dom';
-import * as HashMap from 'effect/HashMap';
-import * as Record from 'effect/Record';
 import type * as AST from 'effect/SchemaAST';
 
 import type * as Ctx from './ctx';
-
-export declare namespace Constraints {
-	type Constraints = HashMap.HashMap<string, Constraint>;
-}
-
-export class Constraints {
-	/**
-	 * Construct an empty constraints collection.
-	 * @private
-	 */
-
-	static empty = (): Constraints.Constraints =>
-		HashMap.empty<string, Constraint>();
-
-	/**
-	 * Materialize a constraints collection to a plain record.
-	 * @private
-	 */
-	static toRecord = (
-		constraints: Constraints.Constraints,
-	): Record.ReadonlyRecord<string, Constraint> =>
-		Record.fromEntries(constraints);
-}
+import type { Constraints } from './constraints';
 
 /**
  * A pure endomorphism over the constraints collection.
@@ -41,8 +14,8 @@ export class Constraints {
  * @private
  */
 export type ConstraintsEndo = (
-	constraints: Constraints.Constraints,
-) => Constraints.Constraints;
+	constraints: Constraints.Type,
+) => Constraints.Type;
 
 /**
  * Recursive visitor for Effect Schema AST (ctx-first, data-last).
@@ -54,7 +27,7 @@ export type ConstraintsEndo = (
  * @private
  */
 export type NodeVisitor<Ast extends AST.AST> = (
-	ctx: Readonly<Ctx.Type>,
+	ctx: Ctx.Type,
 ) => (node: Readonly<Ast>) => ConstraintsEndo;
 
 /**
