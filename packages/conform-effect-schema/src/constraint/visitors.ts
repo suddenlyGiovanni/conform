@@ -32,12 +32,9 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
 					: `${ctx.path}.${propertySignature.name.toString()}`;
 
 				return rec(Ctx.node(path, node))(propertySignature.type)(
-					HashMap.modifyAt(_constraints, path, (maybeConstraint) =>
-						Option.some({
-							...Option.getOrElse(maybeConstraint, Record.empty),
-							required: !propertySignature.isOptional,
-						}),
-					),
+					HashMap.set(_constraints, path, {
+						required: !propertySignature.isOptional,
+					}),
 				);
 			},
 		);
