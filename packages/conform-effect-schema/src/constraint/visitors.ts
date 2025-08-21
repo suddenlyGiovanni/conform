@@ -28,30 +28,28 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
 		pipe(
 			node,
 			Struct.get('propertySignatures'),
-			ReadonlyArray.reduce(
-				constraints,
-				(_constraints, { isOptional, name, type }) => {
-					const key = pipe(
-						Match.value(ctx.path),
-						Match.withReturnType<`${string}.${string}` | string>(),
-						Match.when(
-							Match.nonEmptyString,
-							(parentPath) => `${parentPath}.${name.toString()}`,
-						),
-						Match.orElse(() => name.toString()),
-					);
+			ReadonlyArray.reduce(constraints, (_constraints, propertySignature) => {
+				const key = pipe(
+					Match.value(ctx.path),
+					Match.withReturnType<`${string}.${string}` | string>(),
+					Match.when(
+						Match.nonEmptyString,
+						(parentPath) =>
+							`${parentPath}.${propertySignature.name.toString()}`,
+					),
+					Match.orElse(() => propertySignature.name.toString()),
+				);
 
-					return pipe(
-						HashMap.modifyAt(_constraints, key, (maybeConstraint) =>
-							Option.some({
-								...Option.getOrElse(maybeConstraint, Record.empty),
-								required: !isOptional,
-							}),
-						),
-						rec(Ctx.node(key, node))(type),
-					);
-				},
-			),
+				return pipe(
+					HashMap.modifyAt(_constraints, key, (maybeConstraint) =>
+						Option.some({
+							...Option.getOrElse(maybeConstraint, Record.empty),
+							required: !propertySignature.isOptional,
+						}),
+					),
+					rec(Ctx.node(key, node))(propertySignature.type),
+				);
+			}),
 		);
 
 /**
