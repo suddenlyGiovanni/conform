@@ -1,63 +1,82 @@
+/* eslint-disable @typescript-eslint/no-namespace */
+
 import type { Constraint } from '@conform-to/dom';
-import type * as HashMap from 'effect/HashMap';
+import * as HashMap from 'effect/HashMap';
+import * as Record from 'effect/Record';
 import type * as AST from 'effect/SchemaAST';
 
+export declare namespace Constraints {
+	type Constraints = HashMap.HashMap<string, Constraint>;
+}
+
+export class Constraints {
+	/**
+	 * Construct an empty constraints collection.
+	 * @private
+	 */
+
+	static empty = (): Constraints.Constraints =>
+		HashMap.empty<string, Constraint>();
+
+	/**
+	 * Materialize a constraints collection to a plain record.
+	 * @private
+	 */
+	static toRecord = (
+		constraints: Constraints.Constraints,
+	): Record.ReadonlyRecord<string, Constraint> =>
+		Record.fromEntries(constraints);
+}
+
 /**
- * A pure endomorphism over the constraints map.
+ * A pure endomorphism over the constraints collection.
  *
- * Represents a transformation that takes an existing HashMap of field constraints
- * and returns a new HashMap with edits applied. This shape makes composition and
+ * Represents a transformation that takes an existing {@link Constraints} value
+ * and returns a new one with edits applied. This shape makes composition and
  * reduction straightforward and testable.
  *
- * @typeParam K - The key type of the map (defaults to string).
- * @typeParam V - The value type of the map (defaults to Constraint).
  * @see NodeVisitor
  * @private
  */
-export type EndoHash = (
-	data: HashMap.HashMap<string, Constraint>,
-) => HashMap.HashMap<string, Constraint>;
+export type ConstraintsEndo = (
+	constraints: Constraints.Constraints,
+) => Constraints.Constraints;
 
-// eslint-disable-next-line @typescript-eslint/no-namespace -- this is a type alias
+/**
+ * Immutable traversal context threaded through the AST visitor.
+ *
+ * Purpose:
+ * - Carry the current logical path at which constraints should be written.
+ * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
+ */
 export declare namespace Ctx {
-	/**
-	 * Immutable traversal context threaded through the AST visitor.
-	 *
-	 * Purpose:
-	 * - Carry the current logical path at which constraints should be written.
-	 * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
-	 *
-	 * Semantics of `path`:
-	 * - `''` (empty string) denotes the root context (no parent path).
-	 * - Nested object properties use dot-notation: e.g. `user.email`.
-	 * - Array-like items use bracket or rest syntax:
-	 *   - Tuple element: `items[0]`
-	 *   - Array element (rest): `items[]`
-	 *
-	 * Invariants:
-	 * - `path` is always defined (use `''` for root).
-	 * - Handlers must not mutate `ctx`; create a new `Ctx` when descending:
-	 *   - Example: `{ path: ctx.path ? ctx.path + '.' + key : key }`
-	 *   - Example (array item): `{ path: ctx.path + '[]' }`
-	 *
-	 * Extensibility:
-	 * - Start minimal with `path`. If you later need more context (e.g., parent, ancestors,
-	 *   discriminant keys, tuple indices), add fields here without changing the public API shape.
-	 *
-	 * @example
-	 * // Root
-	 * const root: Ctx = { path: '' }
-	 *
-	 * // Entering a property "profile" from root
-	 * const next: Ctx = { path: 'profile' }
-	 *
-	 * // Entering nested property "email"
-	 * const nested: Ctx = { path: 'profile.email' }
-	 *
-	 * // Entering an array item of "tags"
-	 * const arrItem: Ctx = { path: 'tags[]' }
-	 */
 	interface Ctx {
+		/**
+		 * Semantics of `path`:
+		 * - `''` (empty string) denotes the root context (no parent path).
+		 * - Nested object properties use dot-notation: e.g. `user.email`.
+		 * - Array-like items use bracket or rest syntax:
+		 *   - Tuple element: `items[0]`
+		 *   - Array element (rest): `items[]`
+		 *
+		 * Invariants:
+		 * - `path` is always defined (use `''` for root).
+		 * - Handlers must not mutate `ctx`; create a new `Ctx` when descending:
+		 *   - Example: `{ path: ctx.path ? ctx.path + '.' + key : key }`
+		 *   - Example (array item): `{ path: ctx.path + '[]' }`
+		 * @example
+		 * // Root
+		 * const root: Ctx = { path: '' }
+		 *
+		 * // Entering a property "profile" from root
+		 * const next: Ctx = { path: 'profile' }
+		 *
+		 * // Entering nested property "email"
+		 * const nested: Ctx = { path: 'profile.email' }
+		 *
+		 * // Entering an array item of "tags"
+		 * const arrItem: Ctx = { path: 'tags[]' }
+		 */
 		readonly path: string;
 	}
 }
@@ -88,24 +107,24 @@ export class Ctx implements Ctx.Ctx {
  * Recursive visitor for Effect Schema AST (ctx-first, data-last).
  *
  * Reader-style: given the current immutable traversal context, returns a function
- * that interprets an AST node (optionally a specific subtype) and produces an {@link EndoHash}.
+ * that interprets an AST node (optionally a specific subtype) and produces an {@link ConstraintsEndo}.
  *
  * @typeParam Ast - The specific AST subtype this visitor accepts (defaults to AST.AST).
  * @private
  */
-export type NodeVisitor<Ast extends AST.AST = AST.AST> = (
+export type NodeVisitor<Ast extends AST.AST> = (
 	ctx: Readonly<Ctx.Ctx>,
-) => (node: Readonly<Ast>) => EndoHash;
+) => (node: Readonly<Ast>) => ConstraintsEndo;
 
 /**
  * A node-specific visitor transformer.
  *
- * Given the general recursive visitor `Rec`, returns a specialized visitor `Rec<Ast>`
+ * Given the general recursive visitor, returns a specialized visitor `NodeVisitor<Ast>`
  * that handles a specific AST subtype.
  *
  * @typeParam Ast - The AST subtype handled by this visitor.
  * @private
  */
 export type MakeNodeVisitor<Ast extends AST.AST> = (
-	rec: NodeVisitor,
+	rec: NodeVisitor<AST.AST>,
 ) => NodeVisitor<Ast>;

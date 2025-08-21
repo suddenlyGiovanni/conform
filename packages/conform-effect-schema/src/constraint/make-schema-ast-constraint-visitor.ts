@@ -10,70 +10,73 @@ import {
 	makeUnionVisitor,
 	makeSuspendVisitor,
 } from './visitors';
-import type { EndoHash, NodeVisitor } from './types';
+import type { ConstraintsEndo, NodeVisitor } from './types';
 
-const endoHashIdentity: EndoHash = identity;
+const endoHashIdentity: ConstraintsEndo = identity;
 
 /**
  * Builds a recursive visitor (ctx-first) for Effect Schema AST.
  * @private
  */
-export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
-	const rec: NodeVisitor = (ctx) => (ast) =>
-		Match.value(ast).pipe(
-			Match.withReturnType<EndoHash>(),
+export const makeSchemaAstConstraintVisitor: () => NodeVisitor<AST.AST> =
+	() => {
+		const rec: NodeVisitor<AST.AST> = (ctx) => (ast) =>
+			Match.value(ast).pipe(
+				Match.withReturnType<ConstraintsEndo>(),
 
-			// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
-			Match.whenOr(
-				AST.isAnyKeyword, // Schema.Any
-				AST.isNeverKeyword, // Schema.Never
-				AST.isObjectKeyword, // Schema.Object
-				AST.isSymbolKeyword, // Schema.SymbolFromSelf
-				AST.isVoidKeyword, // Schema.Void
-				AST.isUnknownKeyword, // Schema.Unknown,
-				AST.isUniqueSymbol,
-				(_) => {
-					throw new Error(
-						'Unsupported AST type for Constraint extraction AST: ' + _._tag,
-					);
-				},
-			),
+				// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
+				Match.whenOr(
+					AST.isAnyKeyword, // Schema.Any
+					AST.isNeverKeyword, // Schema.Never
+					AST.isObjectKeyword, // Schema.Object
+					AST.isSymbolKeyword, // Schema.SymbolFromSelf
+					AST.isVoidKeyword, // Schema.Void
+					AST.isUnknownKeyword, // Schema.Unknown,
+					AST.isUniqueSymbol,
+					(_) => {
+						throw new Error(
+							'Unsupported AST type for Constraint extraction AST: ' + _._tag,
+						);
+					},
+				),
 
-			// for these AST nodes we do not need to process them further
-			Match.whenOr(
-				AST.isStringKeyword, // Schema.String
-				AST.isNumberKeyword, // Schema.Number
-				AST.isBigIntKeyword, // Schema.BigIntFromSelf
-				AST.isBooleanKeyword, // Schema.Boolean
-				AST.isUndefinedKeyword, // Schema.Undefined
-				() => endoHashIdentity,
-			),
+				// for these AST nodes we do not need to process them further
+				Match.whenOr(
+					AST.isStringKeyword, // Schema.String
+					AST.isNumberKeyword, // Schema.Number
+					AST.isBigIntKeyword, // Schema.BigIntFromSelf
+					AST.isBooleanKeyword, // Schema.Boolean
+					AST.isUndefinedKeyword, // Schema.Undefined
+					() => endoHashIdentity,
+				),
 
-			// for these AST nodes we do not need to process them further
-			Match.whenOr(
-				AST.isLiteral, // string | number | boolean | null | bigint
-				AST.isDeclaration,
-				AST.isTemplateLiteral,
-				AST.isEnums,
-				() => endoHashIdentity,
-			),
+				// for these AST nodes we do not need to process them further
+				Match.whenOr(
+					AST.isLiteral, // string | number | boolean | null | bigint
+					AST.isDeclaration,
+					AST.isTemplateLiteral,
+					AST.isEnums,
+					() => endoHashIdentity,
+				),
 
-			Match.when(AST.isTypeLiteral, typeLiteralVisitor(ctx)),
-			Match.when(AST.isTupleType, tupleTypeVisitor(ctx)),
-			Match.when(AST.isUnion, unionVisitor(ctx)),
-			Match.when(AST.isRefinement, refinementVisitor(ctx)),
-			Match.when(AST.isTransformation, transformationVisitor(ctx)),
-			Match.when(AST.isSuspend, suspendVisitor(ctx)),
+				Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx)(node)),
+				Match.when(AST.isTupleType, (node) => tupleTypeVisitor(ctx)(node)),
+				Match.when(AST.isUnion, (node) => unionVisitor(ctx)(node)),
+				Match.when(AST.isRefinement, (node) => refinementVisitor(ctx)(node)),
+				Match.when(AST.isTransformation, (node) =>
+					transformationVisitor(ctx)(node),
+				),
+				Match.when(AST.isSuspend, (node) => suspendVisitor(ctx)(node)),
 
-			Match.exhaustive,
-		);
+				Match.exhaustive,
+			);
 
-	const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
-	const tupleTypeVisitor = makeTupleTypeVisitor(rec);
-	const unionVisitor = makeUnionVisitor(rec);
-	const refinementVisitor = makeRefinementVisitor(rec);
-	const transformationVisitor = makeTransformationVisitor(rec);
-	const suspendVisitor = makeSuspendVisitor(rec);
+		const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
+		const tupleTypeVisitor = makeTupleTypeVisitor(rec);
+		const unionVisitor = makeUnionVisitor(rec);
+		const refinementVisitor = makeRefinementVisitor(rec);
+		const transformationVisitor = makeTransformationVisitor(rec);
+		const suspendVisitor = makeSuspendVisitor(rec);
 
-	return rec;
-};
+		return rec;
+	};

@@ -1,12 +1,11 @@
 import { Constraint } from '@conform-to/dom';
 import { pipe } from 'effect/Function';
-import * as HashMap from 'effect/HashMap';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
 import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor';
-import { Ctx, type NodeVisitor } from './types';
+import { Constraints, Ctx, type NodeVisitor } from './types';
 
 /**
  * A default, ready-to-use recursive visitor built by {@link makeSchemaAstConstraintVisitor}.
@@ -18,7 +17,7 @@ import { Ctx, type NodeVisitor } from './types';
  * @see NodeVisitor
  * @private
  */
-const schemaAstConstraintVisitor: NodeVisitor =
+const schemaAstConstraintVisitor: NodeVisitor<AST.AST> =
 	makeSchemaAstConstraintVisitor();
 
 /**
@@ -54,7 +53,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 		);
 	}
 
-	const endo = schemaAstConstraintVisitor(Ctx.root())(ast);
+	const constraintsEndo = schemaAstConstraintVisitor(Ctx.root())(ast);
 
-	return pipe(HashMap.empty<string, Constraint>(), endo, Record.fromEntries);
+	return pipe(Constraints.empty(), constraintsEndo, Constraints.toRecord);
 }

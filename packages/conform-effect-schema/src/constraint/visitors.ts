@@ -14,7 +14,7 @@ import {
 	numberRefinement,
 	stringRefinement,
 } from './refinements';
-import { Ctx, type MakeNodeVisitor } from './types';
+import { Ctx, type Constraints, type MakeNodeVisitor } from './types';
 
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.
@@ -22,12 +22,12 @@ import { Ctx, type MakeNodeVisitor } from './types';
  * @private
  */
 export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
-	(rec) => (ctx) => (node) => (data) =>
+	(rec) => (ctx) => (node) => (constraints) =>
 		pipe(
 			node,
 			Struct.get('propertySignatures'),
 			ReadonlyArray.reduce(
-				data,
+				constraints,
 				(hashMap, { isOptional, name: propName, type }) => {
 					const key = pipe(
 						Match.value(ctx.path),
@@ -58,10 +58,12 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
  * @private
  */
 export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
-	(rec) => (ctx) => (node) => (data) =>
+	(rec) => (ctx) => (node) => (constraints) =>
 		pipe(
 			node,
 			Match.value,
+			Match.withReturnType<Constraints.Constraints>(),
+
 			Match.whenAnd(
 				({ elements }) => elements.length === 0,
 				({ rest }) => rest.length > 0,
@@ -70,7 +72,7 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 						tupleType,
 						Struct.get('rest'),
 						ReadonlyArray.reduce(
-							HashMap.modifyAt(data, ctx.path, (constraint) =>
+							HashMap.modifyAt(constraints, ctx.path, (constraint) =>
 								Option.some({
 									...Option.getOrElse(constraint, Record.empty),
 									multiple: true,
@@ -95,20 +97,23 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 					pipe(
 						tupleType,
 						Struct.get('elements'),
-						ReadonlyArray.reduce(data, (hashMap, { isOptional, type }, idx) => {
-							const elemPath = `${ctx.path}[${idx}]`;
+						ReadonlyArray.reduce(
+							constraints,
+							(hashMap, { isOptional, type }, idx) => {
+								const elemPath = `${ctx.path}[${idx}]`;
 
-							return pipe(
-								HashMap.set(hashMap, elemPath, {
-									required: !isOptional,
-								}),
-								rec(Ctx.make({ path: elemPath }))(type),
-							);
-						}),
+								return pipe(
+									HashMap.set(hashMap, elemPath, {
+										required: !isOptional,
+									}),
+									rec(Ctx.make({ path: elemPath }))(type),
+								);
+							},
+						),
 					),
 			),
 
-			Match.orElse(() => data),
+			Match.orElse(() => constraints),
 		);
 
 /**
@@ -117,11 +122,11 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
  * @private
  */
 export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
-	(rec) => (ctx) => (node) => (data) =>
+	(rec) => (ctx) => (node) => (constraints) =>
 		pipe(
 			node,
 			Struct.get('types'),
-			ReadonlyArray.reduce(data, (hashMap, member) => {
+			ReadonlyArray.reduce(constraints, (hashMap, member) => {
 				// edge case to handle `Schema.Array(Schema.Literal('a', 'b', 'c'))` which should return a constraint of type:
 				// `{ required: true, pattern: 'a|b|c' }`
 				// if union of string literals ( eq to enums of strings e.g. Schema.Literal('a', 'b', 'c') )
@@ -178,6 +183,6 @@ export const makeTransformationVisitor: MakeNodeVisitor<AST.Transformation> =
  */
 
 export const makeSuspendVisitor: MakeNodeVisitor<AST.Suspend> =
-	(_rec) => (_ctx) => (node) => (_data) => {
+	(_rec) => (_ctx) => (node) => (_constraints) => {
 		throw new Error(`TODO: add support for this AST Node type: "${node._tag}"`);
 	};
