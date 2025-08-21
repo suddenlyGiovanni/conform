@@ -19,15 +19,8 @@ const endoHashIdentity: EndoHash = identity;
  * @private
  */
 export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
-	const rec: NodeVisitor = (ctx) => (ast) => {
-		const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
-		const tupleTypeVisitor = makeTupleTypeVisitor(rec);
-		const unionVisitor = makeUnionVisitor(rec);
-		const refinementVisitor = makeRefinementVisitor(rec);
-		const transformationVisitor = makeTransformationVisitor(rec);
-		const suspendVisitor = makeSuspendVisitor(rec);
-
-		return Match.value(ast).pipe(
+	const rec: NodeVisitor = (ctx) => (ast) =>
+		Match.value(ast).pipe(
 			Match.withReturnType<EndoHash>(),
 
 			// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
@@ -74,7 +67,13 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 
 			Match.exhaustive,
 		);
-	};
+
+	const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
+	const tupleTypeVisitor = makeTupleTypeVisitor(rec);
+	const unionVisitor = makeUnionVisitor(rec);
+	const refinementVisitor = makeRefinementVisitor(rec);
+	const transformationVisitor = makeTransformationVisitor(rec);
+	const suspendVisitor = makeSuspendVisitor(rec);
 
 	return rec;
 };
