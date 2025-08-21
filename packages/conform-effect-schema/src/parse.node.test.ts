@@ -1,8 +1,19 @@
 import { describe, test, expect } from 'vitest';
 import * as Schema from 'effect/Schema';
 
-import { parseWithEffectSchema } from '../src/parse';
-import { createFormData } from './helpers/FromData';
+import { parseWithEffectSchema } from './parse';
+
+function createFormData(
+	entries: Array<[string, FormDataEntryValue]>,
+): FormData {
+	const formData = new FormData();
+
+	for (const [name, value] of entries) {
+		formData.append(name, value);
+	}
+
+	return formData;
+}
 
 describe('parseWithEffectSchema', () => {
 	test('should return a valid Submission with value for valid data', () => {

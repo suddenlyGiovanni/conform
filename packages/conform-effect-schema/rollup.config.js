@@ -38,11 +38,14 @@ function configurePackage() {
 				],
 				plugins: [],
 				babelHelpers: 'bundled',
-				exclude: /node_modules/,
-				extensions: ['.ts', '.tsx'],
+				exclude: [
+					'node_modules/**',
+					'**/*.test.ts',
+				],
+				extensions: ['.ts' ],
 			}),
 			nodeResolve({
-				extensions: ['.ts', '.tsx'],
+				extensions: ['.ts'],
 			}),
 			copy({
 				targets: [
@@ -83,11 +86,14 @@ function configurePackage() {
 				],
 				plugins: [],
 				babelHelpers: 'bundled',
-				exclude: /node_modules/,
-				extensions: ['.ts', '.tsx'],
+				exclude: [
+					'node_modules/**',
+					'**/*.test.ts',
+				],
+				extensions: ['.ts'],
 			}),
 			nodeResolve({
-				extensions: ['.ts', '.tsx'],
+				extensions: ['.ts'],
 			}),
 		],
 	};
