@@ -1,5 +1,4 @@
 import type { Constraint } from '@conform-to/dom';
-import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as ReadonlyArray from 'effect/Array';
 import * as HashMap from 'effect/HashMap';
@@ -32,14 +31,13 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
 					? propertySignature.name.toString()
 					: `${ctx.path}.${propertySignature.name.toString()}`;
 
-				return pipe(
+				return rec(Ctx.node(path, node))(propertySignature.type)(
 					HashMap.modifyAt(_constraints, path, (maybeConstraint) =>
 						Option.some({
 							...Option.getOrElse(maybeConstraint, Record.empty),
 							required: !propertySignature.isOptional,
 						}),
 					),
-					rec(Ctx.node(path, node))(propertySignature.type),
 				);
 			},
 		);
