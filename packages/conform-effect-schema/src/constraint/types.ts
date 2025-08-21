@@ -50,7 +50,7 @@ export type ConstraintsEndo = (
  * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
  */
 export declare namespace Ctx {
-	interface Ctx {
+	interface Path<S extends string> {
 		/**
 		 * Semantics of `path`:
 		 * - `''` (empty string) denotes the root context (no parent path).
@@ -77,30 +77,54 @@ export declare namespace Ctx {
 		 * // Entering an array item of "tags"
 		 * const arrItem: Ctx = { path: 'tags[]' }
 		 */
-		readonly path: string;
+		readonly path: S;
+	}
+
+	interface Root extends Path<''> {
+		readonly _tag: 'RootCtx';
+	}
+
+	interface Node extends Path<string> {
+		readonly _tag: 'NodeCtx';
+		readonly parent: Readonly<AST.AST>;
+	}
+
+	type Ctx = Root | Node;
+}
+
+class RootCtx implements Ctx.Root {
+	readonly _tag = 'RootCtx';
+	readonly path = '';
+}
+
+class NodeCtx implements Ctx.Node {
+	readonly _tag = 'NodeCtx';
+	readonly parent: Readonly<AST.AST>;
+	readonly path: string;
+
+	constructor(args: Omit<Ctx.Node, '_tag'>) {
+		this.path = args.path;
+		this.parent = args.parent;
 	}
 }
 
-export class Ctx implements Ctx.Ctx {
-	readonly #path: string;
-
-	private constructor(args: Ctx.Ctx) {
-		this.#path = args.path;
-	}
-
-	get path(): string {
-		return this.#path;
-	}
-
-	static make(arg: Partial<Ctx.Ctx>): Readonly<Ctx.Ctx> {
-		return new Ctx({
-			path: arg?.path ?? '',
+export class Ctx {
+	static node(arg: Omit<Ctx.Node, '_tag'>): Ctx.Node {
+		return new NodeCtx({
+			path: arg.path,
+			parent: arg.parent,
 		});
 	}
 
-	static root(): Readonly<Ctx.Ctx> {
-		return Ctx.make({});
+	static root(): Ctx.Root {
+		return new RootCtx();
 	}
+
+	static isRoot = (ctx: Readonly<Ctx.Ctx>): ctx is Ctx.Root =>
+		ctx._tag === 'RootCtx';
+
+	static isNode = (ctx: Readonly<Ctx.Ctx>): ctx is Ctx.Node =>
+		ctx._tag === 'NodeCtx';
 }
 
 /**

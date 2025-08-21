@@ -46,7 +46,7 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
 								required: !isOptional,
 							}),
 						),
-						rec(Ctx.make({ path: key }))(type),
+						rec(Ctx.node({ path: key, parent: node }))(type),
 					);
 				},
 			),
@@ -83,7 +83,9 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 
 								return pipe(
 									HashMap.set(hashMap, itemPath, { required: true }),
-									rec(Ctx.make({ path: itemPath }))(type.type),
+									rec(Ctx.node({ path: itemPath, parent: tupleType }))(
+										type.type,
+									),
 								);
 							},
 						),
@@ -106,7 +108,7 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 									HashMap.set(hashMap, elemPath, {
 										required: !isOptional,
 									}),
-									rec(Ctx.make({ path: elemPath }))(type),
+									rec(Ctx.node({ path: elemPath, parent: tupleType }))(type),
 								);
 							},
 						),
@@ -135,7 +137,10 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 				// then we need to add the correct constraint to the hashmap:
 				// a pattern constraint with the correct regex: e.g. /a|b|c/ .
 
-				return pipe(hashMap, rec(ctx)(member));
+				return pipe(
+					hashMap,
+					rec(Ctx.node({ path: ctx.path, parent: node }))(member),
+				);
 			}),
 		);
 
@@ -163,7 +168,7 @@ export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
 					...refinementConstraint,
 				}),
 			),
-			rec(ctx)(node.from),
+			rec(Ctx.node({ path: ctx.path, parent: node }))(node.from),
 		);
 	};
 
@@ -174,7 +179,7 @@ export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
  */
 export const makeTransformationVisitor: MakeNodeVisitor<AST.Transformation> =
 	(rec) => (ctx) => (node) =>
-		rec(ctx)(node.to);
+		rec(Ctx.node({ path: ctx.path, parent: node }))(node.to);
 
 /**
  * Placeholder handler for unsupported suspended nodes.
