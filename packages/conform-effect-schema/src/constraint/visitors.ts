@@ -30,21 +30,21 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
 			Struct.get('propertySignatures'),
 			ReadonlyArray.reduce(
 				constraints,
-				(hashMap, { isOptional, name: propName, type }) => {
+				(_constraints, { isOptional, name, type }) => {
 					const key = pipe(
 						Match.value(ctx.path),
 						Match.withReturnType<`${string}.${string}` | string>(),
 						Match.when(
 							Match.nonEmptyString,
-							(parentPath) => `${parentPath}.${propName.toString()}`,
+							(parentPath) => `${parentPath}.${name.toString()}`,
 						),
-						Match.orElse(() => propName.toString()),
+						Match.orElse(() => name.toString()),
 					);
 
 					return pipe(
-						HashMap.modifyAt(hashMap, key, (constraint) =>
+						HashMap.modifyAt(_constraints, key, (maybeConstraint) =>
 							Option.some({
-								...Option.getOrElse(constraint, Record.empty),
+								...Option.getOrElse(maybeConstraint, Record.empty),
 								required: !isOptional,
 							}),
 						),
@@ -74,17 +74,17 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 						tupleType,
 						Struct.get('rest'),
 						ReadonlyArray.reduce(
-							HashMap.modifyAt(constraints, ctx.path, (constraint) =>
+							HashMap.modifyAt(constraints, ctx.path, (maybeConstraint) =>
 								Option.some({
-									...Option.getOrElse(constraint, Record.empty),
+									...Option.getOrElse(maybeConstraint, Record.empty),
 									multiple: true,
 								}),
 							),
-							(hashMap, type) => {
+							(_constraints, type) => {
 								const itemPath = `${ctx.path}[]`;
 
 								return pipe(
-									HashMap.set(hashMap, itemPath, { required: true }),
+									HashMap.set(_constraints, itemPath, { required: true }),
 									rec(Ctx.node(itemPath, tupleType))(type.type),
 								);
 							},
@@ -101,11 +101,11 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 						Struct.get('elements'),
 						ReadonlyArray.reduce(
 							constraints,
-							(hashMap, { isOptional, type }, idx) => {
+							(_constraints, { isOptional, type }, idx) => {
 								const elemPath = `${ctx.path}[${idx}]`;
 
 								return pipe(
-									HashMap.set(hashMap, elemPath, {
+									HashMap.set(_constraints, elemPath, {
 										required: !isOptional,
 									}),
 									rec(Ctx.node(elemPath, tupleType))(type),
@@ -128,7 +128,7 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 		pipe(
 			node,
 			Struct.get('types'),
-			ReadonlyArray.reduce(constraints, (hashMap, member) => {
+			ReadonlyArray.reduce(constraints, (_constraints, member) => {
 				// edge case to handle `Schema.Array(Schema.Literal('a', 'b', 'c'))` which should return a constraint of type:
 				// `{ required: true, pattern: 'a|b|c' }`
 				// if union of string literals ( eq to enums of strings e.g. Schema.Literal('a', 'b', 'c') )
@@ -137,7 +137,7 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 				// then we need to add the correct constraint to the hashmap:
 				// a pattern constraint with the correct regex: e.g. /a|b|c/ .
 
-				return pipe(hashMap, rec(Ctx.node(ctx.path, node))(member));
+				return pipe(_constraints, rec(Ctx.node(ctx.path, node))(member));
 			}),
 		);
 
@@ -148,15 +148,15 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
  */
 export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
 	(rec) => (ctx) => (node) => {
-		const refinementConstraint = Option.reduceCompact<Constraint, Constraint>(
+		const refinementConstraint: Constraint = Option.reduceCompact(
 			[
 				stringRefinement(node),
 				numberRefinement(node),
 				bigintRefinement(node),
 				dateRefinement(node),
 			],
-			{},
-			(constraints, constraint) => ({ ...constraints, ...constraint }),
+			{} satisfies Constraint,
+			(b, a): Constraint => ({ ...b, ...a }),
 		);
 		return flow(
 			HashMap.modifyAt(ctx.path, (maybeConstraint) =>
