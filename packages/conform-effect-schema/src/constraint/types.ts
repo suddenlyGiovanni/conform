@@ -1,7 +1,7 @@
 import type * as AST from 'effect/SchemaAST';
 
 import type * as Ctx from './ctx';
-import type { Constraints } from './constraints';
+import type * as Constraints from './constraints';
 
 /**
  * A pure endomorphism over the constraints collection.
@@ -14,8 +14,8 @@ import type { Constraints } from './constraints';
  * @private
  */
 export type ConstraintsEndo = (
-	constraints: Constraints.Type,
-) => Constraints.Type;
+	constraints: Constraints.Constraints,
+) => Constraints.Constraints;
 
 /**
  * Recursive visitor for Effect Schema AST (ctx-first, data-last).

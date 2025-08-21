@@ -2,25 +2,19 @@ import type { Constraint } from '@conform-to/dom';
 import * as HashMap from 'effect/HashMap';
 import * as Record from 'effect/Record';
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export declare namespace Constraints {
-	type Type = HashMap.HashMap<string, Constraint>;
-}
 
-export class Constraints {
-	/**
-	 * Construct an empty constraints collection.
-	 * @private
-	 */
+export type Constraints = HashMap.HashMap<string, Constraint>;
 
-	static empty = (): Constraints.Type => HashMap.empty<string, Constraint>();
+/**
+ * Construct an empty constraints collection.
+ * @private
+ */
+export const empty = (): Constraints => HashMap.empty<string, Constraint>();
 
-	/**
-	 * Materialize a constraints collection to a plain record.
-	 * @private
-	 */
-	static toRecord = (
-		constraints: Constraints.Type,
-	): Record.ReadonlyRecord<string, Constraint> =>
-		Record.fromEntries(constraints);
-}
+/**
+ * Materialize a constraints collection to a plain record.
+ * @private
+ */
+export const toRecord = (
+	constraints: Constraints,
+): Record.ReadonlyRecord<string, Constraint> => Record.fromEntries(constraints);

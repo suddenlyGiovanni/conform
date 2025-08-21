@@ -49,9 +49,8 @@ export type Type<P extends string = string, Ast extends AST.AST = AST.AST> =
 	| Root
 	| Node<P, Ast>;
 
-class Root implements Tag<'Root'>, Path<''> {
+class Root implements Tag<'Root'> {
 	readonly _tag = 'Root';
-	readonly path = '';
 }
 
 class Node<const P extends string, const Ast extends AST.AST>
@@ -69,10 +68,10 @@ class Node<const P extends string, const Ast extends AST.AST>
 
 export const root = (): Root => new Root();
 
-export const node = <const S extends string, const Ast extends AST.AST>(
-	path: S,
+export const node = <const P extends string, const Ast extends AST.AST>(
+	path: P,
 	parentNode: Readonly<Ast>,
-): Node<S, Ast> => new Node({ path, parentNode });
+): Node<P, Ast> => new Node({ path, parentNode });
 
 export const isRoot = <const P extends string, const Ast extends AST.AST>(
 	ctx: Readonly<Type<P, Ast>>,
@@ -81,34 +80,3 @@ export const isRoot = <const P extends string, const Ast extends AST.AST>(
 export const isNode = <const P extends string, const Ast extends AST.AST>(
 	ctx: Readonly<Type<P, Ast>>,
 ): ctx is Node<P, Ast> => ctx._tag === 'Node';
-
-export const childProperty = <
-	const ParentPath extends string,
-	const ParentAst extends AST.AST,
-	const Ast extends AST.AST,
-	const K extends string,
->(
-	parentCtx: Readonly<Node<ParentPath, ParentAst>>,
-	parentNode: Readonly<Ast>,
-	key: K,
-) => node(`${parentCtx.path}.${key}`, parentNode);
-
-export const childArrayItem = <
-	const ParentPath extends string,
-	const ParentAst extends AST.AST,
-	const Ast extends AST.AST,
->(
-	parentCtx: Readonly<Node<ParentPath, ParentAst>>,
-	parentNode: Readonly<Ast>,
-) => node(`${parentCtx.path}[]`, parentNode);
-
-export const childTupleIndex = <
-	const ParentPath extends string,
-	const ParentAst extends AST.AST,
-	const Ast extends AST.AST,
-	const Idx extends number,
->(
-	parentCtx: Readonly<Node<ParentPath, ParentAst>>,
-	parentAst: Readonly<Ast>,
-	index: Idx,
-) => node(`${parentCtx.path}[${index}]`, parentAst);
