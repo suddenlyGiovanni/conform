@@ -14,7 +14,9 @@ import {
 	numberRefinement,
 	stringRefinement,
 } from './refinements';
-import { Ctx, type Constraints, type MakeNodeVisitor } from './types';
+import { type Constraints, type MakeNodeVisitor } from './types';
+
+import * as Ctx from './ctx';
 
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.
@@ -46,7 +48,7 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
 								required: !isOptional,
 							}),
 						),
-						rec(Ctx.node({ path: key, parent: node }))(type),
+						rec(Ctx.node(key, node))(type),
 					);
 				},
 			),
@@ -83,9 +85,7 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 
 								return pipe(
 									HashMap.set(hashMap, itemPath, { required: true }),
-									rec(Ctx.node({ path: itemPath, parent: tupleType }))(
-										type.type,
-									),
+									rec(Ctx.node(itemPath, tupleType))(type.type),
 								);
 							},
 						),
@@ -108,7 +108,7 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 									HashMap.set(hashMap, elemPath, {
 										required: !isOptional,
 									}),
-									rec(Ctx.node({ path: elemPath, parent: tupleType }))(type),
+									rec(Ctx.node(elemPath, tupleType))(type),
 								);
 							},
 						),
@@ -137,10 +137,7 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 				// then we need to add the correct constraint to the hashmap:
 				// a pattern constraint with the correct regex: e.g. /a|b|c/ .
 
-				return pipe(
-					hashMap,
-					rec(Ctx.node({ path: ctx.path, parent: node }))(member),
-				);
+				return pipe(hashMap, rec(Ctx.node(ctx.path, node))(member));
 			}),
 		);
 
@@ -168,7 +165,7 @@ export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
 					...refinementConstraint,
 				}),
 			),
-			rec(Ctx.node({ path: ctx.path, parent: node }))(node.from),
+			rec(Ctx.node(ctx.path, node))(node.from),
 		);
 	};
 
@@ -179,7 +176,7 @@ export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
  */
 export const makeTransformationVisitor: MakeNodeVisitor<AST.Transformation> =
 	(rec) => (ctx) => (node) =>
-		rec(Ctx.node({ path: ctx.path, parent: node }))(node.to);
+		rec(Ctx.node(ctx.path, node))(node.to);
 
 /**
  * Placeholder handler for unsupported suspended nodes.
