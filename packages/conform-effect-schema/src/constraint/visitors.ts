@@ -3,6 +3,8 @@ import * as Match from 'effect/Match';
 import * as ReadonlyArray from 'effect/Array';
 import * as Option from 'effect/Option';
 import * as AST from 'effect/SchemaAST';
+import * as Predicate from 'effect/Predicate';
+import * as Struct from 'effect/Struct';
 
 import * as Constraints from './constraints';
 import {
@@ -115,29 +117,28 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 
 		let patchedConstraints = constraints;
 
-		const isStringLiteral = (literal: AST.LiteralValue) =>
-			typeof literal === 'string';
+		const isStringLiteral = (
+			t: AST.AST,
+		): t is AST.Literal & { literal: string } =>
+			AST.isLiteral(t) && Predicate.isString(t.literal);
 
 		const regexEscape = (s: string) =>
 			s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d');
 
-		const patternFromLiterals = (values: string[]): string =>
+		const patternFromLiterals = (values: readonly string[]): string =>
 			values.map(regexEscape).join('|');
 
-		if (node.types.every(AST.isLiteral)) {
-			if (node.types.every((_: AST.Literal) => isStringLiteral(_.literal))) {
-				if (AST.isTupleType(ctx.parentNode)) {
-					const literalPattern = patternFromLiterals(
-						node.types.map((_: AST.Literal) => _.literal as string),
-					);
-					// we’re in an array element, ctx.path should already be "name[]"
+		const types = node.types;
+		if (types.every(isStringLiteral)) {
+			if (AST.isTupleType(ctx.parentNode)) {
+				const literalPattern = patternFromLiterals(
+					types.map(Struct.get('literal')),
+				);
+				// we’re in an array element, ctx.path should already be "name[]"
 
-					patchedConstraints = Constraints.modify(
-						patchedConstraints,
-						ctx.path,
-						{ pattern: literalPattern },
-					);
-				}
+				patchedConstraints = Constraints.modify(patchedConstraints, ctx.path, {
+					pattern: literalPattern,
+				});
 			}
 		}
 
