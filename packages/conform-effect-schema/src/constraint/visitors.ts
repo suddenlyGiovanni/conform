@@ -107,15 +107,6 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 				'Union cannot be used as a root type (e.g. Schema.Union([Schema.String, Schema.Number]))',
 			);
 		}
-		// edge case to handle `Schema.Array(Schema.Literal('a', 'b', 'c'))` which should return a constraint of type:
-		// `{ required: true, pattern: 'a|b|c' }`
-		// if union of string literals ( eq to enums of strings e.g. Schema.Literal('a', 'b', 'c') )
-		// it is contained by an array
-		// meaning the ts type would equal to `Array<'a' | 'b' | 'c'>`
-		// then we need to add the correct constraint to the hashmap:
-		// a pattern constraint with the correct regex: e.g. /a|b|c/ .
-
-		let patchedConstraints = constraints;
 
 		const isStringLiteral = (
 			t: AST.AST,
@@ -128,23 +119,25 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 		const patternFromLiterals = (values: readonly string[]): string =>
 			values.map(regexEscape).join('|');
 
-		const types = node.types;
-		if (types.every(isStringLiteral)) {
-			if (AST.isTupleType(ctx.parentNode)) {
-				const literalPattern = patternFromLiterals(
-					types.map(Struct.get('literal')),
-				);
-				// we’re in an array element, ctx.path should already be "name[]"
+		// Collect string literals if this union is entirely string literal members
+		const stringLiterals = node.types.every(isStringLiteral)
+			? Option.some(node.types.map(Struct.get('literal')))
+			: Option.none();
 
-				patchedConstraints = Constraints.modify(patchedConstraints, ctx.path, {
-					pattern: literalPattern,
-				});
-			}
-		}
+		// Only annotate pattern on array item context (ctx.path ends with "[]")
+		const baseConstraints = Option.match(stringLiterals, {
+			onNone: () => constraints,
+			onSome: (literals) =>
+				ctx.path.endsWith('[]')
+					? Constraints.modify(constraints, ctx.path, {
+							pattern: patternFromLiterals(literals),
+						})
+					: constraints,
+		});
 
 		return ReadonlyArray.reduce(
 			node.types,
-			patchedConstraints,
+			baseConstraints,
 			(_constraints, member) =>
 				rec(Ctx.node(ctx.path, node))(member)(_constraints),
 		);
