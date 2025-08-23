@@ -1,12 +1,10 @@
 import type { Constraint } from '@conform-to/dom';
 import * as Match from 'effect/Match';
 import * as ReadonlyArray from 'effect/Array';
-import * as HashMap from 'effect/HashMap';
 import * as Option from 'effect/Option';
-import * as Record from 'effect/Record';
 import * as AST from 'effect/SchemaAST';
 
-import type * as Constraints from './constraints';
+import * as Constraints from './constraints';
 import {
 	bigintRefinement,
 	dateRefinement,
@@ -32,7 +30,7 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
 					: `${ctx.path}.${propertySignature.name.toString()}`;
 
 				return rec(Ctx.node(path, node))(propertySignature.type)(
-					HashMap.set(_constraints, path, {
+					Constraints.set(_constraints, path, {
 						required: !propertySignature.isOptional,
 					}),
 				);
@@ -60,17 +58,12 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 				(tupleType) => {
 					return ReadonlyArray.reduce(
 						tupleType.rest,
-						HashMap.modifyAt(constraints, ctx.path, (maybeConstraint) =>
-							Option.some({
-								...Option.getOrElse(maybeConstraint, Record.empty),
-								multiple: true,
-							}),
-						),
+						Constraints.modify(constraints, ctx.path, { multiple: true }),
 						(_constraints, type) => {
 							const itemPath = `${ctx.path}[]`;
 
 							return rec(Ctx.node(itemPath, tupleType))(type.type)(
-								HashMap.set(_constraints, itemPath, { required: true }),
+								Constraints.set(_constraints, itemPath, { required: true }),
 							);
 						},
 					);
@@ -88,7 +81,7 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 							const elemPath = `${ctx.path}[${idx}]`;
 
 							return rec(Ctx.node(elemPath, tupleType))(optionalType.type)(
-								HashMap.set(_constraints, elemPath, {
+								Constraints.set(_constraints, elemPath, {
 									required: !optionalType.isOptional,
 								}),
 							);
@@ -139,14 +132,10 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 					);
 					// we’re in an array element, ctx.path should already be "name[]"
 
-					patchedConstraints = HashMap.modifyAt(
+					patchedConstraints = Constraints.modify(
 						patchedConstraints,
 						ctx.path,
-						(maybeConstraint) =>
-							Option.some({
-								...Option.getOrElse(maybeConstraint, Record.empty),
-								pattern: literalPattern,
-							}),
+						{ pattern: literalPattern },
 					);
 				}
 			}
@@ -185,12 +174,7 @@ export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
 		);
 
 		return rec(Ctx.node(ctx.path, node))(node.from)(
-			HashMap.modifyAt(constraints, ctx.path, (maybeConstraint) =>
-				Option.some({
-					...Option.getOrElse(maybeConstraint, Record.empty),
-					...refinementConstraint,
-				}),
-			),
+			Constraints.modify(constraints, ctx.path, refinementConstraint),
 		);
 	};
 
