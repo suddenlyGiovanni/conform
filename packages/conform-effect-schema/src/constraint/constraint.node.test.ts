@@ -1010,7 +1010,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test.todo('Union of Literals', () => {
+			test('Union of Literals', () => {
 				expect(
 					getEffectSchemaConstraint(
 						Schema.Struct({

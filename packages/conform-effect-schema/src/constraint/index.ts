@@ -1,5 +1,4 @@
 import { Constraint } from '@conform-to/dom';
-import { pipe } from 'effect/Function';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
@@ -55,7 +54,9 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 		);
 	}
 
-	const constraintsEndo = schemaAstConstraintVisitor(Ctx.root())(ast);
+	const constraints: Constraints.Constraints = schemaAstConstraintVisitor(
+		Ctx.root(),
+	)(ast)(Constraints.empty());
 
-	return pipe(Constraints.empty(), constraintsEndo, Constraints.toRecord);
+	return Constraints.toRecord(constraints);
 }

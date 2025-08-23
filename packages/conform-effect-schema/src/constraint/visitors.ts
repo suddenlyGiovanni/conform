@@ -106,23 +106,59 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
  * @private
  */
 export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
-	(rec) => (ctx) => (node) => (constraints) =>
-		ReadonlyArray.reduce(node.types, constraints, (_constraints, member) => {
-			if (!Ctx.isNode(ctx)) {
-				throw new Error(
-					'Union cannot be used as a root type (e.g. Schema.Union([Schema.String, Schema.Number]))',
-				);
-			}
-			// edge case to handle `Schema.Array(Schema.Literal('a', 'b', 'c'))` which should return a constraint of type:
-			// `{ required: true, pattern: 'a|b|c' }`
-			// if union of string literals ( eq to enums of strings e.g. Schema.Literal('a', 'b', 'c') )
-			// it is contained by an array
-			// meaning the ts type would equal to `Array<'a' | 'b' | 'c'>`
-			// then we need to add the correct constraint to the hashmap:
-			// a pattern constraint with the correct regex: e.g. /a|b|c/ .
+	(rec) => (ctx) => (node) => (constraints) => {
+		if (!Ctx.isNode(ctx)) {
+			throw new Error(
+				'Union cannot be used as a root type (e.g. Schema.Union([Schema.String, Schema.Number]))',
+			);
+		}
+		// edge case to handle `Schema.Array(Schema.Literal('a', 'b', 'c'))` which should return a constraint of type:
+		// `{ required: true, pattern: 'a|b|c' }`
+		// if union of string literals ( eq to enums of strings e.g. Schema.Literal('a', 'b', 'c') )
+		// it is contained by an array
+		// meaning the ts type would equal to `Array<'a' | 'b' | 'c'>`
+		// then we need to add the correct constraint to the hashmap:
+		// a pattern constraint with the correct regex: e.g. /a|b|c/ .
 
-			return rec(Ctx.node(ctx.path, node))(member)(_constraints);
-		});
+		let patchedConstraints = constraints;
+
+		const isStringLiteral = (literal: AST.LiteralValue) =>
+			typeof literal === 'string';
+
+		const regexEscape = (s: string) =>
+			s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d');
+
+		const patternFromLiterals = (values: string[]): string =>
+			values.map(regexEscape).join('|');
+
+		if (node.types.every(AST.isLiteral)) {
+			if (node.types.every((_: AST.Literal) => isStringLiteral(_.literal))) {
+				if (AST.isTupleType(ctx.parentNode)) {
+					const literalPattern = patternFromLiterals(
+						node.types.map((_: AST.Literal) => _.literal as string),
+					);
+					// we’re in an array element, ctx.path should already be "name[]"
+
+					patchedConstraints = HashMap.modifyAt(
+						patchedConstraints,
+						ctx.path,
+						(maybeConstraint) =>
+							Option.some({
+								...Option.getOrElse(maybeConstraint, Record.empty),
+								pattern: literalPattern,
+							}),
+					);
+				}
+			}
+		}
+
+		return ReadonlyArray.reduce(
+			node.types,
+			patchedConstraints,
+			(_constraints, member) =>
+				rec(Ctx.node(ctx.path, node))(member)(_constraints),
+		);
+	};
 
 /**
  * Visits a Refinement node and merges refinement-derived constraints into the current path.
