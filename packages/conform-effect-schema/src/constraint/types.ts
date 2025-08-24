@@ -1,6 +1,6 @@
 import type * as AST from 'effect/SchemaAST';
 
-import type * as Ctx from './ctx';
+import type { Ctx } from './ctx';
 import type * as Constraints from './constraints';
 
 /**

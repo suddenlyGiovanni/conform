@@ -14,7 +14,7 @@ import {
 	stringRefinement,
 } from './refinements';
 import type { MakeNodeVisitor } from './types';
-import * as Ctx from './ctx';
+import { Ctx } from './ctx';
 
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.

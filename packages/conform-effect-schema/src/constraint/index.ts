@@ -5,7 +5,7 @@ import * as AST from 'effect/SchemaAST';
 
 import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor';
 import { type NodeVisitor } from './types';
-import * as Ctx from './ctx';
+import { Ctx } from './ctx';
 import * as Constraints from './constraints';
 
 /**

@@ -38,17 +38,19 @@ interface Parent<Ast extends AST.AST> {
 	readonly parentNode: Readonly<Ast>;
 }
 
-/**
- * Immutable traversal context threaded through the AST visitor.
- *
- * Purpose:
- * - Carry the current logical path at which constraints should be written.
- * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
- */
-export type Type<P extends string = string, Ast extends AST.AST = AST.AST> =
-	| Root
-	| Node<P, Ast>;
-
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export declare namespace Ctx {
+	/**
+	 * Immutable traversal context threaded through the AST visitor.
+	 *
+	 * Purpose:
+	 * - Carry the current logical path at which constraints should be written.
+	 * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
+	 */
+	type Type<P extends string = string, Ast extends AST.AST = AST.AST> =
+		| Root
+		| Node<P, Ast>;
+}
 class Root implements Tag<'Root'> {
 	readonly _tag = 'Root';
 }
@@ -66,17 +68,19 @@ class Node<const P extends string, const Ast extends AST.AST>
 	}
 }
 
-export const root = (): Root => new Root();
+export class Ctx {
+	static root = (): Root => new Root();
 
-export const node = <const P extends string, const Ast extends AST.AST>(
-	path: P,
-	parentNode: Readonly<Ast>,
-): Node<P, Ast> => new Node({ path, parentNode });
+	static node = <const P extends string, const Ast extends AST.AST>(
+		path: P,
+		parentNode: Readonly<Ast>,
+	): Node<P, Ast> => new Node({ path, parentNode });
 
-export const isRoot = <const P extends string, const Ast extends AST.AST>(
-	ctx: Readonly<Type<P, Ast>>,
-): ctx is Root => ctx._tag === 'Root';
+	static isRoot = <const P extends string, const Ast extends AST.AST>(
+		ctx: Readonly<Ctx.Type<P, Ast>>,
+	): ctx is Root => ctx._tag === 'Root';
 
-export const isNode = <const P extends string, const Ast extends AST.AST>(
-	ctx: Readonly<Type<P, Ast>>,
-): ctx is Node<P, Ast> => ctx._tag === 'Node';
+	static isNode = <const P extends string, const Ast extends AST.AST>(
+		ctx: Readonly<Ctx.Type<P, Ast>>,
+	): ctx is Node<P, Ast> => ctx._tag === 'Node';
+}
