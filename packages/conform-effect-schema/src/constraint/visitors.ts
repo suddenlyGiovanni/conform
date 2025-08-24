@@ -6,7 +6,7 @@ import * as AST from 'effect/SchemaAST';
 import * as Predicate from 'effect/Predicate';
 import * as Struct from 'effect/Struct';
 
-import * as Constraints from './constraints';
+import { Constraints } from './constraints';
 import {
 	bigintRefinement,
 	dateRefinement,

@@ -1,7 +1,7 @@
 import type * as AST from 'effect/SchemaAST';
 
 import type { Ctx } from './ctx';
-import type * as Constraints from './constraints';
+import type { Constraints } from './constraints';
 
 /**
  * A pure endomorphism over the constraints collection.
