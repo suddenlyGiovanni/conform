@@ -26,9 +26,10 @@ export type ConstraintsEndo = (
  * @typeParam Ast - The specific AST subtype this visitor accepts (defaults to AST.AST).
  * @private
  */
-export type NodeVisitor<Ast extends AST.AST> = (
-	ctx: Ctx.Type,
-) => (node: Readonly<Ast>) => ConstraintsEndo;
+export type NodeVisitor<
+	Ast extends AST.AST = AST.AST,
+	CTX extends Ctx.Type = Ctx.Type,
+> = (ctx: CTX) => (node: Readonly<Ast>) => ConstraintsEndo;
 
 /**
  * A node-specific visitor transformer.
@@ -39,6 +40,7 @@ export type NodeVisitor<Ast extends AST.AST> = (
  * @typeParam Ast - The AST subtype handled by this visitor.
  * @private
  */
-export type MakeNodeVisitor<Ast extends AST.AST> = (
-	rec: NodeVisitor<AST.AST>,
-) => NodeVisitor<Ast>;
+export type MakeNodeVisitor<
+	Ast extends AST.AST,
+	CTX extends Ctx.Type = Ctx.Type,
+> = (rec: NodeVisitor) => NodeVisitor<Ast, CTX>;
