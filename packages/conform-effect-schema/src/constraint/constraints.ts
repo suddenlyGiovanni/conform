@@ -17,15 +17,6 @@ export class Constraints {
 	static empty = (): Constraints.Constraints =>
 		HashMap.empty<Constraints.Path, Constraint>();
 
-	/**
-	 * Materialize a constraints collection to a plain record.
-	 * @private
-	 */
-	static toRecord = (
-		constraints: Constraints.Constraints,
-	): Record.ReadonlyRecord<string, Constraint> =>
-		Record.fromEntries(constraints);
-
 	static modify = (
 		constraints: Constraints.Constraints,
 		path: Constraints.Path,
@@ -43,4 +34,13 @@ export class Constraints {
 		path: Constraints.Path,
 		patch: Partial<Constraint>,
 	): Constraints.Constraints => HashMap.set(constraints, path, patch);
+
+	/**
+	 * Materialize a constraints collection to a plain record.
+	 * @private
+	 */
+	static toRecord = (
+		constraints: Constraints.Constraints,
+	): Record.ReadonlyRecord<string, Constraint> =>
+		Record.fromEntries(constraints);
 }

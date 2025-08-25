@@ -7,12 +7,12 @@ import { getEffectSchemaConstraint } from '../index';
 describe('constraint', () => {
 	test('Non-object schemas will throw an error', () => {
 		expect(() => getEffectSchemaConstraint(Schema.String)).toThrow(
-			'Root schema must be a TypeLiteral AST node (e.g. Schema.Struct), instead got: StringKeyword',
+			"Root schema must be an AST node 'TypeLiteral', instead got: 'StringKeyword'",
 		);
 		expect(() =>
 			getEffectSchemaConstraint(Schema.Array(Schema.String)),
 		).toThrow(
-			'Root schema must be a TypeLiteral AST node (e.g. Schema.Struct), instead got: TupleType',
+			"Root schema must be an AST node 'TypeLiteral', instead got: 'TupleType'",
 		);
 	});
 

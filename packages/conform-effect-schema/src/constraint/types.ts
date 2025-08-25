@@ -1,7 +1,18 @@
 import type * as AST from 'effect/SchemaAST';
+// import type { Errors } from './errors';
 
+import type {
+	IllegalRootNode,
+	MissingNodeImplementationError,
+	UnsupportedNodeError,
+} from './errors';
 import type { Ctx } from './ctx';
 import type { Constraints } from './constraints';
+
+export type Errors =
+	| UnsupportedNodeError
+	| MissingNodeImplementationError
+	| IllegalRootNode;
 
 /**
  * A pure endomorphism over the constraints collection.

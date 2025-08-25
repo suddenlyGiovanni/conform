@@ -8,7 +8,7 @@ import * as Struct from 'effect/Struct';
 
 import { Constraints } from './constraints';
 import * as Refinements from './refinements';
-import type { MakeNodeVisitor } from './types';
+import type * as Types from './types';
 import { Ctx } from './ctx';
 
 /**
@@ -16,7 +16,7 @@ import { Ctx } from './ctx';
  *
  * @private
  */
-export const makeTypeLiteralVisitor: MakeNodeVisitor<
+export const makeTypeLiteralVisitor: Types.MakeNodeVisitor<
 	Ctx.Ctx,
 	AST.TypeLiteral
 > = (rec) => (ctx) => (node) => (constraints) =>
@@ -41,57 +41,59 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<
  *
  * @private
  */
-export const makeTupleTypeVisitor: MakeNodeVisitor<Ctx.Node, AST.TupleType> =
-	(rec) => (ctx) => (node) => (constraints) =>
-		Match.value(node).pipe(
-			Match.withReturnType<Constraints.Constraints>(),
+export const makeTupleTypeVisitor: Types.MakeNodeVisitor<
+	Ctx.Node,
+	AST.TupleType
+> = (rec) => (ctx) => (node) => (constraints) =>
+	Match.value(node).pipe(
+		Match.withReturnType<Constraints.Constraints>(),
 
-			Match.whenAnd(
-				({ elements }) => elements.length === 0,
-				({ rest }) => rest.length > 0,
-				(tupleType) => {
-					return ReadonlyArray.reduce(
-						tupleType.rest,
-						Constraints.modify(constraints, ctx.path, { multiple: true }),
-						(_constraints, type) => {
-							const itemPath = `${ctx.path}[]`;
+		Match.whenAnd(
+			({ elements }) => elements.length === 0,
+			({ rest }) => rest.length > 0,
+			(tupleType) => {
+				return ReadonlyArray.reduce(
+					tupleType.rest,
+					Constraints.modify(constraints, ctx.path, { multiple: true }),
+					(_constraints, type) => {
+						const itemPath = `${ctx.path}[]`;
 
-							return rec(Ctx.Node(itemPath, tupleType))(type.type)(
-								Constraints.set(_constraints, itemPath, { required: true }),
-							);
-						},
-					);
-				},
-			),
+						return rec(Ctx.Node(itemPath, tupleType))(type.type)(
+							Constraints.set(_constraints, itemPath, { required: true }),
+						);
+					},
+				);
+			},
+		),
 
-			Match.whenAnd(
-				({ elements }) => elements.length > 0,
-				({ rest }) => rest.length >= 0,
-				(tupleType) =>
-					ReadonlyArray.reduce(
-						tupleType.elements,
-						constraints,
-						(_constraints, optionalType, idx) => {
-							const elemPath = `${ctx.path}[${idx}]`;
+		Match.whenAnd(
+			({ elements }) => elements.length > 0,
+			({ rest }) => rest.length >= 0,
+			(tupleType) =>
+				ReadonlyArray.reduce(
+					tupleType.elements,
+					constraints,
+					(_constraints, optionalType, idx) => {
+						const elemPath = `${ctx.path}[${idx}]`;
 
-							return rec(Ctx.Node(elemPath, tupleType))(optionalType.type)(
-								Constraints.set(_constraints, elemPath, {
-									required: !optionalType.isOptional,
-								}),
-							);
-						},
-					),
-			),
+						return rec(Ctx.Node(elemPath, tupleType))(optionalType.type)(
+							Constraints.set(_constraints, elemPath, {
+								required: !optionalType.isOptional,
+							}),
+						);
+					},
+				),
+		),
 
-			Match.orElse(() => constraints),
-		);
+		Match.orElse(() => constraints),
+	);
 
 /**
  * Visits a Union node and merges constraints derived from each union member into the same path.
  *
  * @private
  */
-export const makeUnionVisitor: MakeNodeVisitor<Ctx.Node, AST.Union> =
+export const makeUnionVisitor: Types.MakeNodeVisitor<Ctx.Node, AST.Union> =
 	(rec) => (ctx) => (node) => (constraints) => {
 		const isStringLiteral = (
 			t: AST.AST,
@@ -133,30 +135,32 @@ export const makeUnionVisitor: MakeNodeVisitor<Ctx.Node, AST.Union> =
  *
  * @private
  */
-export const makeRefinementVisitor: MakeNodeVisitor<Ctx.Node, AST.Refinement> =
-	(rec) => (ctx) => (node) => (constraints) => {
-		const refinementConstraint: Constraint = Option.reduceCompact(
-			[
-				Refinements.stringRefinement(node),
-				Refinements.numberRefinement(node),
-				Refinements.bigintRefinement(node),
-				Refinements.dateRefinement(node),
-			],
-			{} satisfies Constraint,
-			(b, a): Constraint => ({ ...b, ...a }),
-		);
+export const makeRefinementVisitor: Types.MakeNodeVisitor<
+	Ctx.Node,
+	AST.Refinement
+> = (rec) => (ctx) => (node) => (constraints) => {
+	const refinementConstraint: Constraint = Option.reduceCompact(
+		[
+			Refinements.stringRefinement(node),
+			Refinements.numberRefinement(node),
+			Refinements.bigintRefinement(node),
+			Refinements.dateRefinement(node),
+		],
+		{} satisfies Constraint,
+		(b, a): Constraint => ({ ...b, ...a }),
+	);
 
-		return rec(Ctx.Node(ctx.path, node))(node.from)(
-			Constraints.modify(constraints, ctx.path, refinementConstraint),
-		);
-	};
+	return rec(Ctx.Node(ctx.path, node))(node.from)(
+		Constraints.modify(constraints, ctx.path, refinementConstraint),
+	);
+};
 
 /**
  * Visits a Transformation node and continues traversal to the "to" type.
  *
  * @private
  */
-export const makeTransformationVisitor: MakeNodeVisitor<
+export const makeTransformationVisitor: Types.MakeNodeVisitor<
 	Ctx.Ctx,
 	AST.Transformation
 > = (rec) => (ctx) => (node) => (constraints) =>
@@ -164,14 +168,3 @@ export const makeTransformationVisitor: MakeNodeVisitor<
 		Root: (rootCtx) => rec(rootCtx)(node.to)(constraints),
 		Node: (nodeCtx) => rec(Ctx.Node(nodeCtx.path, node))(node.to)(constraints),
 	});
-
-/**
- * Placeholder handler for unsupported suspended nodes.
- *
- * @private
- */
-
-export const makeSuspendVisitor: MakeNodeVisitor<Ctx.Ctx, AST.Suspend> =
-	(_rec) => (_ctx) => (node) => (_constraints) => {
-		throw new Error(`TODO: add support for this AST Node type: "${node._tag}"`);
-	};
