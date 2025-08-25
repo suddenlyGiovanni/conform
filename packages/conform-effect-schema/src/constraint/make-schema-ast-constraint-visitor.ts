@@ -78,6 +78,7 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 			Match.withReturnType<ConstraintsEndo>(),
 
 			Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx)(node)),
+			Match.when(AST.isTransformation, (node) => transformationVisitor(ctx)(node)),
 
 			Match.orElse(() => {
 				throw new Error(
@@ -96,7 +97,7 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 	const tupleTypeVisitor = makeTupleTypeVisitor(recNode);
 	const unionVisitor = makeUnionVisitor(recNode);
 	const refinementVisitor = makeRefinementVisitor(recNode);
-	const transformationVisitor = makeTransformationVisitor(recNode);
+	const transformationVisitor = makeTransformationVisitor(rec);
 	const suspendVisitor = makeSuspendVisitor(rec);
 	return rec;
 };

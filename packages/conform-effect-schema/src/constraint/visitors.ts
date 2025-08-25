@@ -161,9 +161,11 @@ export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement, Ctx.Node> =
  */
 export const makeTransformationVisitor: MakeNodeVisitor<
 	AST.Transformation,
-	Ctx.Node
+	Ctx.Type
 > = (rec) => (ctx) => (node) => (constraints) =>
-	rec(Ctx.Node(ctx.path, node))(node.to)(constraints);
+	Ctx.isRoot(ctx)
+		? rec(ctx)(node.to)(constraints)
+		: rec(Ctx.Node(ctx.path, node))(node.to)(constraints);
 
 /**
  * Placeholder handler for unsupported suspended nodes.

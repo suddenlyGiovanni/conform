@@ -1099,6 +1099,9 @@ describe('constraint', () => {
 		});
 	});
 
+	const minTimestamp = '1970-01-01';
+	const maxTimestamp = '2030-01-01';
+
 	const schema = Schema.Struct({
 		text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
 		number: Schema.Number.pipe(
@@ -1107,9 +1110,11 @@ describe('constraint', () => {
 			Schema.multipleOf(2, { message: () => 'step' }),
 		),
 		timestamp: Schema.optionalWith(
-			Schema.Date.pipe(Schema.betweenDate(new Date(1), new Date())),
+			Schema.Date.pipe(
+				Schema.betweenDate(new Date(minTimestamp), new Date(maxTimestamp)),
+			),
 			{
-				default: () => new Date(),
+				default: () => new Date(maxTimestamp),
 			},
 		),
 		flag: Schema.optional(Schema.Boolean),
@@ -1133,8 +1138,8 @@ describe('constraint', () => {
 		},
 		timestamp: {
 			required: true,
-			max: '2025-08-16',
-			min: '1970-01-01',
+			max: maxTimestamp,
+			min: minTimestamp,
 		},
 		flag: {
 			required: false,
@@ -1152,7 +1157,7 @@ describe('constraint', () => {
 		},
 	} satisfies Record<string, Constraint>;
 
-	test.todo('case 1', () => {
+	test('case 1', () => {
 		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
 	});
 
