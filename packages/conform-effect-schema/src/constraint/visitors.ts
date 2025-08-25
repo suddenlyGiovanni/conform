@@ -7,12 +7,7 @@ import * as Predicate from 'effect/Predicate';
 import * as Struct from 'effect/Struct';
 
 import { Constraints } from './constraints';
-import {
-	bigintRefinement,
-	dateRefinement,
-	numberRefinement,
-	stringRefinement,
-} from './refinements';
+import * as Refinements from './refinements';
 import type { MakeNodeVisitor } from './types';
 import { Ctx } from './ctx';
 
@@ -22,7 +17,7 @@ import { Ctx } from './ctx';
  * @private
  */
 export const makeTypeLiteralVisitor: MakeNodeVisitor<
-	Ctx.Type,
+	Ctx.Ctx,
 	AST.TypeLiteral
 > = (rec) => (ctx) => (node) => (constraints) =>
 	ReadonlyArray.reduce(
@@ -142,10 +137,10 @@ export const makeRefinementVisitor: MakeNodeVisitor<Ctx.Node, AST.Refinement> =
 	(rec) => (ctx) => (node) => (constraints) => {
 		const refinementConstraint: Constraint = Option.reduceCompact(
 			[
-				stringRefinement(node),
-				numberRefinement(node),
-				bigintRefinement(node),
-				dateRefinement(node),
+				Refinements.stringRefinement(node),
+				Refinements.numberRefinement(node),
+				Refinements.bigintRefinement(node),
+				Refinements.dateRefinement(node),
 			],
 			{} satisfies Constraint,
 			(b, a): Constraint => ({ ...b, ...a }),
@@ -162,7 +157,7 @@ export const makeRefinementVisitor: MakeNodeVisitor<Ctx.Node, AST.Refinement> =
  * @private
  */
 export const makeTransformationVisitor: MakeNodeVisitor<
-	Ctx.Type,
+	Ctx.Ctx,
 	AST.Transformation
 > = (rec) => (ctx) => (node) => (constraints) =>
 	Match.valueTags(ctx, {
@@ -176,7 +171,7 @@ export const makeTransformationVisitor: MakeNodeVisitor<
  * @private
  */
 
-export const makeSuspendVisitor: MakeNodeVisitor<Ctx.Type, AST.Suspend> =
+export const makeSuspendVisitor: MakeNodeVisitor<Ctx.Ctx, AST.Suspend> =
 	(_rec) => (_ctx) => (node) => (_constraints) => {
 		throw new Error(`TODO: add support for this AST Node type: "${node._tag}"`);
 	};

@@ -2,14 +2,7 @@ import { identity } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as AST from 'effect/SchemaAST';
 
-import {
-	makeRefinementVisitor,
-	makeTransformationVisitor,
-	makeTypeLiteralVisitor,
-	makeTupleTypeVisitor,
-	makeUnionVisitor,
-	makeSuspendVisitor,
-} from './visitors';
+import * as Visitors from './visitors';
 import type { ConstraintsEndo, NodeVisitor } from './types';
 import type { Ctx } from './ctx';
 
@@ -19,12 +12,9 @@ const endoHashIdentity: ConstraintsEndo = identity;
  * Builds a recursive visitor (ctx-first) for Effect Schema AST.
  * @private
  */
-export const makeSchemaAstConstraintVisitor: () => NodeVisitor<
-	Ctx.Type,
-	AST.AST
-> = () => {
+export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 	// Node-context recursive dispatcher: accepts only Ctx.Node
-	const recNode: NodeVisitor<Ctx.Node, AST.AST> = (ctx) => (ast) =>
+	const recNode: NodeVisitor<Ctx.Node> = (ctx) => (ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<ConstraintsEndo>(),
 
@@ -76,7 +66,7 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor<
 		);
 
 	// Root-context dispatcher: only allow root-legal nodes (TypeLiteral)
-	const recRoot: NodeVisitor<Ctx.Root, AST.AST> = (ctx) => (ast) =>
+	const recRoot: NodeVisitor<Ctx.Root> = (ctx) => (ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<ConstraintsEndo>(),
 
@@ -92,17 +82,17 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor<
 			}),
 		);
 
-	const rec: NodeVisitor<Ctx.Type, AST.AST> = (ctxType) =>
+	const rec: NodeVisitor = (ctxType) =>
 		Match.valueTags(ctxType, {
 			Root: recRoot,
 			Node: recNode,
 		});
 
-	const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
-	const tupleTypeVisitor = makeTupleTypeVisitor(recNode);
-	const unionVisitor = makeUnionVisitor(recNode);
-	const refinementVisitor = makeRefinementVisitor(recNode);
-	const transformationVisitor = makeTransformationVisitor(rec);
-	const suspendVisitor = makeSuspendVisitor(rec);
+	const typeLiteralVisitor = Visitors.makeTypeLiteralVisitor(rec);
+	const tupleTypeVisitor = Visitors.makeTupleTypeVisitor(recNode);
+	const unionVisitor = Visitors.makeUnionVisitor(recNode);
+	const refinementVisitor = Visitors.makeRefinementVisitor(recNode);
+	const transformationVisitor = Visitors.makeTransformationVisitor(rec);
+	const suspendVisitor = Visitors.makeSuspendVisitor(rec);
 	return rec;
 };

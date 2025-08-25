@@ -23,11 +23,12 @@ export type ConstraintsEndo = (
  * Reader-style: given the current immutable traversal context, returns a function
  * that interprets an AST node (optionally a specific subtype) and produces an {@link ConstraintsEndo}.
  *
+ * @typeParam CTX - The context type this visitor accepts (defaults to Ctx.Type).
  * @typeParam Ast - The specific AST subtype this visitor accepts (defaults to AST.AST).
  * @private
  */
 export type NodeVisitor<
-	CTX extends Ctx.Type = Ctx.Type,
+	CTX extends Ctx.Ctx = Ctx.Ctx,
 	Ast extends AST.AST = AST.AST,
 > = (ctx: CTX) => (node: Readonly<Ast>) => ConstraintsEndo;
 
@@ -35,15 +36,15 @@ export type NodeVisitor<
  * A higher-order function type that creates specialized AST node visitors.
  *
  * Takes a general recursive visitor and transforms it into a visitor specialized for a
- * specific AST node type. This pattern enables type-safe visitor composition while
- * maintaining specific handling for different node types in the schema AST.
+ * specific AST node type, while keeping the context type fixed.
  *
- * @typeParam Ast - The specific AST node type this visitor will handle
- * @typeParam CTX - The context type used during AST traversal (defaults to Ctx.Type)
- * @param rec - The general recursive visitor that handles any AST node
- * @returns A specialized visitor function that processes only nodes of type Ast
+ * @typeParam CTX - The context type used during AST traversal (defaults to Ctx.Type).
+ * @typeParam Ast - The specific AST node type this visitor will handle (defaults to AST.AST).
+ * @param rec - The general recursive visitor that handles any AST node for the same context type.
+ * @returns A specialized visitor function that processes only nodes of type Ast for the same CTX.
  * @private
  */
-export type MakeNodeVisitor<CTX extends Ctx.Type, Ast extends AST.AST> = (
-	rec: NodeVisitor<CTX, AST.AST>,
+
+export type MakeNodeVisitor<CTX extends Ctx.Ctx, Ast extends AST.AST> = (
+	rec: NodeVisitor<CTX>,
 ) => NodeVisitor<CTX, Ast>;

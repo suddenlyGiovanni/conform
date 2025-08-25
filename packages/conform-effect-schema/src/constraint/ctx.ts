@@ -7,29 +7,10 @@ interface Tag<T extends string> {
 interface Path<P extends string> {
 	/**
 	 * Semantics of `path`:
-	 * - `''` (empty string) denotes the root context (no parent path).
 	 * - Nested object properties use dot-notation: e.g. `user.email`.
 	 * - Array-like items use bracket or rest syntax:
 	 *   - Tuple element: `items[0]`
 	 *   - Array element (rest): `items[]`
-	 *
-	 * Invariants:
-	 * - `path` is always defined (use `''` for root).
-	 * - Handlers must not mutate `ctx`; create a new `Ctx` when descending:
-	 *   - Example: `{ path: ctx.path ? ctx.path + '.' + key : key }`
-	 *   - Example (array item): `{ path: ctx.path + '[]' }`
-	 * @example
-	 * // Root
-	 * const root: Ctx.Type = { path: '' }
-	 *
-	 * // Entering a property "profile" from root
-	 * const next: Ctx.Type = { path: 'profile' }
-	 *
-	 * // Entering nested property "email"
-	 * const nested: Ctx.Type = { path: 'profile.email' }
-	 *
-	 * // Entering an array item of "tags"
-	 * const arrItem: Ctx.Type = { path: 'tags[]' }
 	 */
 	readonly path: P;
 }
@@ -54,7 +35,7 @@ export declare namespace Ctx {
 	 * - Carry the current logical path at which constraints should be written.
 	 * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
 	 */
-	type Type<P extends string = string, Ast extends AST.AST = AST.AST> =
+	type Ctx<P extends string = string, Ast extends AST.AST = AST.AST> =
 		| Root
 		| Node<P, Ast>;
 }
@@ -91,10 +72,10 @@ export class Ctx {
 	): Ctx.Node<P, ParentAst> => new _Node({ path, parentNode });
 
 	static isRoot = <const P extends string, const ParentAst extends AST.AST>(
-		ctx: Readonly<Ctx.Type<P, ParentAst>>,
+		ctx: Readonly<Ctx.Ctx<P, ParentAst>>,
 	): ctx is Ctx.Root => ctx._tag === 'Root';
 
 	static isNode = <const P extends string, const ParentAst extends AST.AST>(
-		ctx: Readonly<Ctx.Type<P, ParentAst>>,
+		ctx: Readonly<Ctx.Ctx<P, ParentAst>>,
 	): ctx is Ctx.Node<P, ParentAst> => ctx._tag === 'Node';
 }
