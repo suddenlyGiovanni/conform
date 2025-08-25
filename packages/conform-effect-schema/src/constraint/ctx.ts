@@ -1,10 +1,12 @@
 import type * as AST from 'effect/SchemaAST';
 
+import type { Constraints } from './constraints';
+
 interface Tag<T extends string> {
 	readonly _tag: T;
 }
 
-interface Path<P extends string> {
+interface Path<P extends Constraints.Path> {
 	/**
 	 * Semantics of `path`:
 	 * - Nested object properties use dot-notation: e.g. `user.email`.
@@ -24,7 +26,7 @@ export declare namespace Ctx {
 	type Root = _Root;
 
 	type Node<
-		P extends string = string,
+		P extends Constraints.Path = string,
 		ParentAst extends AST.AST = AST.AST,
 	> = _Node<P, ParentAst>;
 
@@ -35,9 +37,10 @@ export declare namespace Ctx {
 	 * - Carry the current logical path at which constraints should be written.
 	 * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
 	 */
-	type Ctx<P extends string = string, Ast extends AST.AST = AST.AST> =
-		| Root
-		| Node<P, Ast>;
+	type Ctx<
+		P extends Constraints.Path = string,
+		Ast extends AST.AST = AST.AST,
+	> = Root | Node<P, Ast>;
 }
 
 /**
@@ -50,7 +53,7 @@ class _Root implements Tag<'Root'> {
 /**
  * @internal
  */
-class _Node<const P extends string, const ParentAst extends AST.AST>
+class _Node<const P extends Constraints.Path, const ParentAst extends AST.AST>
 	implements Tag<'Node'>, Path<P>, Parent<ParentAst>
 {
 	readonly _tag = 'Node';
@@ -64,18 +67,27 @@ class _Node<const P extends string, const ParentAst extends AST.AST>
 }
 
 export class Ctx {
-	static Root = (): Ctx.Root => new _Root();
-
-	static Node = <const P extends string, const ParentAst extends AST.AST>(
+	static Node = <
+		const P extends Constraints.Path,
+		const ParentAst extends AST.AST,
+	>(
 		path: P,
 		parentNode: Readonly<ParentAst>,
 	): Ctx.Node<P, ParentAst> => new _Node({ path, parentNode });
 
-	static isRoot = <const P extends string, const ParentAst extends AST.AST>(
-		ctx: Readonly<Ctx.Ctx<P, ParentAst>>,
-	): ctx is Ctx.Root => ctx._tag === 'Root';
+	static Root = (): Ctx.Root => new _Root();
 
-	static isNode = <const P extends string, const ParentAst extends AST.AST>(
+	static isNode = <
+		const P extends Constraints.Path,
+		const ParentAst extends AST.AST,
+	>(
 		ctx: Readonly<Ctx.Ctx<P, ParentAst>>,
 	): ctx is Ctx.Node<P, ParentAst> => ctx._tag === 'Node';
+
+	static isRoot = <
+		const P extends Constraints.Path,
+		const ParentAst extends AST.AST,
+	>(
+		ctx: Readonly<Ctx.Ctx<P, ParentAst>>,
+	): ctx is Ctx.Root => ctx._tag === 'Root';
 }
