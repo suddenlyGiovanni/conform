@@ -22,8 +22,8 @@ import { Ctx } from './ctx';
  * @private
  */
 export const makeTypeLiteralVisitor: MakeNodeVisitor<
-	AST.TypeLiteral,
-	Ctx.Type
+	Ctx.Type,
+	AST.TypeLiteral
 > = (rec) => (ctx) => (node) => (constraints) =>
 	ReadonlyArray.reduce(
 		node.propertySignatures,
@@ -46,7 +46,7 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<
  *
  * @private
  */
-export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType, Ctx.Node> =
+export const makeTupleTypeVisitor: MakeNodeVisitor<Ctx.Node, AST.TupleType> =
 	(rec) => (ctx) => (node) => (constraints) =>
 		Match.value(node).pipe(
 			Match.withReturnType<Constraints.Constraints>(),
@@ -96,7 +96,7 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType, Ctx.Node> =
  *
  * @private
  */
-export const makeUnionVisitor: MakeNodeVisitor<AST.Union, Ctx.Node> =
+export const makeUnionVisitor: MakeNodeVisitor<Ctx.Node, AST.Union> =
 	(rec) => (ctx) => (node) => (constraints) => {
 		const isStringLiteral = (
 			t: AST.AST,
@@ -138,7 +138,7 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union, Ctx.Node> =
  *
  * @private
  */
-export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement, Ctx.Node> =
+export const makeRefinementVisitor: MakeNodeVisitor<Ctx.Node, AST.Refinement> =
 	(rec) => (ctx) => (node) => (constraints) => {
 		const refinementConstraint: Constraint = Option.reduceCompact(
 			[
@@ -162,8 +162,8 @@ export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement, Ctx.Node> =
  * @private
  */
 export const makeTransformationVisitor: MakeNodeVisitor<
-	AST.Transformation,
-	Ctx.Type
+	Ctx.Type,
+	AST.Transformation
 > = (rec) => (ctx) => (node) => (constraints) =>
 	Match.valueTags(ctx, {
 		Root: (rootCtx) => rec(rootCtx)(node.to)(constraints),
@@ -176,7 +176,7 @@ export const makeTransformationVisitor: MakeNodeVisitor<
  * @private
  */
 
-export const makeSuspendVisitor: MakeNodeVisitor<AST.Suspend> =
+export const makeSuspendVisitor: MakeNodeVisitor<Ctx.Type, AST.Suspend> =
 	(_rec) => (_ctx) => (node) => (_constraints) => {
 		throw new Error(`TODO: add support for this AST Node type: "${node._tag}"`);
 	};

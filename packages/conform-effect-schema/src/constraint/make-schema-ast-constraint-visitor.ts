@@ -20,11 +20,11 @@ const endoHashIdentity: ConstraintsEndo = identity;
  * @private
  */
 export const makeSchemaAstConstraintVisitor: () => NodeVisitor<
-	AST.AST,
-	Ctx.Type
+	Ctx.Type,
+	AST.AST
 > = () => {
 	// Node-context recursive dispatcher: accepts only Ctx.Node
-	const recNode: NodeVisitor<AST.AST, Ctx.Node> = (ctx) => (ast) =>
+	const recNode: NodeVisitor<Ctx.Node, AST.AST> = (ctx) => (ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<ConstraintsEndo>(),
 
@@ -76,7 +76,7 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor<
 		);
 
 	// Root-context dispatcher: only allow root-legal nodes (TypeLiteral)
-	const recRoot: NodeVisitor<AST.AST, Ctx.Root> = (ctx) => (ast) =>
+	const recRoot: NodeVisitor<Ctx.Root, AST.AST> = (ctx) => (ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<ConstraintsEndo>(),
 
@@ -92,7 +92,7 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor<
 			}),
 		);
 
-	const rec: NodeVisitor<AST.AST, Ctx.Type> = (ctxType) =>
+	const rec: NodeVisitor<Ctx.Type, AST.AST> = (ctxType) =>
 		Match.valueTags(ctxType, {
 			Root: recRoot,
 			Node: recNode,

@@ -27,8 +27,8 @@ export type ConstraintsEndo = (
  * @private
  */
 export type NodeVisitor<
-	Ast extends AST.AST = AST.AST,
 	CTX extends Ctx.Type = Ctx.Type,
+	Ast extends AST.AST = AST.AST,
 > = (ctx: CTX) => (node: Readonly<Ast>) => ConstraintsEndo;
 
 /**
@@ -44,7 +44,6 @@ export type NodeVisitor<
  * @returns A specialized visitor function that processes only nodes of type Ast
  * @private
  */
-export type MakeNodeVisitor<
-	Ast extends AST.AST,
-	CTX extends Ctx.Type = Ctx.Type,
-> = (rec: NodeVisitor<AST.AST, CTX>) => NodeVisitor<Ast, CTX>;
+export type MakeNodeVisitor<CTX extends Ctx.Type, Ast extends AST.AST> = (
+	rec: NodeVisitor<CTX, AST.AST>,
+) => NodeVisitor<CTX, Ast>;
