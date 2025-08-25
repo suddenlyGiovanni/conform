@@ -32,15 +32,19 @@ export type NodeVisitor<
 > = (ctx: CTX) => (node: Readonly<Ast>) => ConstraintsEndo;
 
 /**
- * A node-specific visitor transformer.
+ * A higher-order function type that creates specialized AST node visitors.
  *
- * Given the general recursive visitor, returns a specialized visitor `NodeVisitor<Ast>`
- * that handles a specific AST subtype.
+ * Takes a general recursive visitor and transforms it into a visitor specialized for a
+ * specific AST node type. This pattern enables type-safe visitor composition while
+ * maintaining specific handling for different node types in the schema AST.
  *
- * @typeParam Ast - The AST subtype handled by this visitor.
+ * @typeParam Ast - The specific AST node type this visitor will handle
+ * @typeParam CTX - The context type used during AST traversal (defaults to Ctx.Type)
+ * @param rec - The general recursive visitor that handles any AST node
+ * @returns A specialized visitor function that processes only nodes of type Ast
  * @private
  */
 export type MakeNodeVisitor<
 	Ast extends AST.AST,
 	CTX extends Ctx.Type = Ctx.Type,
-> = (rec: NodeVisitor) => NodeVisitor<Ast, CTX>;
+> = (rec: NodeVisitor<AST.AST, CTX>) => NodeVisitor<Ast, CTX>;

@@ -44,14 +44,9 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
  *
  * @private
  */
-export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
-	(rec) => (ctx) => (node) => (constraints) => {
-		if (!Ctx.isNode(ctx)) {
-			throw new Error(
-				'TupleType cannot be used as a root type (e.g. Schema.Tuple([Schema.String, Schema.Number]))',
-			);
-		}
-		return Match.value(node).pipe(
+export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType, Ctx.Node> =
+	(rec) => (ctx) => (node) => (constraints) =>
+		Match.value(node).pipe(
 			Match.withReturnType<Constraints.Constraints>(),
 
 			Match.whenAnd(
@@ -93,21 +88,14 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 
 			Match.orElse(() => constraints),
 		);
-	};
 
 /**
  * Visits a Union node and merges constraints derived from each union member into the same path.
  *
  * @private
  */
-export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
+export const makeUnionVisitor: MakeNodeVisitor<AST.Union, Ctx.Node> =
 	(rec) => (ctx) => (node) => (constraints) => {
-		if (!Ctx.isNode(ctx)) {
-			throw new Error(
-				'Union cannot be used as a root type (e.g. Schema.Union([Schema.String, Schema.Number]))',
-			);
-		}
-
 		const isStringLiteral = (
 			t: AST.AST,
 		): t is AST.Literal & { literal: string } =>
@@ -148,14 +136,8 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
  *
  * @private
  */
-export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
+export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement, Ctx.Node> =
 	(rec) => (ctx) => (node) => (constraints) => {
-		if (!Ctx.isNode(ctx)) {
-			throw new Error(
-				'Refinement cannot be used as a root type (e.g. Schema.Refinement(Schema.String, (s) => s.length > 0))',
-			);
-		}
-
 		const refinementConstraint: Constraint = Option.reduceCompact(
 			[
 				stringRefinement(node),
@@ -177,15 +159,11 @@ export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
  *
  * @private
  */
-export const makeTransformationVisitor: MakeNodeVisitor<AST.Transformation> =
-	(rec) => (ctx) => (node) => (constraints) => {
-		if (!Ctx.isNode(ctx)) {
-			throw new Error(
-				'Transformation cannot be used as a root type (e.g. Schema.Transformation(Schema.String, (s) => s.toUpperCase()))',
-			);
-		}
-		return rec(Ctx.Node(ctx.path, node))(node.to)(constraints);
-	};
+export const makeTransformationVisitor: MakeNodeVisitor<
+	AST.Transformation,
+	Ctx.Node
+> = (rec) => (ctx) => (node) => (constraints) =>
+	rec(Ctx.Node(ctx.path, node))(node.to)(constraints);
 
 /**
  * Placeholder handler for unsupported suspended nodes.

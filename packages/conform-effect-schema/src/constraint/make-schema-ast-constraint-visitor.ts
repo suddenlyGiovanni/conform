@@ -11,6 +11,7 @@ import {
 	makeSuspendVisitor,
 } from './visitors';
 import type { ConstraintsEndo, NodeVisitor } from './types';
+import type { Ctx } from './ctx';
 
 const endoHashIdentity: ConstraintsEndo = identity;
 
@@ -19,7 +20,8 @@ const endoHashIdentity: ConstraintsEndo = identity;
  * @private
  */
 export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
-	const rec: NodeVisitor = (ctx) => (ast) =>
+	// Node-context recursive dispatcher: accepts only Ctx.Node
+	const recNode: NodeVisitor<AST.AST, Ctx.Node> = (ctx) => (ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<ConstraintsEndo>(),
 
@@ -39,7 +41,8 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 				},
 			),
 
-			// for these AST nodes we do not need to process them further
+			// no-op leaves
+
 			Match.whenOr(
 				AST.isStringKeyword, // Schema.String
 				AST.isNumberKeyword, // Schema.Number
@@ -49,7 +52,6 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 				() => endoHashIdentity,
 			),
 
-			// for these AST nodes we do not need to process them further
 			Match.whenOr(
 				AST.isLiteral, // string | number | boolean | null | bigint
 				AST.isDeclaration,
@@ -70,12 +72,31 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 			Match.exhaustive,
 		);
 
-	const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
-	const tupleTypeVisitor = makeTupleTypeVisitor(rec);
-	const unionVisitor = makeUnionVisitor(rec);
-	const refinementVisitor = makeRefinementVisitor(rec);
-	const transformationVisitor = makeTransformationVisitor(rec);
-	const suspendVisitor = makeSuspendVisitor(rec);
+	// Root-context dispatcher: only allow root-legal nodes (TypeLiteral)
+	const recRoot: NodeVisitor<AST.AST, Ctx.Root> = (ctx) => (ast) =>
+		Match.value(ast).pipe(
+			Match.withReturnType<ConstraintsEndo>(),
 
+			Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx)(node)),
+
+			Match.orElse(() => {
+				throw new Error(
+					`Root schema must be a TypeLiteral AST node (e.g. Schema.Struct), instead got: ${ast._tag}`,
+				);
+			}),
+		);
+
+	const rec: NodeVisitor = Match.type<Ctx.Type>().pipe(
+		Match.tag('Node', recNode),
+		Match.tag('Root', recRoot),
+		Match.exhaustive,
+	);
+
+	const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
+	const tupleTypeVisitor = makeTupleTypeVisitor(recNode);
+	const unionVisitor = makeUnionVisitor(recNode);
+	const refinementVisitor = makeRefinementVisitor(recNode);
+	const transformationVisitor = makeTransformationVisitor(recNode);
+	const suspendVisitor = makeSuspendVisitor(rec);
 	return rec;
 };

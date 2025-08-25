@@ -1,7 +1,6 @@
 import { Constraint } from '@conform-to/dom';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
-import * as AST from 'effect/SchemaAST';
 
 import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor';
 import { type NodeVisitor } from './types';
@@ -18,7 +17,7 @@ import { Constraints } from './constraints';
  * @see NodeVisitor
  * @private
  */
-const schemaAstConstraintVisitor: NodeVisitor<AST.AST> =
+const schemaAstConstraintVisitor: NodeVisitor =
 	makeSchemaAstConstraintVisitor();
 
 /**
@@ -43,16 +42,10 @@ const schemaAstConstraintVisitor: NodeVisitor<AST.AST> =
  * @throws Error If the root schema is not a TypeLiteral/Struct (when enforced).
  * @public
  */
-export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
-	schema: Schema.Struct<Fields>,
+export function getEffectSchemaConstraint<A, I>(
+	schema: Schema.Schema<A, I>,
 ): Record<string, Constraint> {
 	const ast = schema.ast;
-
-	if (!AST.isTypeLiteral(ast)) {
-		throw new Error(
-			`root schema must be a TypeLiteral AST node (e.g. Schema.Struct), instead got: ${ast._tag}`,
-		);
-	}
 
 	const constraints: Constraints.Constraints = schemaAstConstraintVisitor(
 		Ctx.Root(),
