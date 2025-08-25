@@ -21,23 +21,25 @@ import { Ctx } from './ctx';
  *
  * @private
  */
-export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
-	(rec) => (ctx) => (node) => (constraints) =>
-		ReadonlyArray.reduce(
-			node.propertySignatures,
-			constraints,
-			(_constraints, propertySignature) => {
-				const path = Ctx.isRoot(ctx)
-					? propertySignature.name.toString()
-					: `${ctx.path}.${propertySignature.name.toString()}`;
+export const makeTypeLiteralVisitor: MakeNodeVisitor<
+	AST.TypeLiteral,
+	Ctx.Type
+> = (rec) => (ctx) => (node) => (constraints) =>
+	ReadonlyArray.reduce(
+		node.propertySignatures,
+		constraints,
+		(_constraints, propertySignature) => {
+			const path = Ctx.isRoot(ctx)
+				? propertySignature.name.toString()
+				: `${ctx.path}.${propertySignature.name.toString()}`;
 
-				return rec(Ctx.Node(path, node))(propertySignature.type)(
-					Constraints.set(_constraints, path, {
-						required: !propertySignature.isOptional,
-					}),
-				);
-			},
-		);
+			return rec(Ctx.Node(path, node))(propertySignature.type)(
+				Constraints.set(_constraints, path, {
+					required: !propertySignature.isOptional,
+				}),
+			);
+		},
+	);
 
 /**
  * Visits a TupleType node and updates constraints for tuple elements and/or array-like rest elements.
@@ -163,9 +165,10 @@ export const makeTransformationVisitor: MakeNodeVisitor<
 	AST.Transformation,
 	Ctx.Type
 > = (rec) => (ctx) => (node) => (constraints) =>
-	Ctx.isRoot(ctx)
-		? rec(ctx)(node.to)(constraints)
-		: rec(Ctx.Node(ctx.path, node))(node.to)(constraints);
+	Match.valueTags(ctx, {
+		Root: (rootCtx) => rec(rootCtx)(node.to)(constraints),
+		Node: (nodeCtx) => rec(Ctx.Node(nodeCtx.path, node))(node.to)(constraints),
+	});
 
 /**
  * Placeholder handler for unsupported suspended nodes.

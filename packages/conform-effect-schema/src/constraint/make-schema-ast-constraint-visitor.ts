@@ -19,7 +19,10 @@ const endoHashIdentity: ConstraintsEndo = identity;
  * Builds a recursive visitor (ctx-first) for Effect Schema AST.
  * @private
  */
-export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
+export const makeSchemaAstConstraintVisitor: () => NodeVisitor<
+	AST.AST,
+	Ctx.Type
+> = () => {
 	// Node-context recursive dispatcher: accepts only Ctx.Node
 	const recNode: NodeVisitor<AST.AST, Ctx.Node> = (ctx) => (ast) =>
 		Match.value(ast).pipe(
@@ -78,7 +81,9 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 			Match.withReturnType<ConstraintsEndo>(),
 
 			Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx)(node)),
-			Match.when(AST.isTransformation, (node) => transformationVisitor(ctx)(node)),
+			Match.when(AST.isTransformation, (node) =>
+				transformationVisitor(ctx)(node),
+			),
 
 			Match.orElse(() => {
 				throw new Error(
@@ -87,11 +92,11 @@ export const makeSchemaAstConstraintVisitor: () => NodeVisitor = () => {
 			}),
 		);
 
-	const rec: NodeVisitor = Match.type<Ctx.Type>().pipe(
-		Match.tag('Node', recNode),
-		Match.tag('Root', recRoot),
-		Match.exhaustive,
-	);
+	const rec: NodeVisitor<AST.AST, Ctx.Type> = (ctxType) =>
+		Match.valueTags(ctxType, {
+			Root: recRoot,
+			Node: recNode,
+		});
 
 	const typeLiteralVisitor = makeTypeLiteralVisitor(rec);
 	const tupleTypeVisitor = makeTupleTypeVisitor(recNode);
