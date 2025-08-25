@@ -34,12 +34,19 @@ interface Path<P extends string> {
 	readonly path: P;
 }
 
-interface Parent<Ast extends AST.AST> {
-	readonly parentNode: Readonly<Ast>;
+interface Parent<ParentAst extends AST.AST> {
+	readonly parentNode: Readonly<ParentAst>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export declare namespace Ctx {
+	type Root = _Root;
+
+	type Node<
+		P extends string = string,
+		ParentAst extends AST.AST = AST.AST,
+	> = _Node<P, ParentAst>;
+
 	/**
 	 * Immutable traversal context threaded through the AST visitor.
 	 *
@@ -51,36 +58,43 @@ export declare namespace Ctx {
 		| Root
 		| Node<P, Ast>;
 }
-class Root implements Tag<'Root'> {
+
+/**
+ * @internal
+ */
+class _Root implements Tag<'Root'> {
 	readonly _tag = 'Root';
 }
 
-class Node<const P extends string, const Ast extends AST.AST>
-	implements Tag<'Node'>, Path<P>, Parent<Ast>
+/**
+ * @internal
+ */
+class _Node<const P extends string, const ParentAst extends AST.AST>
+	implements Tag<'Node'>, Path<P>, Parent<ParentAst>
 {
 	readonly _tag = 'Node';
-	readonly parentNode: Readonly<Ast>;
+	readonly parentNode: Readonly<ParentAst>;
 	readonly path: P;
 
-	constructor(arg: { path: P; parentNode: Readonly<Ast> }) {
+	constructor(arg: { path: P; parentNode: Readonly<ParentAst> }) {
 		this.path = arg.path;
 		this.parentNode = arg.parentNode;
 	}
 }
 
 export class Ctx {
-	static root = (): Root => new Root();
+	static Root = (): Ctx.Root => new _Root();
 
-	static node = <const P extends string, const Ast extends AST.AST>(
+	static Node = <const P extends string, const ParentAst extends AST.AST>(
 		path: P,
-		parentNode: Readonly<Ast>,
-	): Node<P, Ast> => new Node({ path, parentNode });
+		parentNode: Readonly<ParentAst>,
+	): Ctx.Node<P, ParentAst> => new _Node({ path, parentNode });
 
-	static isRoot = <const P extends string, const Ast extends AST.AST>(
-		ctx: Readonly<Ctx.Type<P, Ast>>,
-	): ctx is Root => ctx._tag === 'Root';
+	static isRoot = <const P extends string, const ParentAst extends AST.AST>(
+		ctx: Readonly<Ctx.Type<P, ParentAst>>,
+	): ctx is Ctx.Root => ctx._tag === 'Root';
 
-	static isNode = <const P extends string, const Ast extends AST.AST>(
-		ctx: Readonly<Ctx.Type<P, Ast>>,
-	): ctx is Node<P, Ast> => ctx._tag === 'Node';
+	static isNode = <const P extends string, const ParentAst extends AST.AST>(
+		ctx: Readonly<Ctx.Type<P, ParentAst>>,
+	): ctx is Ctx.Node<P, ParentAst> => ctx._tag === 'Node';
 }

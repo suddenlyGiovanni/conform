@@ -55,7 +55,7 @@ export function getEffectSchemaConstraint<Fields extends Schema.Struct.Fields>(
 	}
 
 	const constraints: Constraints.Constraints = schemaAstConstraintVisitor(
-		Ctx.root(),
+		Ctx.Root(),
 	)(ast)(Constraints.empty());
 
 	return Constraints.toRecord(constraints);

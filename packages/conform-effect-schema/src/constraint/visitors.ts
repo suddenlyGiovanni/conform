@@ -31,7 +31,7 @@ export const makeTypeLiteralVisitor: MakeNodeVisitor<AST.TypeLiteral> =
 					? propertySignature.name.toString()
 					: `${ctx.path}.${propertySignature.name.toString()}`;
 
-				return rec(Ctx.node(path, node))(propertySignature.type)(
+				return rec(Ctx.Node(path, node))(propertySignature.type)(
 					Constraints.set(_constraints, path, {
 						required: !propertySignature.isOptional,
 					}),
@@ -64,7 +64,7 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 						(_constraints, type) => {
 							const itemPath = `${ctx.path}[]`;
 
-							return rec(Ctx.node(itemPath, tupleType))(type.type)(
+							return rec(Ctx.Node(itemPath, tupleType))(type.type)(
 								Constraints.set(_constraints, itemPath, { required: true }),
 							);
 						},
@@ -82,7 +82,7 @@ export const makeTupleTypeVisitor: MakeNodeVisitor<AST.TupleType> =
 						(_constraints, optionalType, idx) => {
 							const elemPath = `${ctx.path}[${idx}]`;
 
-							return rec(Ctx.node(elemPath, tupleType))(optionalType.type)(
+							return rec(Ctx.Node(elemPath, tupleType))(optionalType.type)(
 								Constraints.set(_constraints, elemPath, {
 									required: !optionalType.isOptional,
 								}),
@@ -139,7 +139,7 @@ export const makeUnionVisitor: MakeNodeVisitor<AST.Union> =
 			node.types,
 			baseConstraints,
 			(_constraints, member) =>
-				rec(Ctx.node(ctx.path, node))(member)(_constraints),
+				rec(Ctx.Node(ctx.path, node))(member)(_constraints),
 		);
 	};
 
@@ -167,7 +167,7 @@ export const makeRefinementVisitor: MakeNodeVisitor<AST.Refinement> =
 			(b, a): Constraint => ({ ...b, ...a }),
 		);
 
-		return rec(Ctx.node(ctx.path, node))(node.from)(
+		return rec(Ctx.Node(ctx.path, node))(node.from)(
 			Constraints.modify(constraints, ctx.path, refinementConstraint),
 		);
 	};
@@ -184,7 +184,7 @@ export const makeTransformationVisitor: MakeNodeVisitor<AST.Transformation> =
 				'Transformation cannot be used as a root type (e.g. Schema.Transformation(Schema.String, (s) => s.toUpperCase()))',
 			);
 		}
-		return rec(Ctx.node(ctx.path, node))(node.to)(constraints);
+		return rec(Ctx.Node(ctx.path, node))(node.to)(constraints);
 	};
 
 /**
