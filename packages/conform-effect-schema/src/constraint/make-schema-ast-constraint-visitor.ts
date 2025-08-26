@@ -1,13 +1,11 @@
-import { identity } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as AST from 'effect/SchemaAST';
+import * as Either from 'effect/Either';
 
 import * as Visitors from './visitors';
 import type * as Types from './types';
 import type { Ctx } from './ctx';
 import * as Errors from './errors';
-
-const endoHashIdentity: Types.ConstraintsEndo = identity;
 
 /**
  * Builds a recursive visitor (ctx-first) for Effect Schema AST.
@@ -30,12 +28,13 @@ export const makeSchemaAstConstraintVisitor: () => Types.NodeVisitor = () => {
 				AST.isVoidKeyword, // Schema.Void
 				AST.isUnknownKeyword, // Schema.Unknown,
 				AST.isUniqueSymbol,
-				(node) => {
-					throw new Errors.UnsupportedNodeError({
-						nodeTag: node._tag,
-						path: ctx.path,
-					});
-				},
+				(node) => () =>
+					Either.left(
+						new Errors.UnsupportedNodeError({
+							nodeTag: node._tag,
+							path: ctx.path,
+						}),
+					),
 			),
 
 			// no-op leaves
@@ -45,7 +44,7 @@ export const makeSchemaAstConstraintVisitor: () => Types.NodeVisitor = () => {
 				AST.isBigIntKeyword, // Schema.BigIntFromSelf
 				AST.isBooleanKeyword, // Schema.Boolean
 				AST.isUndefinedKeyword, // Schema.Undefined
-				() => endoHashIdentity,
+				() => (constraints) => Either.right(constraints),
 			),
 
 			Match.whenOr(
@@ -53,22 +52,40 @@ export const makeSchemaAstConstraintVisitor: () => Types.NodeVisitor = () => {
 				AST.isDeclaration,
 				AST.isTemplateLiteral,
 				AST.isEnums,
-				() => endoHashIdentity,
+				() => (constraints) => Either.right(constraints),
 			),
 
-			Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx)(node)),
-			Match.when(AST.isTupleType, (node) => tupleTypeVisitor(ctx)(node)),
-			Match.when(AST.isUnion, (node) => unionVisitor(ctx)(node)),
-			Match.when(AST.isRefinement, (node) => refinementVisitor(ctx)(node)),
-			Match.when(AST.isTransformation, (node) =>
-				transformationVisitor(ctx)(node),
+			Match.when(
+				AST.isTypeLiteral,
+				(node) => (constraints) => typeLiteralVisitor(ctx)(node)(constraints),
 			),
-			Match.when(AST.isSuspend, (node) => {
-				throw new Errors.MissingNodeImplementationError({
-					nodeTag: node._tag,
-					path: ctx.path,
-				});
-			}),
+			Match.when(
+				AST.isTupleType,
+				(node) => (constraints) => tupleTypeVisitor(ctx)(node)(constraints),
+			),
+			Match.when(
+				AST.isUnion,
+				(node) => (constraints) => unionVisitor(ctx)(node)(constraints),
+			),
+			Match.when(
+				AST.isRefinement,
+				(node) => (constraints) => refinementVisitor(ctx)(node)(constraints),
+			),
+			Match.when(
+				AST.isTransformation,
+				(node) => (constraints) =>
+					transformationVisitor(ctx)(node)(constraints),
+			),
+			Match.when(
+				AST.isSuspend,
+				(node) => () =>
+					Either.left(
+						new Errors.MissingNodeImplementationError({
+							nodeTag: node._tag,
+							path: ctx.path,
+						}),
+					),
+			),
 
 			Match.exhaustive,
 		);
@@ -80,17 +97,25 @@ export const makeSchemaAstConstraintVisitor: () => Types.NodeVisitor = () => {
 		Match.value(ast).pipe(
 			Match.withReturnType<Types.ConstraintsEndo>(),
 
-			Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx)(node)),
-			Match.when(AST.isTransformation, (node) =>
-				transformationVisitor(ctx)(node),
+			Match.when(
+				AST.isTypeLiteral,
+				(node) => (constraints) => typeLiteralVisitor(ctx)(node)(constraints),
+			),
+			Match.when(
+				AST.isTransformation,
+				(node) => (constraints) =>
+					transformationVisitor(ctx)(node)(constraints),
 			),
 
-			Match.orElse((node) => {
-				throw new Errors.IllegalRootNode({
-					expectedNode: 'TypeLiteral',
-					actualNode: node._tag,
-				});
-			}),
+			Match.orElse(
+				(node) => () =>
+					Either.left(
+						new Errors.IllegalRootNode({
+							expectedNode: 'TypeLiteral',
+							actualNode: node._tag,
+						}),
+					),
+			),
 		);
 
 	const rec: Types.NodeVisitor = (ctxType) =>
