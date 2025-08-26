@@ -13,7 +13,7 @@ export const getEffectSchemaConstraint = <A, I>(
 ): Record<string, Constraint> =>
 	pipe(
 		makeSchemaAstConstraintVisitor(),
-		(nodeVisitor) => nodeVisitor(Ctx.Root())(schema.ast)(Constraints.empty()),
+		(nodeVisitor) => nodeVisitor(Ctx.Root(), schema.ast, Constraints.empty()),
 		Either.match({
 			onLeft: (error) => {
 				throw error;

@@ -11,13 +11,13 @@ import * as Errors from './errors';
  * Builds a recursive visitor (ctx-first) for Effect Schema AST.
  * @private
  */
-export const makeSchemaAstConstraintVisitor: () => Types.NodeVisitor = () => {
+export const makeSchemaAstConstraintVisitor: () => Types.Visit = () => {
 	/**
 	 * Node-context recursive dispatcher: accepts only Ctx.Node
 	 */
-	const recNode: Types.NodeVisitor<Ctx.Node> = (ctx) => (ast) =>
+	const recNode: Types.Visit<Ctx.Node> = (ctx, ast, acc) =>
 		Match.value(ast).pipe(
-			Match.withReturnType<Types.ConstraintsEndo>(),
+			Match.withReturnType<Types.ReturnConstraints>(),
 
 			// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
 			Match.whenOr(
@@ -28,7 +28,7 @@ export const makeSchemaAstConstraintVisitor: () => Types.NodeVisitor = () => {
 				AST.isVoidKeyword, // Schema.Void
 				AST.isUnknownKeyword, // Schema.Unknown,
 				AST.isUniqueSymbol,
-				(node) => () =>
+				(node) =>
 					Either.left(
 						new Errors.UnsupportedNodeError({
 							nodeTag: node._tag,
@@ -44,7 +44,7 @@ export const makeSchemaAstConstraintVisitor: () => Types.NodeVisitor = () => {
 				AST.isBigIntKeyword, // Schema.BigIntFromSelf
 				AST.isBooleanKeyword, // Schema.Boolean
 				AST.isUndefinedKeyword, // Schema.Undefined
-				() => (constraints) => Either.right(constraints),
+				() => Either.right(acc),
 			),
 
 			Match.whenOr(
@@ -52,39 +52,25 @@ export const makeSchemaAstConstraintVisitor: () => Types.NodeVisitor = () => {
 				AST.isDeclaration,
 				AST.isTemplateLiteral,
 				AST.isEnums,
-				() => (constraints) => Either.right(constraints),
+				() => Either.right(acc),
 			),
 
-			Match.when(
-				AST.isTypeLiteral,
-				(node) => (constraints) => typeLiteralVisitor(ctx)(node)(constraints),
+			Match.when(AST.isTypeLiteral, (node) =>
+				typeLiteralVisitor(ctx, node, acc),
 			),
-			Match.when(
-				AST.isTupleType,
-				(node) => (constraints) => tupleTypeVisitor(ctx)(node)(constraints),
+			Match.when(AST.isTupleType, (node) => tupleTypeVisitor(ctx, node, acc)),
+			Match.when(AST.isUnion, (node) => unionVisitor(ctx, node, acc)),
+			Match.when(AST.isRefinement, (node) => refinementVisitor(ctx, node, acc)),
+			Match.when(AST.isTransformation, (node) =>
+				transformationVisitor(ctx, node, acc),
 			),
-			Match.when(
-				AST.isUnion,
-				(node) => (constraints) => unionVisitor(ctx)(node)(constraints),
-			),
-			Match.when(
-				AST.isRefinement,
-				(node) => (constraints) => refinementVisitor(ctx)(node)(constraints),
-			),
-			Match.when(
-				AST.isTransformation,
-				(node) => (constraints) =>
-					transformationVisitor(ctx)(node)(constraints),
-			),
-			Match.when(
-				AST.isSuspend,
-				(node) => () =>
-					Either.left(
-						new Errors.MissingNodeImplementationError({
-							nodeTag: node._tag,
-							path: ctx.path,
-						}),
-					),
+			Match.when(AST.isSuspend, (node) =>
+				Either.left(
+					new Errors.MissingNodeImplementationError({
+						nodeTag: node._tag,
+						path: ctx.path,
+					}),
+				),
 			),
 
 			Match.exhaustive,
@@ -93,35 +79,31 @@ export const makeSchemaAstConstraintVisitor: () => Types.NodeVisitor = () => {
 	/**
 	 * Root-context dispatcher: only allow root-legal nodes (TypeLiteral)
 	 */
-	const recRoot: Types.NodeVisitor<Ctx.Root> = (ctx) => (ast) =>
+	const recRoot: Types.Visit<Ctx.Root> = (ctx, ast, acc) =>
 		Match.value(ast).pipe(
-			Match.withReturnType<Types.ConstraintsEndo>(),
+			Match.withReturnType<Types.ReturnConstraints>(),
 
-			Match.when(
-				AST.isTypeLiteral,
-				(node) => (constraints) => typeLiteralVisitor(ctx)(node)(constraints),
+			Match.when(AST.isTypeLiteral, (node) =>
+				typeLiteralVisitor(ctx, node, acc),
 			),
-			Match.when(
-				AST.isTransformation,
-				(node) => (constraints) =>
-					transformationVisitor(ctx)(node)(constraints),
+			Match.when(AST.isTransformation, (node) =>
+				transformationVisitor(ctx, node, acc),
 			),
 
-			Match.orElse(
-				(node) => () =>
-					Either.left(
-						new Errors.IllegalRootNode({
-							expectedNode: 'TypeLiteral',
-							actualNode: node._tag,
-						}),
-					),
+			Match.orElse((node) =>
+				Either.left(
+					new Errors.IllegalRootNode({
+						expectedNode: 'TypeLiteral',
+						actualNode: node._tag,
+					}),
+				),
 			),
 		);
 
-	const rec: Types.NodeVisitor = (ctxType) =>
-		Match.valueTags(ctxType, {
-			Root: recRoot,
-			Node: recNode,
+	const rec: Types.Visit = (ctx, node, acc) =>
+		Match.valueTags(ctx, {
+			Root: (rootCtx) => recRoot(rootCtx, node, acc),
+			Node: (nodeCtx) => recNode(nodeCtx, node, acc),
 		});
 
 	const typeLiteralVisitor = Visitors.makeTypeLiteralVisitor(rec);

@@ -16,15 +16,19 @@ export type Errors =
 
 export type ReturnConstraints = Either.Either<Constraints.Constraints, Errors>;
 
-export type ConstraintsEndo = (
-	constraints: Constraints.Constraints,
-) => ReturnConstraints;
-
-export type NodeVisitor<
+export type Visit<
 	CTX extends Ctx.Ctx = Ctx.Ctx,
 	Ast extends AST.AST = AST.AST,
-> = (ctx: CTX) => (node: Readonly<Ast>) => ConstraintsEndo;
+> = (
+	ctx: CTX,
+	node: Readonly<Ast>,
+	acc: Constraints.Constraints,
+) => ReturnConstraints;
 
-export type MakeNodeVisitor<CTX extends Ctx.Ctx, Ast extends AST.AST> = (
-	rec: NodeVisitor<CTX>,
-) => NodeVisitor<CTX, Ast>;
+export type MakeVisitor<CTX extends Ctx.Ctx, Ast extends AST.AST> = (
+	rec: Visit<CTX>,
+) => (
+	ctx: CTX,
+	node: Readonly<Ast>,
+	acc: Constraints.Constraints,
+) => ReturnConstraints;

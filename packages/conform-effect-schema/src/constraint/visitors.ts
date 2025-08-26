@@ -17,10 +17,10 @@ import { Ctx } from './ctx';
  *
  * @private
  */
-export const makeTypeLiteralVisitor: Types.MakeNodeVisitor<
+export const makeTypeLiteralVisitor: Types.MakeVisitor<
 	Ctx.Ctx,
 	AST.TypeLiteral
-> = (rec) => (ctx) => (node) => (constraints) =>
+> = (rec) => (ctx, node, constraints) =>
 	ReadonlyArray.reduce(
 		node.propertySignatures,
 		Either.right(constraints) as Types.ReturnConstraints,
@@ -30,7 +30,9 @@ export const makeTypeLiteralVisitor: Types.MakeNodeVisitor<
 					? propertySignature.name.toString()
 					: `${ctx.path}.${propertySignature.name.toString()}`;
 
-				return rec(Ctx.Node(path, node))(propertySignature.type)(
+				return rec(
+					Ctx.Node(path, node),
+					propertySignature.type,
 					Constraints.set(_constraints, path, {
 						required: !propertySignature.isOptional,
 					}),
@@ -43,71 +45,71 @@ export const makeTypeLiteralVisitor: Types.MakeNodeVisitor<
  *
  * @private
  */
-export const makeTupleTypeVisitor: Types.MakeNodeVisitor<
-	Ctx.Node,
-	AST.TupleType
-> = (rec) => (ctx) => (node) =>
-	Match.value(node).pipe(
-		Match.withReturnType<Types.ConstraintsEndo>(),
+export const makeTupleTypeVisitor: Types.MakeVisitor<Ctx.Node, AST.TupleType> =
+	(rec) => (ctx, node, constraints) =>
+		Match.value(node).pipe(
+			Match.withReturnType<Types.ReturnConstraints>(),
 
-		Match.whenAnd(
-			({ elements }) => elements.length === 0,
-			({ rest }) => rest.length > 0,
-			(tupleType) => (constraints) => {
-				const base = Constraints.modify(constraints, ctx.path, {
-					multiple: true,
-				});
+			// Only rest -> array-like
+			Match.whenAnd(
+				({ elements }) => elements.length === 0,
+				({ rest }) => rest.length > 0,
+				(tupleType) => {
+					const base = Constraints.modify(constraints, ctx.path, {
+						multiple: true,
+					});
 
-				return ReadonlyArray.reduce(
-					tupleType.rest,
-					Either.right(base) as Types.ReturnConstraints,
-					(returnConstraints, type) =>
-						Either.flatMap(returnConstraints, (_constraints) => {
-							const itemPath = `${ctx.path}[]`;
-							const withItem = Constraints.set(_constraints, itemPath, {
-								required: true,
-							});
+					return ReadonlyArray.reduce(
+						tupleType.rest,
+						Either.right(base) as Types.ReturnConstraints,
+						(returnConstraints, type) =>
+							Either.flatMap(returnConstraints, (_constraints) => {
+								const itemPath = `${ctx.path}[]`;
+								const withItem = Constraints.set(_constraints, itemPath, {
+									required: true,
+								});
 
-							return rec(Ctx.Node(itemPath, tupleType))(type.type)(withItem);
-						}),
-				);
-			},
-		),
+								return rec(Ctx.Node(itemPath, tupleType), type.type, withItem);
+							}),
+					);
+				},
+			),
 
-		Match.whenAnd(
-			({ elements }) => elements.length > 0,
-			({ rest }) => rest.length >= 0,
-			(tupleType) => (constraints: Constraints.Constraints) =>
-				ReadonlyArray.reduce(
-					tupleType.elements,
-					Either.right(constraints) as Types.ReturnConstraints,
-					(returnConstraints, optionalType, idx) => {
-						return Either.flatMap(returnConstraints, (_constraints) => {
-							const elemPath = `${ctx.path}[${idx}]`;
-							const withElem = Constraints.set(_constraints, elemPath, {
-								required: !optionalType.isOptional,
-							});
+			// Fixed elements (with optional rest)
+			Match.whenAnd(
+				({ elements }) => elements.length > 0,
+				({ rest }) => rest.length >= 0,
+				(tupleType) =>
+					ReadonlyArray.reduce(
+						tupleType.elements,
+						Either.right(constraints) as Types.ReturnConstraints,
+						(returnConstraints, optionalType, idx) =>
+							Either.flatMap(returnConstraints, (_constraints) => {
+								const elemPath = `${ctx.path}[${idx}]`;
+								const withElem = Constraints.set(_constraints, elemPath, {
+									required: !optionalType.isOptional,
+								});
 
-							return rec(Ctx.Node(elemPath, tupleType))(optionalType.type)(
-								withElem,
-							);
-						}); // ensure sequencing
-					},
-				),
-		),
+								return rec(
+									Ctx.Node(elemPath, tupleType),
+									optionalType.type,
+									withElem,
+								);
+							}),
+					),
+			),
 
-		Match.orElse(
-			() => (constraints: Constraints.Constraints) => Either.right(constraints),
-		),
-	);
+			// Default case
+			Match.orElse(() => Either.right(constraints)),
+		);
 
 /**
  * Visits a Union node and merges constraints derived from each union member into the same path.
  *
  * @private
  */
-export const makeUnionVisitor: Types.MakeNodeVisitor<Ctx.Node, AST.Union> =
-	(rec) => (ctx) => (node) => (constraints) => {
+export const makeUnionVisitor: Types.MakeVisitor<Ctx.Node, AST.Union> =
+	(rec) => (ctx, node, constraints) => {
 		const isStringLiteral = (
 			t: AST.AST,
 		): t is AST.Literal & { literal: string } =>
@@ -140,7 +142,7 @@ export const makeUnionVisitor: Types.MakeNodeVisitor<Ctx.Node, AST.Union> =
 			Either.right(baseConstraints) as Types.ReturnConstraints,
 			(returnConstraints, member) =>
 				Either.flatMap(returnConstraints, (_constraints) =>
-					rec(Ctx.Node(ctx.path, node))(member)(_constraints),
+					rec(Ctx.Node(ctx.path, node), member, _constraints),
 				),
 		);
 	};
@@ -150,10 +152,10 @@ export const makeUnionVisitor: Types.MakeNodeVisitor<Ctx.Node, AST.Union> =
  *
  * @private
  */
-export const makeRefinementVisitor: Types.MakeNodeVisitor<
+export const makeRefinementVisitor: Types.MakeVisitor<
 	Ctx.Node,
 	AST.Refinement
-> = (rec) => (ctx) => (node) => (constraints) => {
+> = (rec) => (ctx, node, constraints) => {
 	const refinementConstraint: Constraint = Option.reduceCompact(
 		[
 			Refinements.stringRefinement(node),
@@ -166,7 +168,7 @@ export const makeRefinementVisitor: Types.MakeNodeVisitor<
 	);
 	const next = Constraints.modify(constraints, ctx.path, refinementConstraint);
 
-	return rec(Ctx.Node(ctx.path, node))(node.from)(next);
+	return rec(Ctx.Node(ctx.path, node), node.from, next);
 };
 
 /**
@@ -174,11 +176,11 @@ export const makeRefinementVisitor: Types.MakeNodeVisitor<
  *
  * @private
  */
-export const makeTransformationVisitor: Types.MakeNodeVisitor<
+export const makeTransformationVisitor: Types.MakeVisitor<
 	Ctx.Ctx,
 	AST.Transformation
-> = (rec) => (ctx) => (node) => (constraints) =>
+> = (rec) => (ctx, node, constraints) =>
 	Match.valueTags(ctx, {
-		Root: (rootCtx) => rec(rootCtx)(node.to)(constraints),
-		Node: (nodeCtx) => rec(Ctx.Node(nodeCtx.path, node))(node.to)(constraints),
+		Root: (rootCtx) => rec(rootCtx, node.to, constraints),
+		Node: (nodeCtx) => rec(Ctx.Node(nodeCtx.path, node), node.to, constraints),
 	});
