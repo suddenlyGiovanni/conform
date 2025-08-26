@@ -6,12 +6,12 @@ import * as AST from 'effect/SchemaAST';
 import * as Predicate from 'effect/Predicate';
 import * as Struct from 'effect/Struct';
 import * as Either from 'effect/Either';
+import { pipe } from 'effect/Function';
 
 import { Constraints } from './constraints';
 import * as Refinements from './refinements';
 import type * as Types from './types';
 import { Ctx } from './ctx';
-import { pipe } from 'effect/Function';
 
 /**
  * Visits a TypeLiteral node and updates constraints for each property signature.
@@ -42,7 +42,7 @@ export const makeTypeLiteralVisitor: Types.MakeVisitor<
 					return rec(
 						Ctx.Node(path, node),
 						propertySignature.type,
-						Constraints.set(constraints, path, {
+						Constraints.modify(constraints, path, {
 							required: !propertySignature.isOptional,
 						}),
 					);
@@ -80,7 +80,7 @@ export const makeTupleTypeVisitor: Types.MakeVisitor<Ctx.Node, AST.TupleType> =
 									rec(
 										Ctx.Node(`${ctx.path}[]`, tupleType),
 										type.type,
-										Constraints.set(constraints, `${ctx.path}[]`, {
+										Constraints.modify(constraints, `${ctx.path}[]`, {
 											required: true,
 										}),
 									),
@@ -104,7 +104,7 @@ export const makeTupleTypeVisitor: Types.MakeVisitor<Ctx.Node, AST.TupleType> =
 									rec(
 										Ctx.Node(`${ctx.path}[${idx}]`, tupleType),
 										optionalType.type,
-										Constraints.set(constraints, `${ctx.path}[${idx}]`, {
+										Constraints.modify(constraints, `${ctx.path}[${idx}]`, {
 											required: !optionalType.isOptional,
 										}),
 									),
@@ -164,6 +164,14 @@ export const makeUnionVisitor: Types.MakeVisitor<Ctx.Node, AST.Union> =
 		);
 	};
 
+const mergeConstraint = (
+	...constraints: readonly Option.Option<Constraint>[]
+): Constraint =>
+	pipe(
+		constraints,
+		Option.reduceCompact({}, (b, a) => ({ ...b, ...a })),
+	);
+
 /**
  * Visits a Refinement node and merges refinement-derived constraints into the current path.
  *
@@ -172,24 +180,21 @@ export const makeUnionVisitor: Types.MakeVisitor<Ctx.Node, AST.Union> =
 export const makeRefinementVisitor: Types.MakeVisitor<
 	Ctx.Node,
 	AST.Refinement
-> = (rec) => (ctx, node, acc) => {
-	const refinementConstraint: Constraint = Option.reduceCompact(
-		[
-			Refinements.stringRefinement(node),
-			Refinements.numberRefinement(node),
-			Refinements.bigintRefinement(node),
-			Refinements.dateRefinement(node),
-		],
-		{} satisfies Constraint,
-		(b, a): Constraint => ({ ...b, ...a }),
-	);
-
-	return rec(
+> = (rec) => (ctx, node, acc) =>
+	rec(
 		Ctx.Node(ctx.path, node),
 		node.from,
-		Constraints.modify(acc, ctx.path, refinementConstraint),
+		Constraints.modify(
+			acc,
+			ctx.path,
+			mergeConstraint(
+				Refinements.stringRefinement(node),
+				Refinements.numberRefinement(node),
+				Refinements.bigintRefinement(node),
+				Refinements.dateRefinement(node),
+			),
+		),
 	);
-};
 
 /**
  * Visits a Transformation node and continues traversal to the "to" type.
