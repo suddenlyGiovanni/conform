@@ -17,7 +17,7 @@ export const makeSchemaAstConstraintVisitor: () => Types.Visit = () => {
 	 */
 	const recNode: Types.Visit<Ctx.Node> = (ctx, ast, acc) =>
 		Match.value(ast).pipe(
-			Match.withReturnType<Types.ReturnConstraints>(),
+			Match.withReturnType<Types.ResultConstraints>(),
 
 			// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
 			Match.whenOr(
@@ -81,7 +81,7 @@ export const makeSchemaAstConstraintVisitor: () => Types.Visit = () => {
 	 */
 	const recRoot: Types.Visit<Ctx.Root> = (ctx, ast, acc) =>
 		Match.value(ast).pipe(
-			Match.withReturnType<Types.ReturnConstraints>(),
+			Match.withReturnType<Types.ResultConstraints>(),
 
 			Match.when(AST.isTypeLiteral, (node) =>
 				typeLiteralVisitor(ctx, node, acc),

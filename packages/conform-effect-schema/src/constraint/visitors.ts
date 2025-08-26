@@ -21,13 +21,17 @@ import { pipe } from 'effect/Function';
 export const makeTypeLiteralVisitor: Types.MakeVisitor<
 	Ctx.Ctx,
 	AST.TypeLiteral
-> = (rec) => (ctx, node, acc) =>
-	ReadonlyArray.reduce(
-		node.propertySignatures,
-		Either.right(acc) as Types.ReturnConstraints,
-		(returnConstraints, propertySignature) =>
+> = (rec) => (ctx, node, acc) => {
+	const propertySignatures = node.propertySignatures;
+
+	if (propertySignatures.length === 0) return Either.right(acc);
+
+	return ReadonlyArray.reduce(
+		propertySignatures,
+		Either.right(acc) as Types.ResultConstraints,
+		(resultConstraints, propertySignature) =>
 			pipe(
-				returnConstraints,
+				resultConstraints,
 				Either.flatMap((constraints) => {
 					const path = Match.valueTags(ctx, {
 						Root: () => propertySignature.name.toString(),
@@ -45,6 +49,7 @@ export const makeTypeLiteralVisitor: Types.MakeVisitor<
 				}),
 			),
 	);
+};
 
 /**
  * Visits a TupleType node and updates constraints for tuple elements and/or array-like rest elements.
@@ -54,7 +59,7 @@ export const makeTypeLiteralVisitor: Types.MakeVisitor<
 export const makeTupleTypeVisitor: Types.MakeVisitor<Ctx.Node, AST.TupleType> =
 	(rec) => (ctx, node, acc) =>
 		Match.value(node).pipe(
-			Match.withReturnType<Types.ReturnConstraints>(),
+			Match.withReturnType<Types.ResultConstraints>(),
 
 			// Only rest -> array-like
 			Match.whenAnd(
@@ -67,10 +72,10 @@ export const makeTupleTypeVisitor: Types.MakeVisitor<Ctx.Node, AST.TupleType> =
 							Constraints.modify(acc, ctx.path, {
 								multiple: true,
 							}),
-						) as Types.ReturnConstraints,
-						(returnConstraints, type) =>
+						) as Types.ResultConstraints,
+						(resultConstraints, type) =>
 							pipe(
-								returnConstraints,
+								resultConstraints,
 								Either.flatMap((constraints) =>
 									rec(
 										Ctx.Node(`${ctx.path}[]`, tupleType),
@@ -91,10 +96,10 @@ export const makeTupleTypeVisitor: Types.MakeVisitor<Ctx.Node, AST.TupleType> =
 				(tupleType) =>
 					ReadonlyArray.reduce(
 						tupleType.elements,
-						Either.right(acc) as Types.ReturnConstraints,
-						(returnConstraints, optionalType, idx) =>
+						Either.right(acc) as Types.ResultConstraints,
+						(resultConstraints, optionalType, idx) =>
 							pipe(
-								returnConstraints,
+								resultConstraints,
 								Either.flatMap((constraints) =>
 									rec(
 										Ctx.Node(`${ctx.path}[${idx}]`, tupleType),
@@ -148,10 +153,10 @@ export const makeUnionVisitor: Types.MakeVisitor<Ctx.Node, AST.Union> =
 
 		return ReadonlyArray.reduce(
 			node.types,
-			Either.right(baseConstraints) as Types.ReturnConstraints,
-			(returnConstraints, member) =>
+			Either.right(baseConstraints) as Types.ResultConstraints,
+			(resultConstraints, member) =>
 				pipe(
-					returnConstraints,
+					resultConstraints,
 					Either.flatMap((constraints) =>
 						rec(Ctx.Node(ctx.path, node), member, constraints),
 					),

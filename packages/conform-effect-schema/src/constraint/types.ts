@@ -14,7 +14,7 @@ export type Errors =
 	| MissingNodeImplementationError
 	| IllegalRootNode;
 
-export type ReturnConstraints = Either.Either<Constraints.Constraints, Errors>;
+export type ResultConstraints = Either.Either<Constraints.Constraints, Errors>;
 
 export type Visit<
 	CTX extends Ctx.Ctx = Ctx.Ctx,
@@ -23,7 +23,7 @@ export type Visit<
 	ctx: CTX,
 	node: Readonly<Ast>,
 	acc: Constraints.Constraints,
-) => ReturnConstraints;
+) => ResultConstraints;
 
 export type MakeVisitor<CTX extends Ctx.Ctx, Ast extends AST.AST> = (
 	rec: Visit<CTX>,
@@ -31,4 +31,4 @@ export type MakeVisitor<CTX extends Ctx.Ctx, Ast extends AST.AST> = (
 	ctx: CTX,
 	node: Readonly<Ast>,
 	acc: Constraints.Constraints,
-) => ReturnConstraints;
+) => ResultConstraints;
