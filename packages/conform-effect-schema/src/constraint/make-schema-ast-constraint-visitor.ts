@@ -11,11 +11,11 @@ import * as Errors from './errors';
  * Builds a recursive visitor (ctx-first) for Effect Schema AST.
  * @private
  */
-export const makeSchemaAstConstraintVisitor: () => Types.Visit = () => {
+export const makeSchemaAstConstraintVisitor: () => Types.VisitState = () => {
 	/**
 	 * Node-context recursive dispatcher: accepts only Ctx.Node
 	 */
-	const recNode: Types.Visit<Ctx.Node> = (ctx, ast, acc) =>
+	const recNode: Types.VisitState<Ctx.Node> = (ctx, ast, acc) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Types.ResultConstraints>(),
 
@@ -79,7 +79,7 @@ export const makeSchemaAstConstraintVisitor: () => Types.Visit = () => {
 	/**
 	 * Root-context dispatcher: only allow root-legal nodes (TypeLiteral)
 	 */
-	const recRoot: Types.Visit<Ctx.Root> = (ctx, ast, acc) =>
+	const recRoot: Types.VisitState<Ctx.Root> = (ctx, ast, acc) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Types.ResultConstraints>(),
 
@@ -100,7 +100,7 @@ export const makeSchemaAstConstraintVisitor: () => Types.Visit = () => {
 			),
 		);
 
-	const rec: Types.Visit = (ctx, node, acc) =>
+	const rec: Types.VisitState = (ctx, node, acc) =>
 		Match.valueTags(ctx, {
 			Root: (rootCtx) => recRoot(rootCtx, node, acc),
 			Node: (nodeCtx) => recNode(nodeCtx, node, acc),
