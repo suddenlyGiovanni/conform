@@ -23,3 +23,8 @@ export class IllegalRootNode extends Data.TaggedError('IllegalRootNode')<{
 }> {
 	readonly message = `Root schema must be an AST node '${this.expectedNode}', instead got: '${this.actualNode}'`;
 }
+
+export type Errors =
+	| UnsupportedNodeError
+	| MissingNodeImplementationError
+	| IllegalRootNode;
