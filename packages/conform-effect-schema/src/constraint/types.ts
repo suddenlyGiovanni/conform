@@ -19,7 +19,7 @@ type Endomorphism<A> = (a: A) => A;
 
 export declare namespace Constraints {
 	type Path = string;
-	type Constraints = HashMap.HashMap<Path, Constraint>;
+	type Map = HashMap.HashMap<Path, Constraint>;
 }
 
 export class Constraints {
@@ -27,14 +27,14 @@ export class Constraints {
 	 * Construct an empty constraints collection.
 	 * @private
 	 */
-	static empty = (): Constraints.Constraints =>
+	static empty = (): Constraints.Map =>
 		HashMap.empty<Constraints.Path, Constraint>();
 
 	static modify = (
-		constraints: Constraints.Constraints,
+		constraints: Constraints.Map,
 		path: Constraints.Path,
 		patch: Partial<Constraint>,
-	): Constraints.Constraints =>
+	): Constraints.Map =>
 		HashMap.modifyAt(constraints, path, (maybeConstraint) =>
 			Option.some({
 				...Option.getOrElse(maybeConstraint, Record.empty),
@@ -43,16 +43,16 @@ export class Constraints {
 		);
 
 	static set = (
-		constraints: Constraints.Constraints,
+		constraints: Constraints.Map,
 		path: Constraints.Path,
 		patch: Partial<Constraint>,
-	): Constraints.Constraints => HashMap.set(constraints, path, patch);
+	): Constraints.Map => HashMap.set(constraints, path, patch);
 
 	/**
 	 * Materialize a constraints collection to a plain record.
 	 * @private
 	 */
-	static toRecord = (constraints: Constraints.Constraints): ConstraintRecord =>
+	static toRecord = (constraints: Constraints.Map): ConstraintRecord =>
 		Record.fromEntries(constraints);
 }
 
@@ -66,7 +66,7 @@ export type MakeVisitor<CTX extends Ctx.Ctx, Ast extends AST.AST> = (
 ) => Visit<CTX, Ast>;
 
 export declare namespace Endo {
-	type Endo = Endomorphism<Constraints.Constraints>;
+	type Endo = Endomorphism<Constraints.Map>;
 	type Prog = Either.Either<Endo, Errors>;
 }
 
