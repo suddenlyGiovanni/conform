@@ -4,7 +4,7 @@ import * as Schema from 'effect/Schema';
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
 
-import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor';
+import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor-endo';
 import { Ctx } from './ctx';
 import { Constraints } from './constraints';
 
@@ -13,7 +13,8 @@ export const getEffectSchemaConstraint = <A, I>(
 ): Record<string, Constraint> =>
 	pipe(
 		makeSchemaAstConstraintVisitor(),
-		(visit) => visit(Ctx.Root(), schema.ast, Constraints.empty()),
+		(visit) => visit(Ctx.Root(), schema.ast),
+		Either.map((endo) => endo(Constraints.empty())),
 		Either.getOrThrowWith((error) => {
 			throw error;
 		}),
