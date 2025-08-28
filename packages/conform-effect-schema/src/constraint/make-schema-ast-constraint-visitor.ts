@@ -1,23 +1,16 @@
 import * as Match from 'effect/Match';
 import * as AST from 'effect/SchemaAST';
-import * as Either from 'effect/Either';
 
-import * as Visitors from './visitors';
+import { Endo } from './constraints-endo';
+import * as Visitors from './endo-visitors';
 import type * as Types from './types';
 import type { Ctx } from './ctx';
 import * as Errors from './errors';
 
-/**
- * Builds a recursive visitor (ctx-first) for Effect Schema AST.
- * @private
- */
-export const makeSchemaAstConstraintVisitor: () => Types.VisitState = () => {
-	/**
-	 * Node-context recursive dispatcher: accepts only Ctx.Node
-	 */
-	const recNode: Types.VisitState<Ctx.Node> = (ctx, ast, acc) =>
+export const makeSchemaAstConstraintVisitor: () => Types.VisitEndo = () => {
+	const recNode: Types.VisitEndo<Ctx.Node> = (ctx, ast) =>
 		Match.value(ast).pipe(
-			Match.withReturnType<Types.ResultConstraints>(),
+			Match.withReturnType<Endo.Prog>(),
 
 			// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
 			Match.whenOr(
@@ -26,10 +19,10 @@ export const makeSchemaAstConstraintVisitor: () => Types.VisitState = () => {
 				AST.isObjectKeyword, // Schema.Object
 				AST.isSymbolKeyword, // Schema.SymbolFromSelf
 				AST.isVoidKeyword, // Schema.Void
-				AST.isUnknownKeyword, // Schema.Unknown,
+				AST.isUnknownKeyword, // Schema.Unknown
 				AST.isUniqueSymbol,
 				(node) =>
-					Either.left(
+					Endo.fail(
 						new Errors.UnsupportedNodeError({
 							nodeTag: node._tag,
 							path: ctx.path,
@@ -44,7 +37,7 @@ export const makeSchemaAstConstraintVisitor: () => Types.VisitState = () => {
 				AST.isBigIntKeyword, // Schema.BigIntFromSelf
 				AST.isBooleanKeyword, // Schema.Boolean
 				AST.isUndefinedKeyword, // Schema.Undefined
-				() => Either.right(acc),
+				() => Endo.of(Endo.id),
 			),
 
 			Match.whenOr(
@@ -52,20 +45,18 @@ export const makeSchemaAstConstraintVisitor: () => Types.VisitState = () => {
 				AST.isDeclaration,
 				AST.isTemplateLiteral,
 				AST.isEnums,
-				() => Either.right(acc),
+				() => Endo.of(Endo.id),
 			),
 
-			Match.when(AST.isTypeLiteral, (node) =>
-				typeLiteralVisitor(ctx, node, acc),
-			),
-			Match.when(AST.isTupleType, (node) => tupleTypeVisitor(ctx, node, acc)),
-			Match.when(AST.isUnion, (node) => unionVisitor(ctx, node, acc)),
-			Match.when(AST.isRefinement, (node) => refinementVisitor(ctx, node, acc)),
+			Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx, node)),
+			Match.when(AST.isTupleType, (node) => tupleTypeVisitor(ctx, node)),
+			Match.when(AST.isUnion, (node) => unionVisitor(ctx, node)),
+			Match.when(AST.isRefinement, (node) => refinementVisitor(ctx, node)),
 			Match.when(AST.isTransformation, (node) =>
-				transformationVisitor(ctx, node, acc),
+				transformationVisitor(ctx, node),
 			),
 			Match.when(AST.isSuspend, (node) =>
-				Either.left(
+				Endo.fail(
 					new Errors.MissingNodeImplementationError({
 						nodeTag: node._tag,
 						path: ctx.path,
@@ -76,22 +67,17 @@ export const makeSchemaAstConstraintVisitor: () => Types.VisitState = () => {
 			Match.exhaustive,
 		);
 
-	/**
-	 * Root-context dispatcher: only allow root-legal nodes (TypeLiteral)
-	 */
-	const recRoot: Types.VisitState<Ctx.Root> = (ctx, ast, acc) =>
+	const recRoot: Types.VisitEndo<Ctx.Root> = (ctx, ast) =>
 		Match.value(ast).pipe(
-			Match.withReturnType<Types.ResultConstraints>(),
+			Match.withReturnType<Endo.Prog>(),
 
-			Match.when(AST.isTypeLiteral, (node) =>
-				typeLiteralVisitor(ctx, node, acc),
-			),
+			Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx, node)),
 			Match.when(AST.isTransformation, (node) =>
-				transformationVisitor(ctx, node, acc),
+				transformationVisitor(ctx, node),
 			),
 
 			Match.orElse((node) =>
-				Either.left(
+				Endo.fail(
 					new Errors.IllegalRootNode({
 						expectedNode: 'TypeLiteral',
 						actualNode: node._tag,
@@ -100,10 +86,10 @@ export const makeSchemaAstConstraintVisitor: () => Types.VisitState = () => {
 			),
 		);
 
-	const rec: Types.VisitState = (ctx, node, acc) =>
+	const rec: Types.VisitEndo = (ctx, node) =>
 		Match.valueTags(ctx, {
-			Root: (rootCtx) => recRoot(rootCtx, node, acc),
-			Node: (nodeCtx) => recNode(nodeCtx, node, acc),
+			Root: (rootCtx) => recRoot(rootCtx, node),
+			Node: (nodeCtx) => recNode(nodeCtx, node),
 		});
 
 	const typeLiteralVisitor = Visitors.makeTypeLiteralVisitor(rec);

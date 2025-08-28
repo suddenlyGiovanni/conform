@@ -4,7 +4,7 @@ import * as Schema from 'effect/Schema';
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
 
-import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor-endo';
+import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor';
 import { Ctx } from './ctx';
 import { Constraints } from './constraints';
 
