@@ -3,10 +3,53 @@ import type * as AST from 'effect/SchemaAST';
 import type { Constraint } from '@conform-to/dom';
 import * as Either from 'effect/Either';
 import { identity } from 'effect/Function';
+import * as HashMap from 'effect/HashMap';
+import * as Record from 'effect/Record';
+import * as Option from 'effect/Option';
 
 import type { Ctx } from './ctx';
-import { Constraints } from './constraints';
 import type { Errors } from './errors';
+
+export declare namespace Constraints {
+	type Path = string;
+	type Constraints = HashMap.HashMap<Path, Constraint>;
+}
+
+export class Constraints {
+	/**
+	 * Construct an empty constraints collection.
+	 * @private
+	 */
+	static empty = (): Constraints.Constraints =>
+		HashMap.empty<Constraints.Path, Constraint>();
+
+	static modify = (
+		constraints: Constraints.Constraints,
+		path: Constraints.Path,
+		patch: Partial<Constraint>,
+	): Constraints.Constraints =>
+		HashMap.modifyAt(constraints, path, (maybeConstraint) =>
+			Option.some({
+				...Option.getOrElse(maybeConstraint, Record.empty),
+				...patch,
+			}),
+		);
+
+	static set = (
+		constraints: Constraints.Constraints,
+		path: Constraints.Path,
+		patch: Partial<Constraint>,
+	): Constraints.Constraints => HashMap.set(constraints, path, patch);
+
+	/**
+	 * Materialize a constraints collection to a plain record.
+	 * @private
+	 */
+	static toRecord = (
+		constraints: Constraints.Constraints,
+	): Record.ReadonlyRecord<string, Constraint> =>
+		Record.fromEntries(constraints);
+}
 
 type Endomorphism<A> = (a: A) => A;
 

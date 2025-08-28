@@ -1,6 +1,5 @@
 import type * as AST from 'effect/SchemaAST';
-
-import type { Constraints } from './constraints';
+import { type Constraints } from './types';
 
 interface Tag<T extends string> {
 	readonly _tag: T;

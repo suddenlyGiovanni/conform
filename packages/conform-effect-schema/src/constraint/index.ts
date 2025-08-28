@@ -9,8 +9,7 @@ import * as AST from 'effect/SchemaAST';
 import * as Visitors from './visitors';
 import * as Errors from './errors';
 import { Ctx } from './ctx';
-import { Constraints } from './constraints';
-import { type VisitEndo, Endo } from './types';
+import { type VisitEndo, Endo, Constraints } from './types';
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
