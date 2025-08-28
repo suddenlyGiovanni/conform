@@ -3,16 +3,111 @@ import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
+import * as Match from 'effect/Match';
+import * as AST from 'effect/SchemaAST';
 
-import { makeSchemaAstConstraintVisitor } from './make-schema-ast-constraint-visitor';
+import { Endo } from './constraints-endo';
+import * as Visitors from './visitors';
+import type * as Types from './types';
+import * as Errors from './errors';
 import { Ctx } from './ctx';
 import { Constraints } from './constraints';
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
-): Record<string, Constraint> =>
-	pipe(
-		makeSchemaAstConstraintVisitor(),
+): Record<string, Constraint> => {
+	const recNode: Types.VisitEndo<Ctx.Node> = (ctx, ast) =>
+		Match.value(ast).pipe(
+			Match.withReturnType<Endo.Prog>(),
+
+			// We do not support these AST nodes yet, as it seems they do not make sense in the context of form validation.
+			Match.whenOr(
+				AST.isAnyKeyword, // Schema.Any
+				AST.isNeverKeyword, // Schema.Never
+				AST.isObjectKeyword, // Schema.Object
+				AST.isSymbolKeyword, // Schema.SymbolFromSelf
+				AST.isVoidKeyword, // Schema.Void
+				AST.isUnknownKeyword, // Schema.Unknown
+				AST.isUniqueSymbol,
+				(node) =>
+					Endo.fail(
+						new Errors.UnsupportedNodeError({
+							nodeTag: node._tag,
+							path: ctx.path,
+						}),
+					),
+			),
+
+			// no-op leaves
+			Match.whenOr(
+				AST.isStringKeyword, // Schema.String
+				AST.isNumberKeyword, // Schema.Number
+				AST.isBigIntKeyword, // Schema.BigIntFromSelf
+				AST.isBooleanKeyword, // Schema.Boolean
+				AST.isUndefinedKeyword, // Schema.Undefined
+				() => Endo.of(Endo.id),
+			),
+
+			Match.whenOr(
+				AST.isLiteral, // string | number | boolean | null | bigint
+				AST.isDeclaration,
+				AST.isTemplateLiteral,
+				AST.isEnums,
+				() => Endo.of(Endo.id),
+			),
+
+			Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx, node)),
+			Match.when(AST.isTupleType, (node) => tupleTypeVisitor(ctx, node)),
+			Match.when(AST.isUnion, (node) => unionVisitor(ctx, node)),
+			Match.when(AST.isRefinement, (node) => refinementVisitor(ctx, node)),
+			Match.when(AST.isTransformation, (node) =>
+				transformationVisitor(ctx, node),
+			),
+			Match.when(AST.isSuspend, (node) =>
+				Endo.fail(
+					new Errors.MissingNodeImplementationError({
+						nodeTag: node._tag,
+						path: ctx.path,
+					}),
+				),
+			),
+
+			Match.exhaustive,
+		);
+
+	const recRoot: Types.VisitEndo<Ctx.Root> = (ctx, ast) =>
+		Match.value(ast).pipe(
+			Match.withReturnType<Endo.Prog>(),
+
+			Match.when(AST.isTypeLiteral, (node) => typeLiteralVisitor(ctx, node)),
+			Match.when(AST.isTransformation, (node) =>
+				transformationVisitor(ctx, node),
+			),
+
+			Match.orElse((node) =>
+				Endo.fail(
+					new Errors.IllegalRootNode({
+						expectedNode: 'TypeLiteral',
+						actualNode: node._tag,
+					}),
+				),
+			),
+		);
+
+	const rec: Types.VisitEndo = (ctx, node) =>
+		Match.valueTags(ctx, {
+			Root: (rootCtx) => recRoot(rootCtx, node),
+			Node: (nodeCtx) => recNode(nodeCtx, node),
+		});
+
+	const typeLiteralVisitor = Visitors.makeTypeLiteralVisitor(rec);
+	const tupleTypeVisitor = Visitors.makeTupleTypeVisitor(recNode);
+	const unionVisitor = Visitors.makeUnionVisitor(recNode);
+	const refinementVisitor = Visitors.makeRefinementVisitor(recNode);
+	const transformationVisitor = Visitors.makeTransformationVisitor(rec);
+
+	return pipe(
+		rec,
 		(visit) => visit(Ctx.Root(), schema.ast),
 		Either.map((endo) => endo(Constraints.empty())),
 		Either.getOrThrowWith((error) => {
@@ -20,3 +115,4 @@ export const getEffectSchemaConstraint = <A, I>(
 		}),
 		Constraints.toRecord,
 	);
+};
