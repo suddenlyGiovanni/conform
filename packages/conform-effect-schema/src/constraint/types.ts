@@ -9,7 +9,7 @@ import * as Option from 'effect/Option';
 
 import type { Errors } from './errors';
 
-export type ConstraintDictionary = Record.ReadonlyRecord<string, Constraint>;
+export type ConstraintRecord = Record.ReadonlyRecord<string, Constraint>;
 
 interface Tag<T extends string> {
 	readonly _tag: T;
@@ -52,9 +52,8 @@ export class Constraints {
 	 * Materialize a constraints collection to a plain record.
 	 * @private
 	 */
-	static toRecord = (
-		constraints: Constraints.Constraints,
-	): ConstraintDictionary => Record.fromEntries(constraints);
+	static toRecord = (constraints: Constraints.Constraints): ConstraintRecord =>
+		Record.fromEntries(constraints);
 }
 
 export type Visit<
@@ -119,7 +118,6 @@ interface Parent<ParentAst extends AST.AST> {
 	readonly parentNode: Readonly<ParentAst>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export declare namespace Ctx {
 	type Root = _Root;
 

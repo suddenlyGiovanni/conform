@@ -11,12 +11,12 @@ import {
 	Endo,
 	Constraints,
 	Ctx,
-	type ConstraintDictionary,
+	type ConstraintRecord,
 } from './types';
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
-): ConstraintDictionary => {
+): ConstraintRecord => {
 	const recNode: Visit<Ctx.Node> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
