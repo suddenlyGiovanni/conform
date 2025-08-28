@@ -5,127 +5,114 @@ import * as Option from 'effect/Option';
 import * as AST from 'effect/SchemaAST';
 import * as Predicate from 'effect/Predicate';
 import * as Struct from 'effect/Struct';
-import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
 
-import { Constraints } from './constraints';
+import { Endo } from './constraints-endo';
 import * as Refinements from './refinements';
 import type * as Types from './types';
 import { Ctx } from './ctx';
 
-/**
- * Visits a TypeLiteral node and updates constraints for each property signature.
- *
- * @private
- */
-export const makeTypeLiteralVisitor: Types.MakeVisitorState<
+export const makeTypeLiteralVisitor: Types.MakeVisitorEndo<
 	Ctx.Ctx,
 	AST.TypeLiteral
-> = (rec) => (ctx, node, acc) => {
+> = (rec) => (ctx, node) => {
 	const propertySignatures = node.propertySignatures;
 
-	if (propertySignatures.length === 0) return Either.right(acc);
+	if (propertySignatures.length === 0) {
+		return Endo.of(Endo.id);
+	}
 
 	return ReadonlyArray.reduce(
 		propertySignatures,
-		Either.right(acc) as Types.ResultConstraints,
-		(resultConstraints, propertySignature) =>
-			pipe(
-				resultConstraints,
-				Either.flatMap((constraints) => {
-					const path = Match.valueTags(ctx, {
-						Root: () => propertySignature.name.toString(),
-						Node: (nodeCtx) =>
-							`${nodeCtx.path}.${propertySignature.name.toString()}`,
-					});
+		Endo.of(Endo.id),
+		(prog, propertySignature) =>
+			Endo.flatMap(prog, (accEndo) => {
+				const path = Match.valueTags(ctx, {
+					Root: () => propertySignature.name.toString(),
+					Node: (nodeCtx) =>
+						`${nodeCtx.path}.${propertySignature.name.toString()}`,
+				});
 
-					return rec(
-						Ctx.Node(path, node),
-						propertySignature.type,
-						Constraints.modify(constraints, path, {
-							required: !propertySignature.isOptional,
-						}),
-					);
-				}),
-			),
+				return Endo.map(
+					rec(Ctx.Node(path, node), propertySignature.type),
+					(memberEndo) =>
+						Endo.compose(
+							accEndo,
+							Endo.patch(path, { required: !propertySignature.isOptional }),
+							memberEndo,
+						),
+				);
+			}),
 	);
 };
 
-/**
- * Visits a TupleType node and updates constraints for tuple elements and/or array-like rest elements.
- *
- * @private
- */
-export const makeTupleTypeVisitor: Types.MakeVisitorState<
+export const makeTupleTypeVisitor: Types.MakeVisitorEndo<
 	Ctx.Node,
 	AST.TupleType
-> = (rec) => (ctx, node, acc) =>
+> = (rec) => (ctx, node) =>
 	Match.value(node).pipe(
-		Match.withReturnType<Types.ResultConstraints>(),
+		Match.withReturnType<Endo.Prog>(),
 
 		// Only rest -> array-like
 		Match.whenAnd(
 			({ elements }) => elements.length === 0,
 			({ rest }) => rest.length > 0,
-			(tupleType) =>
-				ReadonlyArray.reduce(
-					tupleType.rest,
-					Either.right(
-						Constraints.modify(acc, ctx.path, {
-							multiple: true,
-						}),
-					) as Types.ResultConstraints,
-					(resultConstraints, type) =>
-						pipe(
-							resultConstraints,
-							Either.flatMap((constraints) =>
-								rec(
-									Ctx.Node(`${ctx.path}[]`, tupleType),
-									type.type,
-									Constraints.modify(constraints, `${ctx.path}[]`, {
-										required: true,
-									}),
+			(tupleType) => {
+				const base = Endo.of(Endo.patch(ctx.path, { multiple: true }));
+
+				return ReadonlyArray.reduce(tupleType.rest, base, (prog, type) =>
+					Endo.flatMap(prog, (accEndo) =>
+						Endo.map(
+							rec(Ctx.Node(`${ctx.path}[]`, tupleType), type.type),
+							(memberEndo) =>
+								Endo.compose(
+									accEndo,
+									Endo.patch(`${ctx.path}[]`, { required: true }),
+									memberEndo,
 								),
-							),
 						),
-				),
+					),
+				);
+			},
 		),
 
 		// Fixed elements (with optional rest)
 		Match.whenAnd(
 			({ elements }) => elements.length > 0,
 			({ rest }) => rest.length >= 0,
-			(tupleType) =>
-				ReadonlyArray.reduce(
+			(tupleType) => {
+				const base = Endo.of(Endo.id);
+
+				return ReadonlyArray.reduce(
 					tupleType.elements,
-					Either.right(acc) as Types.ResultConstraints,
-					(resultConstraints, optionalType, idx) =>
-						pipe(
-							resultConstraints,
-							Either.flatMap((constraints) =>
+					base,
+					(prog, optionalType, idx) =>
+						Endo.flatMap(prog, (accEndo) =>
+							Endo.map(
 								rec(
 									Ctx.Node(`${ctx.path}[${idx}]`, tupleType),
 									optionalType.type,
-									Constraints.modify(constraints, `${ctx.path}[${idx}]`, {
-										required: !optionalType.isOptional,
-									}),
 								),
+								(memberEndo) =>
+									Endo.compose(
+										accEndo,
+										Endo.patch(`${ctx.path}[${idx}]`, {
+											required: !optionalType.isOptional,
+										}),
+										memberEndo,
+									),
 							),
 						),
-				),
+				);
+			},
 		),
 
 		// Default case
-		Match.orElse(() => Either.right(acc)),
+		Match.orElse(() => Endo.of(Endo.id)),
 	);
 
-/**
- * Visits a Union node and merges constraints derived from each union member into the same path.
- *
- * @private
- */
-export const makeUnionVisitor: Types.MakeVisitorState<Ctx.Node, AST.Union> =
-	(rec) => (ctx, node, acc) => {
+export const makeUnionVisitor: Types.MakeVisitorEndo<Ctx.Node, AST.Union> =
+	(rec) => (ctx, node) => {
 		const isStringLiteral = (
 			t: AST.AST,
 		): t is AST.Literal & { literal: string } =>
@@ -143,26 +130,28 @@ export const makeUnionVisitor: Types.MakeVisitorState<Ctx.Node, AST.Union> =
 			: Option.none();
 
 		// Only annotate pattern on array item context (ctx.path ends with "[]")
-		const baseConstraints = Option.match(maybeStringLiterals, {
-			onNone: () => acc,
-			onSome: (literals) =>
-				ctx.path.endsWith('[]')
-					? Constraints.modify(acc, ctx.path, {
-							pattern: patternFromLiterals(literals),
-						})
-					: acc,
-		});
+		const baseProg: ReturnType<typeof Endo.of> = Option.match(
+			maybeStringLiterals,
+			{
+				onNone: () => Endo.of(Endo.id),
+				onSome: (literals) =>
+					ctx.path.endsWith('[]')
+						? Endo.of(
+								Endo.patch(ctx.path, {
+									pattern: patternFromLiterals(literals),
+								}),
+							)
+						: Endo.of(Endo.id),
+			},
+		);
 
-		return ReadonlyArray.reduce(
-			node.types,
-			Either.right(baseConstraints) as Types.ResultConstraints,
-			(resultConstraints, member) =>
-				pipe(
-					resultConstraints,
-					Either.flatMap((constraints) =>
-						rec(Ctx.Node(ctx.path, node), member, constraints),
-					),
+		// Fold each member: compose base endo with each recursive endo
+		return ReadonlyArray.reduce(node.types, baseProg, (prog, member) =>
+			Endo.flatMap(prog, (accEndo) =>
+				Endo.map(rec(Ctx.Node(ctx.path, node), member), (memberEndo) =>
+					Endo.compose(accEndo, memberEndo),
 				),
+			),
 		);
 	};
 
@@ -174,43 +163,28 @@ const mergeConstraint = (
 		Option.reduceCompact({}, (b, a) => ({ ...b, ...a })),
 	);
 
-/**
- * Visits a Refinement node and merges refinement-derived constraints into the current path.
- *
- * @private
- */
-export const makeRefinementVisitor: Types.MakeVisitorState<
+export const makeRefinementVisitor: Types.MakeVisitorEndo<
 	Ctx.Node,
 	AST.Refinement
-> = (rec) => (ctx, node, acc) =>
-	rec(
-		Ctx.Node(ctx.path, node),
-		node.from,
-		Constraints.modify(
-			acc,
-			ctx.path,
-			mergeConstraint(
-				Refinements.stringRefinement(node),
-				Refinements.numberRefinement(node),
-				Refinements.bigintRefinement(node),
-				Refinements.dateRefinement(node),
-			),
-		),
+> = (rec) => (ctx, node) => {
+	const fragment = mergeConstraint(
+		Refinements.stringRefinement(node),
+		Refinements.numberRefinement(node),
+		Refinements.bigintRefinement(node),
+		Refinements.dateRefinement(node),
 	);
 
-/**
- * Visits a Transformation node and continues traversal to the "to" type.
- *
- * @private
- */
-export const makeTransformationVisitor: Types.MakeVisitorState<
+	// Compose: first apply the refinement fragment at ctx.path, then continue with "from"
+	return Endo.map(rec(Ctx.Node(ctx.path, node), node.from), (endo) =>
+		Endo.compose(Endo.patch(ctx.path, fragment), endo),
+	);
+};
+
+export const makeTransformationVisitor: Types.MakeVisitorEndo<
 	Ctx.Ctx,
 	AST.Transformation
-> = (rec) => (ctx, node, acc) =>
-	pipe(
-		ctx,
-		Match.valueTags({
-			Root: (rootCtx) => rec(rootCtx, node.to, acc),
-			Node: (nodeCtx) => rec(Ctx.Node(nodeCtx.path, node), node.to, acc),
-		}),
-	);
+> = (rec) => (ctx, node) =>
+	Match.valueTags(ctx, {
+		Root: (rootCtx) => rec(rootCtx, node.to),
+		Node: (nodeCtx) => rec(Ctx.Node(nodeCtx.path, node), node.to),
+	});

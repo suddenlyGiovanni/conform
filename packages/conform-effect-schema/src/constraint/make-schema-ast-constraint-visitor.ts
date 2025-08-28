@@ -2,7 +2,7 @@ import * as Match from 'effect/Match';
 import * as AST from 'effect/SchemaAST';
 
 import { Endo } from './constraints-endo';
-import * as Visitors from './endo-visitors';
+import * as Visitors from './visitors';
 import type * as Types from './types';
 import type { Ctx } from './ctx';
 import * as Errors from './errors';
