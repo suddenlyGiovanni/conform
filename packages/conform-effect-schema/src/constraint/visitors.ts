@@ -7,12 +7,11 @@ import * as Predicate from 'effect/Predicate';
 import * as Struct from 'effect/Struct';
 import { pipe } from 'effect/Function';
 
-import { Endo } from './constraints-endo';
 import * as Refinements from './refinements';
-import type * as Types from './types';
+import { Endo, MakeVisitorEndo } from './types';
 import { Ctx } from './ctx';
 
-export const makeTypeLiteralVisitor: Types.MakeVisitorEndo<
+export const makeTypeLiteralVisitor: MakeVisitorEndo<
 	Ctx.Ctx,
 	AST.TypeLiteral
 > = (rec) => (ctx, node) => {
@@ -46,72 +45,70 @@ export const makeTypeLiteralVisitor: Types.MakeVisitorEndo<
 	);
 };
 
-export const makeTupleTypeVisitor: Types.MakeVisitorEndo<
-	Ctx.Node,
-	AST.TupleType
-> = (rec) => (ctx, node) =>
-	Match.value(node).pipe(
-		Match.withReturnType<Endo.Prog>(),
+export const makeTupleTypeVisitor: MakeVisitorEndo<Ctx.Node, AST.TupleType> =
+	(rec) => (ctx, node) =>
+		Match.value(node).pipe(
+			Match.withReturnType<Endo.Prog>(),
 
-		// Only rest -> array-like
-		Match.whenAnd(
-			({ elements }) => elements.length === 0,
-			({ rest }) => rest.length > 0,
-			(tupleType) => {
-				const base = Endo.of(Endo.patch(ctx.path, { multiple: true }));
+			// Only rest -> array-like
+			Match.whenAnd(
+				({ elements }) => elements.length === 0,
+				({ rest }) => rest.length > 0,
+				(tupleType) => {
+					const base = Endo.of(Endo.patch(ctx.path, { multiple: true }));
 
-				return ReadonlyArray.reduce(tupleType.rest, base, (prog, type) =>
-					Endo.flatMap(prog, (accEndo) =>
-						Endo.map(
-							rec(Ctx.Node(`${ctx.path}[]`, tupleType), type.type),
-							(memberEndo) =>
-								Endo.compose(
-									accEndo,
-									Endo.patch(`${ctx.path}[]`, { required: true }),
-									memberEndo,
-								),
-						),
-					),
-				);
-			},
-		),
-
-		// Fixed elements (with optional rest)
-		Match.whenAnd(
-			({ elements }) => elements.length > 0,
-			({ rest }) => rest.length >= 0,
-			(tupleType) => {
-				const base = Endo.of(Endo.id);
-
-				return ReadonlyArray.reduce(
-					tupleType.elements,
-					base,
-					(prog, optionalType, idx) =>
+					return ReadonlyArray.reduce(tupleType.rest, base, (prog, type) =>
 						Endo.flatMap(prog, (accEndo) =>
 							Endo.map(
-								rec(
-									Ctx.Node(`${ctx.path}[${idx}]`, tupleType),
-									optionalType.type,
-								),
+								rec(Ctx.Node(`${ctx.path}[]`, tupleType), type.type),
 								(memberEndo) =>
 									Endo.compose(
 										accEndo,
-										Endo.patch(`${ctx.path}[${idx}]`, {
-											required: !optionalType.isOptional,
-										}),
+										Endo.patch(`${ctx.path}[]`, { required: true }),
 										memberEndo,
 									),
 							),
 						),
-				);
-			},
-		),
+					);
+				},
+			),
 
-		// Default case
-		Match.orElse(() => Endo.of(Endo.id)),
-	);
+			// Fixed elements (with optional rest)
+			Match.whenAnd(
+				({ elements }) => elements.length > 0,
+				({ rest }) => rest.length >= 0,
+				(tupleType) => {
+					const base = Endo.of(Endo.id);
 
-export const makeUnionVisitor: Types.MakeVisitorEndo<Ctx.Node, AST.Union> =
+					return ReadonlyArray.reduce(
+						tupleType.elements,
+						base,
+						(prog, optionalType, idx) =>
+							Endo.flatMap(prog, (accEndo) =>
+								Endo.map(
+									rec(
+										Ctx.Node(`${ctx.path}[${idx}]`, tupleType),
+										optionalType.type,
+									),
+									(memberEndo) =>
+										Endo.compose(
+											accEndo,
+											Endo.patch(`${ctx.path}[${idx}]`, {
+												required: !optionalType.isOptional,
+											}),
+											memberEndo,
+										),
+								),
+							),
+					);
+				},
+			),
+
+			// Default case
+			Match.orElse(() => Endo.of(Endo.id)),
+		);
+
+export const makeUnionVisitor: MakeVisitorEndo<Ctx.Node, AST.Union> =
 	(rec) => (ctx, node) => {
 		const isStringLiteral = (
 			t: AST.AST,
@@ -163,24 +160,22 @@ const mergeConstraint = (
 		Option.reduceCompact({}, (b, a) => ({ ...b, ...a })),
 	);
 
-export const makeRefinementVisitor: Types.MakeVisitorEndo<
-	Ctx.Node,
-	AST.Refinement
-> = (rec) => (ctx, node) => {
-	const fragment = mergeConstraint(
-		Refinements.stringRefinement(node),
-		Refinements.numberRefinement(node),
-		Refinements.bigintRefinement(node),
-		Refinements.dateRefinement(node),
-	);
+export const makeRefinementVisitor: MakeVisitorEndo<Ctx.Node, AST.Refinement> =
+	(rec) => (ctx, node) => {
+		const fragment = mergeConstraint(
+			Refinements.stringRefinement(node),
+			Refinements.numberRefinement(node),
+			Refinements.bigintRefinement(node),
+			Refinements.dateRefinement(node),
+		);
 
-	// Compose: first apply the refinement fragment at ctx.path, then continue with "from"
-	return Endo.map(rec(Ctx.Node(ctx.path, node), node.from), (endo) =>
-		Endo.compose(Endo.patch(ctx.path, fragment), endo),
-	);
-};
+		// Compose: first apply the refinement fragment at ctx.path, then continue with "from"
+		return Endo.map(rec(Ctx.Node(ctx.path, node), node.from), (endo) =>
+			Endo.compose(Endo.patch(ctx.path, fragment), endo),
+		);
+	};
 
-export const makeTransformationVisitor: Types.MakeVisitorEndo<
+export const makeTransformationVisitor: MakeVisitorEndo<
 	Ctx.Ctx,
 	AST.Transformation
 > = (rec) => (ctx, node) =>

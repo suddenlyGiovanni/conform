@@ -6,17 +6,16 @@ import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as AST from 'effect/SchemaAST';
 
-import { Endo } from './constraints-endo';
 import * as Visitors from './visitors';
-import type * as Types from './types';
 import * as Errors from './errors';
 import { Ctx } from './ctx';
 import { Constraints } from './constraints';
+import { type VisitEndo, Endo } from './types';
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
 ): Record<string, Constraint> => {
-	const recNode: Types.VisitEndo<Ctx.Node> = (ctx, ast) =>
+	const recNode: VisitEndo<Ctx.Node> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
 
@@ -75,7 +74,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			Match.exhaustive,
 		);
 
-	const recRoot: Types.VisitEndo<Ctx.Root> = (ctx, ast) =>
+	const recRoot: VisitEndo<Ctx.Root> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
 
@@ -94,7 +93,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			),
 		);
 
-	const rec: Types.VisitEndo = (ctx, node) =>
+	const rec: VisitEndo = (ctx, node) =>
 		Match.valueTags(ctx, {
 			Root: (rootCtx) => recRoot(rootCtx, node),
 			Node: (nodeCtx) => recNode(nodeCtx, node),
