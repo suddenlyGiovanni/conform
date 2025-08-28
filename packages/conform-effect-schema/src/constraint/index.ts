@@ -1,5 +1,3 @@
-import { Constraint } from '@conform-to/dom';
-import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
@@ -8,12 +6,17 @@ import * as AST from 'effect/SchemaAST';
 
 import * as Visitors from './visitors';
 import * as Errors from './errors';
-import { Ctx } from './ctx';
-import { type VisitEndo, Endo, Constraints } from './types';
+import {
+	type VisitEndo,
+	Endo,
+	Constraints,
+	Ctx,
+	type ConstraintDictionary,
+} from './types';
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
-): Record<string, Constraint> => {
+): ConstraintDictionary => {
 	const recNode: VisitEndo<Ctx.Node> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),

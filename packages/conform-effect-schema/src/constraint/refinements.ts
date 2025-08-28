@@ -1,4 +1,3 @@
-import type { Constraint } from '@conform-to/dom';
 import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
 import * as Option from 'effect/Option';
@@ -6,6 +5,8 @@ import * as Predicate from 'effect/Predicate';
 import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 import * as Struct from 'effect/Struct';
+
+import type { Constraint } from './types';
 
 const pickMinLength = Struct.pick('minLength');
 const pickMaxLength = Struct.pick('maxLength');

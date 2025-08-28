@@ -1,4 +1,3 @@
-import type { Constraint } from '@conform-to/dom';
 import * as Match from 'effect/Match';
 import * as ReadonlyArray from 'effect/Array';
 import * as Option from 'effect/Option';
@@ -8,8 +7,7 @@ import * as Struct from 'effect/Struct';
 import { pipe } from 'effect/Function';
 
 import * as Refinements from './refinements';
-import { Endo, MakeVisitorEndo } from './types';
-import { Ctx } from './ctx';
+import { type Constraint, Ctx, Endo, type MakeVisitorEndo } from './types';
 
 export const makeTypeLiteralVisitor: MakeVisitorEndo<
 	Ctx.Ctx,
