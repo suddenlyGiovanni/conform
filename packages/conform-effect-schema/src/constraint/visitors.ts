@@ -7,43 +7,41 @@ import * as Struct from 'effect/Struct';
 import { pipe } from 'effect/Function';
 
 import * as Refinements from './refinements';
-import { type Constraint, Ctx, Endo, type MakeVisitorEndo } from './types';
+import { type Constraint, Ctx, Endo, type MakeVisitor } from './types';
 
-export const makeTypeLiteralVisitor: MakeVisitorEndo<
-	Ctx.Ctx,
-	AST.TypeLiteral
-> = (rec) => (ctx, node) => {
-	const propertySignatures = node.propertySignatures;
+export const makeTypeLiteralVisitor: MakeVisitor<Ctx.Ctx, AST.TypeLiteral> =
+	(rec) => (ctx, node) => {
+		const propertySignatures = node.propertySignatures;
 
-	if (propertySignatures.length === 0) {
-		return Endo.of(Endo.id);
-	}
+		if (propertySignatures.length === 0) {
+			return Endo.of(Endo.id);
+		}
 
-	return ReadonlyArray.reduce(
-		propertySignatures,
-		Endo.of(Endo.id),
-		(prog, propertySignature) =>
-			Endo.flatMap(prog, (accEndo) => {
-				const path = Match.valueTags(ctx, {
-					Root: () => propertySignature.name.toString(),
-					Node: (nodeCtx) =>
-						`${nodeCtx.path}.${propertySignature.name.toString()}`,
-				});
+		return ReadonlyArray.reduce(
+			propertySignatures,
+			Endo.of(Endo.id),
+			(prog, propertySignature) =>
+				Endo.flatMap(prog, (accEndo) => {
+					const path = Match.valueTags(ctx, {
+						Root: () => propertySignature.name.toString(),
+						Node: (nodeCtx) =>
+							`${nodeCtx.path}.${propertySignature.name.toString()}`,
+					});
 
-				return Endo.map(
-					rec(Ctx.Node(path, node), propertySignature.type),
-					(memberEndo) =>
-						Endo.compose(
-							accEndo,
-							Endo.patch(path, { required: !propertySignature.isOptional }),
-							memberEndo,
-						),
-				);
-			}),
-	);
-};
+					return Endo.map(
+						rec(Ctx.Node(path, node), propertySignature.type),
+						(memberEndo) =>
+							Endo.compose(
+								accEndo,
+								Endo.patch(path, { required: !propertySignature.isOptional }),
+								memberEndo,
+							),
+					);
+				}),
+		);
+	};
 
-export const makeTupleTypeVisitor: MakeVisitorEndo<Ctx.Node, AST.TupleType> =
+export const makeTupleTypeVisitor: MakeVisitor<Ctx.Node, AST.TupleType> =
 	(rec) => (ctx, node) =>
 		Match.value(node).pipe(
 			Match.withReturnType<Endo.Prog>(),
@@ -106,7 +104,7 @@ export const makeTupleTypeVisitor: MakeVisitorEndo<Ctx.Node, AST.TupleType> =
 			Match.orElse(() => Endo.of(Endo.id)),
 		);
 
-export const makeUnionVisitor: MakeVisitorEndo<Ctx.Node, AST.Union> =
+export const makeUnionVisitor: MakeVisitor<Ctx.Node, AST.Union> =
 	(rec) => (ctx, node) => {
 		const isStringLiteral = (
 			t: AST.AST,
@@ -158,7 +156,7 @@ const mergeConstraint = (
 		Option.reduceCompact({}, (b, a) => ({ ...b, ...a })),
 	);
 
-export const makeRefinementVisitor: MakeVisitorEndo<Ctx.Node, AST.Refinement> =
+export const makeRefinementVisitor: MakeVisitor<Ctx.Node, AST.Refinement> =
 	(rec) => (ctx, node) => {
 		const fragment = mergeConstraint(
 			Refinements.stringRefinement(node),
@@ -173,7 +171,7 @@ export const makeRefinementVisitor: MakeVisitorEndo<Ctx.Node, AST.Refinement> =
 		);
 	};
 
-export const makeTransformationVisitor: MakeVisitorEndo<
+export const makeTransformationVisitor: MakeVisitor<
 	Ctx.Ctx,
 	AST.Transformation
 > = (rec) => (ctx, node) =>

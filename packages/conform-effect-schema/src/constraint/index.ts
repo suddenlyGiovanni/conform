@@ -7,7 +7,7 @@ import * as AST from 'effect/SchemaAST';
 import * as Visitors from './visitors';
 import * as Errors from './errors';
 import {
-	type VisitEndo,
+	type Visit,
 	Endo,
 	Constraints,
 	Ctx,
@@ -17,7 +17,7 @@ import {
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
 ): ConstraintDictionary => {
-	const recNode: VisitEndo<Ctx.Node> = (ctx, ast) =>
+	const recNode: Visit<Ctx.Node> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
 
@@ -76,7 +76,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			Match.exhaustive,
 		);
 
-	const recRoot: VisitEndo<Ctx.Root> = (ctx, ast) =>
+	const recRoot: Visit<Ctx.Root> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
 
@@ -95,7 +95,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			),
 		);
 
-	const rec: VisitEndo = (ctx, node) =>
+	const rec: Visit = (ctx, node) =>
 		Match.valueTags(ctx, {
 			Root: (rootCtx) => recRoot(rootCtx, node),
 			Node: (nodeCtx) => recNode(nodeCtx, node),

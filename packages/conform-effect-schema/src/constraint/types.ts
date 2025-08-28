@@ -57,14 +57,14 @@ export class Constraints {
 	): ConstraintDictionary => Record.fromEntries(constraints);
 }
 
-export type VisitEndo<
+export type Visit<
 	CTX extends Ctx.Ctx = Ctx.Ctx,
 	Ast extends AST.AST = AST.AST,
 > = (ctx: CTX, node: Readonly<Ast>) => Endo.Prog;
 
-export type MakeVisitorEndo<CTX extends Ctx.Ctx, Ast extends AST.AST> = (
-	rec: VisitEndo<CTX>,
-) => VisitEndo<CTX, Ast>;
+export type MakeVisitor<CTX extends Ctx.Ctx, Ast extends AST.AST> = (
+	rec: Visit<CTX>,
+) => Visit<CTX, Ast>;
 
 export declare namespace Endo {
 	type Endo = Endomorphism<Constraints.Constraints>;
