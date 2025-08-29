@@ -1159,32 +1159,44 @@ describe('constraint', () => {
 		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
 	});
 
-	describe('Schema extensions', () => {
-		test('extension without override', () => {
-			const base = Schema.Struct({
-				base: Schema.optional(Schema.String),
-			});
-
-			const extended = Schema.Struct({
-				...base.fields,
-				extended: Schema.Number,
-			});
-
-			expect(getEffectSchemaConstraint(extended)).toEqual({
-				base: { required: false },
-				extended: { required: true },
-			});
-		});
-
-		test('extension with override', () => {
-			const base = Schema.Struct({
-				base: Schema.optional(Schema.String),
+	describe('extends', () => {
+		test('without override', () => {
+			expect(
+				getEffectSchemaConstraint(
+					Schema.Struct({
+						...Schema.Struct({
+							a: Schema.optional(Schema.String),
+						}).fields,
+						b: Schema.Number,
+					}),
+				),
+			).toEqual({
+				a: { required: false },
+				b: { required: true },
 			});
 
 			expect(
 				getEffectSchemaConstraint(
+					Schema.extend(
+						Schema.Struct({
+							a: Schema.String,
+						}),
+						Schema.Struct({ b: Schema.optional(Schema.String) }),
+					),
+				),
+			).toEqual({
+				a: { required: true },
+				b: { required: false },
+			});
+		});
+
+		test('with override', () => {
+			expect(
+				getEffectSchemaConstraint(
 					Schema.Struct({
-						...base.fields,
+						...Schema.Struct({
+							base: Schema.optional(Schema.String),
+						}).fields,
 						base: Schema.Number,
 					}),
 				),
@@ -1197,11 +1209,26 @@ describe('constraint', () => {
 					Schema.Struct({
 						// @ts-expect-error override is not allowed
 						base: Schema.Number,
-						...base.fields,
+						...Schema.Struct({
+							base: Schema.optional(Schema.String),
+						}).fields,
 					}),
 				),
 			).toEqual({
 				base: { required: false },
+			});
+
+			expect(
+				getEffectSchemaConstraint(
+					Schema.extend(
+						Schema.Struct({
+							a: Schema.String,
+						}),
+						Schema.Struct({ a: Schema.optional(Schema.String) }),
+					),
+				),
+			).toEqual({
+				a: { required: false },
 			});
 		});
 
