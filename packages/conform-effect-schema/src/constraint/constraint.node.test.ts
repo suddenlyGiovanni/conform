@@ -1159,20 +1159,67 @@ describe('constraint', () => {
 		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
 	});
 
-	test.todo('Intersection is supported', () => {
-		// Intersection is supported
-		expect(
-			getEffectSchemaConstraint(
-				Schema.Struct({
-					...schema.fields,
-					text: Schema.optional(Schema.String),
-					something: Schema.String,
-				}),
-			),
-		).toEqual({
-			...constraint,
-			text: { required: false },
-			something: { required: true },
+	describe('Schema extensions', () => {
+		test('extension without override', () => {
+			const base = Schema.Struct({
+				base: Schema.optional(Schema.String),
+			});
+
+			const extended = Schema.Struct({
+				...base.fields,
+				extended: Schema.Number,
+			});
+
+			expect(getEffectSchemaConstraint(extended)).toEqual({
+				base: { required: false },
+				extended: { required: true },
+			});
+		});
+
+		test('extension with override', () => {
+			const base = Schema.Struct({
+				base: Schema.optional(Schema.String),
+			});
+
+			expect(
+				getEffectSchemaConstraint(
+					Schema.Struct({
+						...base.fields,
+						base: Schema.Number,
+					}),
+				),
+			).toEqual({
+				base: { required: true },
+			});
+
+			expect(
+				getEffectSchemaConstraint(
+					Schema.Struct({
+						// @ts-expect-error override is not allowed
+						base: Schema.Number,
+						...base.fields,
+					}),
+				),
+			).toEqual({
+				base: { required: false },
+			});
+		});
+
+		test('Intersection is supported', () => {
+			// Intersection is supported
+			expect(
+				getEffectSchemaConstraint(
+					Schema.Struct({
+						...schema.fields,
+						text: Schema.optional(Schema.String),
+						something: Schema.String,
+					}),
+				),
+			).toEqual({
+				...constraint,
+				text: { required: false },
+				something: { required: true },
+			});
 		});
 	});
 
