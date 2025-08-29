@@ -54,20 +54,19 @@ export class Constraints {
 		Record.fromEntries(constraints);
 }
 
-export type Visit<CTX extends Ctx.Any, Ast extends AST.AST = AST.AST> = (
-	ctx: CTX,
-	node: Readonly<Ast>,
-) => Endo.Prog;
-
-export type MakeVisitor<CTX extends Ctx.Any, Ast extends AST.AST> = (
-	rec: Visit<CTX>,
-) => Visit<CTX, Ast>;
-
 export declare namespace Endo {
 	type Endo = Endomorphism<Constraints.Map>;
 	type Prog = Either.Either<Endo, Errors>;
-}
 
+	type Visit<CTX extends Ctx.Any, Ast extends AST.AST = AST.AST> = (
+		ctx: CTX,
+		node: Readonly<Ast>,
+	) => Prog;
+
+	type MakeVisitor<CTX extends Ctx.Any, Ast extends AST.AST> = (
+		rec: Visit<CTX>,
+	) => Visit<CTX, Ast>;
+}
 export class Endo {
 	/**
 	 * Identity operation over the constraints map.

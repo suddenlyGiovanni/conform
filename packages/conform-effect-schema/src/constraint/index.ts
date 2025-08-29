@@ -6,18 +6,12 @@ import * as AST from 'effect/SchemaAST';
 
 import * as Visitors from './visitors';
 import * as Errors from './errors';
-import {
-	type Visit,
-	Endo,
-	Constraints,
-	Ctx,
-	type ConstraintRecord,
-} from './types';
+import { Endo, Constraints, Ctx, type ConstraintRecord } from './types';
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
 ): ConstraintRecord => {
-	const recNode: Visit<Ctx.Node> = (ctx, ast) =>
+	const recNode: Endo.Visit<Ctx.Node> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
 
@@ -76,7 +70,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			Match.exhaustive,
 		);
 
-	const recRoot: Visit<Ctx.Root> = (ctx, ast) =>
+	const recRoot: Endo.Visit<Ctx.Root> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
 
@@ -95,7 +89,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			),
 		);
 
-	const rec: Visit<Ctx.Any> = (ctx, node) =>
+	const rec: Endo.Visit<Ctx.Any> = (ctx, node) =>
 		Ctx.$match(ctx, {
 			Root: (ctxRoot) => recRoot(ctxRoot, node),
 			Node: (ctxNode) => recNode(ctxNode, node),
