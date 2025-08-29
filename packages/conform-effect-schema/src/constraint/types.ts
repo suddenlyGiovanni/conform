@@ -6,14 +6,11 @@ import { identity } from 'effect/Function';
 import * as HashMap from 'effect/HashMap';
 import * as Record from 'effect/Record';
 import * as Option from 'effect/Option';
+import * as Data from 'effect/Data';
 
 import type { Errors } from './errors';
 
 export type ConstraintRecord = Record.ReadonlyRecord<string, Constraint>;
-
-interface Tag<T extends string> {
-	readonly _tag: T;
-}
 
 type Endomorphism<A> = (a: A) => A;
 
@@ -56,12 +53,12 @@ export class Constraints {
 		Record.fromEntries(constraints);
 }
 
-export type Visit<
-	CTX extends Ctx.Ctx = Ctx.Ctx,
-	Ast extends AST.AST = AST.AST,
-> = (ctx: CTX, node: Readonly<Ast>) => Endo.Prog;
+export type Visit<CTX extends Ctx.Any, Ast extends AST.AST = AST.AST> = (
+	ctx: CTX,
+	node: Readonly<Ast>,
+) => Endo.Prog;
 
-export type MakeVisitor<CTX extends Ctx.Ctx, Ast extends AST.AST> = (
+export type MakeVisitor<CTX extends Ctx.Any, Ast extends AST.AST> = (
 	rec: Visit<CTX>,
 ) => Visit<CTX, Ast>;
 
@@ -101,91 +98,18 @@ export class Endo {
 			Constraints.modify(constraints, path, constraintFragment);
 }
 
-export type { Errors } from './errors';
-
-interface Path<P extends Constraints.Path> {
-	/**
-	 * Semantics of `path`:
-	 * - Nested object properties use dot-notation: e.g. `user.email`.
-	 * - Array-like items use bracket or rest syntax:
-	 *   - Tuple element: `items[0]`
-	 *   - Array element (rest): `items[]`
-	 */
-	readonly path: P;
-}
-
-interface Parent<ParentAst extends AST.AST> {
-	readonly parentNode: Readonly<ParentAst>;
-}
-
+export const Ctx = Data.taggedEnum<Ctx.Any>();
 export declare namespace Ctx {
-	type Root = _Root;
+	type Any = Data.TaggedEnum<{
+		Node: { readonly path: string; readonly parent: AST.AST };
+		Root: {};
+	}>;
 
-	type Node<
-		P extends Constraints.Path = string,
-		ParentAst extends AST.AST = AST.AST,
-	> = _Node<P, ParentAst>;
+	type Root = Data.TaggedEnum.Value<Any, 'Root'>;
 
-	/**
-	 * Immutable traversal context threaded through the AST visitor.
-	 *
-	 * Purpose:
-	 * - Carry the current logical path at which constraints should be written.
-	 * - Keep traversal metadata separate from the AST node (the node is passed as a separate parameter).
-	 */
-	type Ctx<
-		P extends Constraints.Path = string,
-		Ast extends AST.AST = AST.AST,
-	> = Root | Node<P, Ast>;
+	type Node = Data.TaggedEnum.Value<Any, 'Node'>;
 }
 
-/**
- * @internal
- */
-class _Root implements Tag<'Root'> {
-	readonly _tag = 'Root';
-}
-
-/**
- * @internal
- */
-class _Node<const P extends Constraints.Path, const ParentAst extends AST.AST>
-	implements Tag<'Node'>, Path<P>, Parent<ParentAst>
-{
-	readonly _tag = 'Node';
-	readonly parentNode: Readonly<ParentAst>;
-	readonly path: P;
-
-	constructor(arg: { path: P; parentNode: Readonly<ParentAst> }) {
-		this.path = arg.path;
-		this.parentNode = arg.parentNode;
-	}
-}
-
-export class Ctx {
-	static Node = <
-		const P extends Constraints.Path,
-		const ParentAst extends AST.AST,
-	>(
-		path: P,
-		parentNode: Readonly<ParentAst>,
-	): Ctx.Node<P, ParentAst> => new _Node({ path, parentNode });
-
-	static Root = (): Ctx.Root => new _Root();
-
-	static isNode = <
-		const P extends Constraints.Path,
-		const ParentAst extends AST.AST,
-	>(
-		ctx: Readonly<Ctx.Ctx<P, ParentAst>>,
-	): ctx is Ctx.Node<P, ParentAst> => ctx._tag === 'Node';
-
-	static isRoot = <
-		const P extends Constraints.Path,
-		const ParentAst extends AST.AST,
-	>(
-		ctx: Readonly<Ctx.Ctx<P, ParentAst>>,
-	): ctx is Ctx.Root => ctx._tag === 'Root';
-}
+export type { Errors } from './errors';
 
 export type { Constraint } from '@conform-to/dom';

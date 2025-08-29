@@ -95,10 +95,10 @@ export const getEffectSchemaConstraint = <A, I>(
 			),
 		);
 
-	const rec: Visit = (ctx, node) =>
-		Match.valueTags(ctx, {
-			Root: (rootCtx) => recRoot(rootCtx, node),
-			Node: (nodeCtx) => recNode(nodeCtx, node),
+	const rec: Visit<Ctx.Any> = (ctx, node) =>
+		Ctx.$match(ctx, {
+			Root: (ctxRoot) => recRoot(ctxRoot, node),
+			Node: (ctxNode) => recNode(ctxNode, node),
 		});
 
 	const typeLiteralVisitor = Visitors.makeTypeLiteralVisitor(rec);

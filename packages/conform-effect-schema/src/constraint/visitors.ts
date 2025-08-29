@@ -9,7 +9,7 @@ import { pipe } from 'effect/Function';
 import * as Refinements from './refinements';
 import { type Constraint, Ctx, Endo, type MakeVisitor } from './types';
 
-export const makeTypeLiteralVisitor: MakeVisitor<Ctx.Ctx, AST.TypeLiteral> =
+export const makeTypeLiteralVisitor: MakeVisitor<Ctx.Any, AST.TypeLiteral> =
 	(rec) => (ctx, node) => {
 		const propertySignatures = node.propertySignatures;
 
@@ -22,14 +22,14 @@ export const makeTypeLiteralVisitor: MakeVisitor<Ctx.Ctx, AST.TypeLiteral> =
 			Endo.of(Endo.id),
 			(prog, propertySignature) =>
 				Endo.flatMap(prog, (accEndo) => {
-					const path = Match.valueTags(ctx, {
+					const path = Ctx.$match(ctx, {
 						Root: () => propertySignature.name.toString(),
 						Node: (nodeCtx) =>
 							`${nodeCtx.path}.${propertySignature.name.toString()}`,
 					});
 
 					return Endo.map(
-						rec(Ctx.Node(path, node), propertySignature.type),
+						rec(Ctx.Node({ path, parent: node }), propertySignature.type),
 						(memberEndo) =>
 							Endo.compose(
 								accEndo,
@@ -56,7 +56,10 @@ export const makeTupleTypeVisitor: MakeVisitor<Ctx.Node, AST.TupleType> =
 					return ReadonlyArray.reduce(tupleType.rest, base, (prog, type) =>
 						Endo.flatMap(prog, (accEndo) =>
 							Endo.map(
-								rec(Ctx.Node(`${ctx.path}[]`, tupleType), type.type),
+								rec(
+									Ctx.Node({ path: `${ctx.path}[]`, parent: tupleType }),
+									type.type,
+								),
 								(memberEndo) =>
 									Endo.compose(
 										accEndo,
@@ -83,7 +86,10 @@ export const makeTupleTypeVisitor: MakeVisitor<Ctx.Node, AST.TupleType> =
 							Endo.flatMap(prog, (accEndo) =>
 								Endo.map(
 									rec(
-										Ctx.Node(`${ctx.path}[${idx}]`, tupleType),
+										Ctx.Node({
+											path: `${ctx.path}[${idx}]`,
+											parent: tupleType,
+										}),
 										optionalType.type,
 									),
 									(memberEndo) =>
@@ -141,8 +147,9 @@ export const makeUnionVisitor: MakeVisitor<Ctx.Node, AST.Union> =
 		// Fold each member: compose base endo with each recursive endo
 		return ReadonlyArray.reduce(node.types, baseProg, (prog, member) =>
 			Endo.flatMap(prog, (accEndo) =>
-				Endo.map(rec(Ctx.Node(ctx.path, node), member), (memberEndo) =>
-					Endo.compose(accEndo, memberEndo),
+				Endo.map(
+					rec(Ctx.Node({ path: ctx.path, parent: node }), member),
+					(memberEndo) => Endo.compose(accEndo, memberEndo),
 				),
 			),
 		);
@@ -166,16 +173,18 @@ export const makeRefinementVisitor: MakeVisitor<Ctx.Node, AST.Refinement> =
 		);
 
 		// Compose: first apply the refinement fragment at ctx.path, then continue with "from"
-		return Endo.map(rec(Ctx.Node(ctx.path, node), node.from), (endo) =>
-			Endo.compose(Endo.patch(ctx.path, fragment), endo),
+		return Endo.map(
+			rec(Ctx.Node({ path: ctx.path, parent: node }), node.from),
+			(endo) => Endo.compose(Endo.patch(ctx.path, fragment), endo),
 		);
 	};
 
 export const makeTransformationVisitor: MakeVisitor<
-	Ctx.Ctx,
+	Ctx.Any,
 	AST.Transformation
 > = (rec) => (ctx, node) =>
-	Match.valueTags(ctx, {
+	Ctx.$match(ctx, {
 		Root: (rootCtx) => rec(rootCtx, node.to),
-		Node: (nodeCtx) => rec(Ctx.Node(nodeCtx.path, node), node.to),
+		Node: (nodeCtx) =>
+			rec(Ctx.Node({ path: nodeCtx.path, parent: node }), node.to),
 	});
