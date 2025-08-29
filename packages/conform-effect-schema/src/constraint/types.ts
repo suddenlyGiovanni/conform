@@ -2,9 +2,10 @@
 import type * as AST from 'effect/SchemaAST';
 import type { Constraint } from '@conform-to/dom';
 import * as Either from 'effect/Either';
-import { identity } from 'effect/Function';
+import { identity, pipe } from 'effect/Function';
 import * as HashMap from 'effect/HashMap';
 import * as Record from 'effect/Record';
+import * as ReadonlyArray from 'effect/Array';
 import * as Option from 'effect/Option';
 import * as Data from 'effect/Data';
 
@@ -68,12 +69,21 @@ export declare namespace Endo {
 }
 
 export class Endo {
+	/**
+	 * Identity operation over the constraints map.
+	 */
 	static readonly id: Endo.Endo = identity;
 
+	/**
+	 * Left-to-right composition. compose(a, b, c)(s) === c(b(a(s))).
+	 */
 	static readonly compose =
-		(...fns: ReadonlyArray<Endo.Endo>): Endo.Endo =>
-		(c) =>
-			fns.reduce((s, f) => f(s), c);
+		<Endos extends readonly Endo.Endo[]>(...endos: Endos): Endo.Endo =>
+		(constraintsMap) =>
+			pipe(
+				endos,
+				ReadonlyArray.reduce(constraintsMap, (c, endo) => endo(c)),
+			);
 
 	static readonly fail = (error: Errors): Endo.Prog => Either.left(error);
 
@@ -101,7 +111,16 @@ export class Endo {
 export const Ctx = Data.taggedEnum<Ctx.Any>();
 export declare namespace Ctx {
 	type Any = Data.TaggedEnum<{
-		Node: { readonly path: string; readonly parent: AST.AST };
+		Node: {
+			/**
+			 * Path semantics:
+			 * - Object properties: "user.email"
+			 * - Tuple item: "items[0]"
+			 * - Array item (rest): "items[]"
+			 */
+			readonly path: string;
+			readonly parent: AST.AST;
+		};
 		Root: {};
 	}>;
 
