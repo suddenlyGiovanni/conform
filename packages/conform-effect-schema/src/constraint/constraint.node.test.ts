@@ -2,7 +2,7 @@ import * as Schema from 'effect/Schema';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 
 import { getEffectSchemaConstraint } from '../index';
-import type { Constraint, ConstraintRecord } from './types';
+import type { Constraint } from './types';
 
 describe('constraint', () => {
 	test('Non-object schemas will throw an error', () => {
@@ -1098,134 +1098,132 @@ describe('constraint', () => {
 	});
 
 	describe('extends', () => {
-		describe('with override', () => {
-			describe('String', () => {
-				const a = Schema.Struct({
-					s: Schema.optional(Schema.String),
+		describe('String', () => {
+			const a = Schema.Struct({
+				s: Schema.optional(Schema.String),
+			});
+
+			const b = Schema.Struct({
+				s: Schema.String.pipe(Schema.minLength(1)),
+			});
+
+			const c = Schema.Struct({
+				s: Schema.String.pipe(Schema.maxLength(10)),
+			});
+
+			const d = Schema.Struct({
+				n: Schema.String.pipe(Schema.length(10)),
+			});
+
+			test('fields', () => {
+				// without override
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							...a.fields,
+							...d.fields,
+						}),
+					),
+				).toEqual({
+					s: { required: false },
+					n: { required: true, maxLength: 10, minLength: 10 },
 				});
 
-				const b = Schema.Struct({
-					s: Schema.String.pipe(Schema.minLength(1)),
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							...d.fields,
+							...a.fields,
+						}),
+					),
+				).toEqual({
+					s: { required: false },
+					n: { required: true, maxLength: 10, minLength: 10 },
 				});
 
-				const c = Schema.Struct({
-					s: Schema.String.pipe(Schema.maxLength(10)),
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							...a.fields,
+							...b.fields,
+						}),
+					),
+				).toEqual({
+					s: { required: true, minLength: 1 },
 				});
 
-				const d = Schema.Struct({
-					n: Schema.String.pipe(Schema.length(10)),
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							...b.fields,
+							...a.fields,
+						}),
+					),
+				).toEqual({
+					s: { required: false },
 				});
 
-				test('fields', () => {
-					// without override
-					expect(
-						getEffectSchemaConstraint(
-							Schema.Struct({
-								...a.fields,
-								...d.fields,
-							}),
-						),
-					).toEqual({
-						s: { required: false },
-						n: { required: true, maxLength: 10, minLength: 10 },
-					});
-
-					expect(
-						getEffectSchemaConstraint(
-							Schema.Struct({
-								...d.fields,
-								...a.fields,
-							}),
-						),
-					).toEqual({
-						s: { required: false },
-						n: { required: true, maxLength: 10, minLength: 10 },
-					});
-
-					expect(
-						getEffectSchemaConstraint(
-							Schema.Struct({
-								...a.fields,
-								...b.fields,
-							}),
-						),
-					).toEqual({
-						s: { required: true, minLength: 1 },
-					});
-
-					expect(
-						getEffectSchemaConstraint(
-							Schema.Struct({
-								...b.fields,
-								...a.fields,
-							}),
-						),
-					).toEqual({
-						s: { required: false },
-					});
-
-					expect(
-						getEffectSchemaConstraint(
-							Schema.Struct({ ...b.fields, ...c.fields }),
-						),
-					).toEqual({
-						s: { required: true, maxLength: 10 },
-					});
-				});
-
-				test('extend', () => {
-					expect(getEffectSchemaConstraint(Schema.extend(a, d))).toEqual({
-						s: { required: false },
-						n: { required: true, maxLength: 10, minLength: 10 },
-					});
-
-					expect(getEffectSchemaConstraint(Schema.extend(d, a))).toEqual({
-						s: { required: false },
-						n: { required: true, maxLength: 10, minLength: 10 },
-					});
-
-					expect(getEffectSchemaConstraint(Schema.extend(b, c))).toEqual({
-						s: { required: true, maxLength: 10, minLength: 1 },
-					});
-
-					// Effect's Schema.extend disallows changing optionality (both narrowing
-					// and widening) between schemas — these differences are treated as
-					// unsupported/overlapping and will throw. Assert that behavior here.
-					expect(() => getEffectSchemaConstraint(Schema.extend(a, b))).toThrow(
-						`Unsupported schema or overlapping types
-at path: ["s"]
-details: cannot extend undefined with string`,
-					);
-
-					expect(() => getEffectSchemaConstraint(Schema.extend(b, a))).toThrow(
-						`Unsupported schema or overlapping types
-at path: ["s"]
-details: cannot extend minLength(1) with undefined`,
-					);
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({ ...b.fields, ...c.fields }),
+					),
+				).toEqual({
+					s: { required: true, maxLength: 10 },
 				});
 			});
 
-			describe('Number', () => {
-				const a = Schema.Struct({
-					n: Schema.Number.pipe(Schema.greaterThanOrEqualTo(1)),
-				});
-				const b = Schema.Struct({
-					n: Schema.Number.pipe(Schema.lessThanOrEqualTo(10)),
+			test('extend', () => {
+				expect(getEffectSchemaConstraint(Schema.extend(a, d))).toEqual({
+					s: { required: false },
+					n: { required: true, maxLength: 10, minLength: 10 },
 				});
 
-				test('fields', () => {
-					expect(
-						getEffectSchemaConstraint(
-							Schema.Struct({ ...a.fields, ...b.fields }),
-						),
-					).toEqual({
-						n: { required: true, max: 10 },
-					});
+				expect(getEffectSchemaConstraint(Schema.extend(d, a))).toEqual({
+					s: { required: false },
+					n: { required: true, maxLength: 10, minLength: 10 },
 				});
-				test('extends', () => {
-					expect(getEffectSchemaConstraint(Schema.extend(a, b))).toEqual({
-						n: { required: true, max: 10, min: 1 },
-					});
+
+				expect(getEffectSchemaConstraint(Schema.extend(b, c))).toEqual({
+					s: { required: true, maxLength: 10, minLength: 1 },
+				});
+
+				// Effect's Schema.extend disallows changing optionality (both narrowing
+				// and widening) between schemas — these differences are treated as
+				// unsupported/overlapping and will throw. Assert that behavior here.
+				expect(() => getEffectSchemaConstraint(Schema.extend(a, b))).toThrow(
+					`Unsupported schema or overlapping types
+at path: ["s"]
+details: cannot extend undefined with string`,
+				);
+
+				expect(() => getEffectSchemaConstraint(Schema.extend(b, a))).toThrow(
+					`Unsupported schema or overlapping types
+at path: ["s"]
+details: cannot extend minLength(1) with undefined`,
+				);
+			});
+		});
+
+		describe('Number', () => {
+			const a = Schema.Struct({
+				n: Schema.Number.pipe(Schema.greaterThanOrEqualTo(1)),
+			});
+			const b = Schema.Struct({
+				n: Schema.Number.pipe(Schema.lessThanOrEqualTo(10)),
+			});
+
+			test('fields', () => {
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({ ...a.fields, ...b.fields }),
+					),
+				).toEqual({
+					n: { required: true, max: 10 },
+				});
+			});
+			test('extends', () => {
+				expect(getEffectSchemaConstraint(Schema.extend(a, b))).toEqual({
+					n: { required: true, max: 10, min: 1 },
 				});
 			});
 		});
