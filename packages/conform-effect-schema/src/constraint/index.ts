@@ -1,4 +1,5 @@
 import * as Schema from 'effect/Schema';
+import * as ReadonlyArray from 'effect/Array';
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
@@ -78,7 +79,15 @@ export const getEffectSchemaConstraint = <A, I>(
 			Match.when(AST.isTransformation, (node) =>
 				transformationVisitor(ctx, node),
 			),
-			// Match.when(AST.isUnion, (node) => unionVisitor(ctx, node)),
+			Match.when(AST.isUnion, (node) =>
+				ReadonlyArray.reduce(node.types, Endo.of(Endo.id), (prog, member) =>
+					Endo.flatMap(prog, (accEndo) =>
+						Endo.map(rec(ctx, member), (memberEndo) =>
+							Endo.compose(accEndo, memberEndo),
+						),
+					),
+				),
+			),
 
 			Match.orElse((node) =>
 				Endo.fail(
