@@ -112,6 +112,9 @@ export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
 			Match.orElse(() => Endo.of(Endo.id)),
 		);
 
+/**
+ * @todo extends union type visitor for root nodes `Endo.MakeVisitor<Ctx.Any, AST.Union>`
+ */
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Node, AST.Union> =
 	(rec) => (ctx, node) => {
 		const isStringLiteral = (

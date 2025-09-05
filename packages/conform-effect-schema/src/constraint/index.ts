@@ -78,6 +78,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			Match.when(AST.isTransformation, (node) =>
 				transformationVisitor(ctx, node),
 			),
+			// Match.when(AST.isUnion, (node) => unionVisitor(ctx, node)),
 
 			Match.orElse((node) =>
 				Endo.fail(
