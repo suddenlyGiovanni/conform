@@ -1303,11 +1303,11 @@ details: cannot extend minLength(1) with undefined`,
 				},
 				b: {
 					// note: optional as it's not present on all union members
-					required: expect.any(Boolean), // FIXME: should be false
+					required: false,
 				},
 				c: {
 					// note: optional as it's not present on all union members
-					required: expect.any(Boolean), // FIXME: should be false
+					required: false,
 				},
 			});
 		});
@@ -1409,12 +1409,12 @@ details: cannot extend minLength(1) with undefined`,
 				},
 				foo: {
 					// note: optional because it's not present on both union members
-					required: expect.any(Boolean), // FIXME: should be false,
+					required: false,
 					minLength: 1,
 				},
 				bar: {
 					// note: optional because it's not present on both union members
-					required: expect.any(Boolean), // FIXME: should be false,
+					required: false,
 					minLength: 1,
 				},
 				baz: {
@@ -1457,12 +1457,12 @@ details: cannot extend minLength(1) with undefined`,
 				},
 				foo: {
 					// note: optional because it's not present on both union members
-					required: expect.any(Boolean), // FIXME: should be false,
+					required: false,
 					minLength: 1,
 				},
 				bar: {
 					// note: optional because it's not present on both union members
-					required: expect.any(Boolean), // FIXME: should be false,
+					required: false,
 					minLength: 1,
 				},
 				baz: {
