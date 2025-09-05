@@ -113,11 +113,10 @@ export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
 			Match.orElse(() => Endo.of(Endo.id)),
 		);
 
-/**
- * @todo extends union type visitor for root nodes `Endo.MakeVisitor<Ctx.Any, AST.Union>`
- */
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 	(rec) => (ctx, node) => {
+		// 1) If the union is entirely string literals and we're on an array item path,
+		//    attach a pattern constraint for those literals.
 		const isStringLiteral = (
 			t: AST.AST,
 		): t is AST.Literal & { literal: string } =>
@@ -129,106 +128,73 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 		const patternFromLiterals = (values: readonly string[]): string =>
 			values.map(regexEscape).join('|');
 
-		// Collect string literals if this union is entirely string literal members
 		const maybeStringLiterals = node.types.every(isStringLiteral)
 			? Option.some(node.types.map(Struct.get('literal')))
 			: Option.none();
 
-		// Only annotate pattern on array item context (ctx.path ends with "[]")
-		const baseProg: ReturnType<typeof Endo.of> = Option.match(
-			maybeStringLiterals,
-			{
-				onNone: () => Endo.of(Endo.id),
-				onSome: (literals) =>
-					Ctx.$match(ctx, {
-						Root: () => Endo.of(Endo.id),
-						Node: ({ path }) =>
-							path.endsWith('[]')
-								? Endo.of(
-										Endo.patch(path, {
-											pattern: patternFromLiterals(literals),
-										}),
-									)
-								: Endo.of(Endo.id),
-					}),
-			},
-		);
+		const baseProg: Endo.Prog = Option.match(maybeStringLiterals, {
+			onNone: () => Endo.of(Endo.id),
+			onSome: (literals) =>
+				Ctx.$match(ctx, {
+					Root: () => Endo.of(Endo.id),
+					Node: ({ path }) =>
+						path.endsWith('[]')
+							? Endo.of(
+									Endo.patch(path, {
+										pattern: patternFromLiterals(literals),
+									}),
+								)
+							: Endo.of(Endo.id),
+				}),
+		});
 
-		// Gather each member endo and its produced constraints snapshot
+		// 2) Visit each union member once, collecting:
+		//    - the composed endomorphism over constraints
+		//    - a snapshot of keys/required flags produced by that member alone
 		const adjustedCtx = Ctx.$match(ctx, {
 			Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: node }),
 			Root: (rootCtx) => rootCtx,
 		});
 
-		// Build list of member programs
-		const memberProgs = node.types.map((member) => rec(adjustedCtx, member));
+		type Acc = { endo: Endo.Endo; snaps: Array<Record<string, Constraint>> };
+		const initAcc: Acc = { endo: Endo.id, snaps: [] };
 
-		// Compose base endo with each member endo, while also computing presence/required sets
-		return ReadonlyArray.reduce(memberProgs, baseProg, (prog, memberProg) =>
-			Endo.flatMap(prog, (accEndo) =>
-				Endo.flatMap(memberProg, (memberEndo) => {
-					// Stash the snapshot on the composed endo via closure by extending with a
-					// post-composition patch that will adjust required flags after all members
-					// have been composed. We'll accumulate snapshots in an array kept in
-					// this scope.
-					// To do this properly, we keep an array in the outer closure; since
-					// we're inside a reduction we can capture it through function scope.
-					return Endo.of(
-						Endo.compose(
-							accEndo,
-							// First, apply the member endo to accumulate all constraints
-							memberEndo,
-							// Then, a no-op that we will replace later in a second pass
-						),
-					);
-				}),
-			),
-		).pipe(
-			// After composing all members, add a final pass to normalize `required`
-			// across union branches: a path is required only if it is present AND
-			// required in all members, otherwise it must be optional (required: false).
-			(prog) =>
-				Endo.flatMap(prog, (composedMembersEndo) => {
-					// Recompute snapshots for all members to aggregate; we need to do it here
-					// because earlier we couldn't persist them through the Prog type.
-					const snapshotsE = ReadonlyArray.reduce(
-						node.types,
-						Either.right(
-							[] as Array<Record<string, Constraint>>,
-						) as Either.Either<Array<Record<string, Constraint>>, Errors>,
-						(acc, member) =>
-							Either.flatMap(acc, (arr) =>
-								Either.map(rec(adjustedCtx, member), (endo) => [
-									...arr,
-									Constraints.toRecord(endo(Constraints.empty())),
-								]),
-							),
-					);
+		const collectProg: Either.Either<Acc, Errors> = ReadonlyArray.reduce(
+			node.types,
+			Either.right(initAcc) as Either.Either<Acc, Errors>,
+			(acc, member) =>
+				Either.flatMap(acc, (state) =>
+					Either.map(rec(adjustedCtx, member), (memberEndo) => {
+						const snap = Constraints.toRecord(memberEndo(Constraints.empty()));
+						return {
+							endo: Endo.compose(state.endo, memberEndo),
+							snaps: [...state.snaps, snap],
+						};
+					}),
+				),
+		);
 
-					return Either.map(snapshotsE, (snapshots) => {
-						// Compute the union of all keys across members
-						const allKeys = Array.from(
-							new Set(snapshots.flatMap((r) => Object.keys(r))),
-						);
+		// 3) Normalize required across branches: a path is required iff it is present
+		//    and required in ALL branches; otherwise mark it as optional.
+		return Endo.flatMap(baseProg, (baseEndo) =>
+			Either.map(collectProg, ({ endo: membersEndo, snaps }) => {
+				const allKeys = Array.from(
+					new Set(snaps.flatMap((r) => Object.keys(r))),
+				);
 
-						// Determine keys that are required in all members
-						const requiredInAll = new Set(
-							allKeys.filter((k) =>
-								snapshots.every((r) => r[k] && r[k].required === true),
-							),
-						);
+				const requiredInAll = new Set(
+					allKeys.filter((k) =>
+						snaps.every((r) => r[k] && r[k].required === true),
+					),
+				);
 
-						// Keys that should become optional in the union result
-						const toOptional = allKeys.filter((k) => !requiredInAll.has(k));
+				const toOptional = allKeys.filter((k) => !requiredInAll.has(k));
+				const normalizeRequired = Endo.compose(
+					...toOptional.map((k) => Endo.patch(k, { required: false })),
+				);
 
-						// Build a final normalization endo that patches required: false
-						const normalizeRequiredEndo = Endo.compose(
-							...toOptional.map((k) => Endo.patch(k, { required: false })),
-						);
-
-						return Endo.compose(composedMembersEndo, normalizeRequiredEndo);
-					});
-				}),
+				return Endo.compose(baseEndo, membersEndo, normalizeRequired);
+			}),
 		);
 	};
 
