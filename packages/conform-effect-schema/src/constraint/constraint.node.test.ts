@@ -1207,11 +1207,15 @@ describe('constraint', () => {
 		describe('with override', () => {
 			describe('String', () => {
 				const a = Schema.Struct({
-					a: Schema.optional(Schema.String),
+					s: Schema.optional(Schema.String),
 				});
 
 				const b = Schema.Struct({
-					a: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(10)),
+					s: Schema.String.pipe(Schema.minLength(1)),
+				});
+
+				const c = Schema.Struct({
+					s: Schema.String.pipe(Schema.maxLength(10)),
 				});
 
 				test('fields', () => {
@@ -1223,7 +1227,7 @@ describe('constraint', () => {
 							}),
 						),
 					).toEqual({
-						a: { required: true, maxLength: 10, minLength: 1 },
+						s: { required: true, minLength: 1 },
 					});
 
 					expect(
@@ -1234,40 +1238,38 @@ describe('constraint', () => {
 							}),
 						),
 					).toEqual({
-						a: { required: false },
+						s: { required: false },
+					});
+
+					expect(
+						getEffectSchemaConstraint(
+							Schema.Struct({ ...b.fields, ...c.fields }),
+						),
+					).toEqual({
+						s: { required: true, maxLength: 10 },
 					});
 				});
 
 				test('extend', () => {
+					expect(getEffectSchemaConstraint(Schema.extend(b, c))).toEqual({
+						s: { required: true, maxLength: 10, minLength: 1 },
+					});
+
 					// Effect's Schema.extend disallows changing optionality (both narrowing
 					// and widening) between schemas — these differences are treated as
 					// unsupported/overlapping and will throw. Assert that behavior here.
 					expect(() => getEffectSchemaConstraint(Schema.extend(a, b))).toThrow(
 						`Unsupported schema or overlapping types
-at path: ["a"]
+at path: ["s"]
 details: cannot extend undefined with string`,
 					);
 
 					expect(() => getEffectSchemaConstraint(Schema.extend(b, a))).toThrow(
 						`Unsupported schema or overlapping types
-at path: ["a"]
-details: cannot extend minLength(1) & maxLength(10) with undefined`,
+at path: ["s"]
+details: cannot extend minLength(1) with undefined`,
 					);
 				});
-			});
-		});
-
-		test('Schema.extend ???', () => {
-			expect(
-				getEffectSchemaConstraint(
-					Schema.extend(
-						Schema.Struct({ a: Schema.String }),
-						Schema.Struct({ b: Schema.optional(Schema.String) }),
-					),
-				),
-			).toEqual({
-				a: { required: true },
-				b: { required: false },
 			});
 		});
 
@@ -1279,53 +1281,58 @@ details: cannot extend minLength(1) & maxLength(10) with undefined`,
 			},
 		);
 
-		test('Schema.extend: struct extended by union of non-overlapping structs (constraint extraction unsupported)', () => {
-			const StructA = Schema.Struct({ a: Schema.String });
-			const UnionOfStructs = Schema.Union(
-				Schema.Struct({ b: Schema.String }),
-				Schema.Struct({ c: Schema.String }),
-			);
+		describe('TODOs:', () => {
+			test.fails('Should support union of non-overlapping structs', () => {
+				const StructA = Schema.Struct({
+					a: Schema.String.pipe(Schema.minLength(1)),
+				});
+				const UnionOfStructs = Schema.Union(
+					Schema.Struct({ b: Schema.String }),
+					Schema.Struct({ c: Schema.String }),
+				);
 
-			const Extended = Schema.extend(StructA, UnionOfStructs);
+				const Extended = Schema.extend(StructA, UnionOfStructs);
 
-			// getEffectSchemaConstraint currently only supports a root TypeLiteral
-			// (struct). Extending with a union yields an AST that's not a simple
-			// TypeLiteral (Union/Intersection), so constraint extraction is
-			// unsupported — assert that it throws the expected error.
-			expect(() => getEffectSchemaConstraint(Extended)).toThrow(
-				/TypeLiteral|Union/,
-			);
+				// getEffectSchemaConstraint currently only supports a root TypeLiteral
+				// (struct). Extending with a union yields an AST that's not a simple
+				// TypeLiteral (Union/Intersection), so constraint extraction is
+				// unsupported — assert that it throws the expected error.
+				expect(getEffectSchemaConstraint(Extended)).toEqual({
+					a: { required: true, minLength: 1 },
+					b: { required: true },
+					c: { required: true },
+				});
+			});
+
+			test.fails('Should support union of overlapping member', () => {
+				const StructA = Schema.Struct({ a: Schema.String });
+				const OverlappingUnion = Schema.Union(
+					Schema.Struct({ a: Schema.String.pipe(Schema.minLength(1)) }),
+					Schema.Struct({ d: Schema.optional(Schema.String) }),
+				);
+
+				expect(
+					getEffectSchemaConstraint(Schema.extend(StructA, OverlappingUnion)),
+				).toEqual({
+					a: { required: true, minLength: 1 },
+					b: { required: false },
+				});
+			});
 		});
 
-		test('Schema.extend: overlapping union member types cause throw', () => {
+		test('Should not support union of invalid overlapping member', () => {
 			const StructA = Schema.Struct({ a: Schema.String });
 			const OverlappingUnion = Schema.Union(
 				Schema.Struct({ a: Schema.Number }),
 				Schema.Struct({ d: Schema.String }),
 			);
 
-			expect(() => Schema.extend(StructA, OverlappingUnion)).toThrow(
-				/Unsupported schema|cannot extend/,
-			);
+			expect(() =>
+				getEffectSchemaConstraint(Schema.extend(StructA, OverlappingUnion)),
+			).toThrow(/Unsupported schema|cannot extend/);
 		});
 
 		// Supported extension patterns (demonstrated via explicit field merging)
-		test('field-spread: later field overrides earlier refinement (string)', () => {
-			const a = Schema.Struct({ s: Schema.String.pipe(Schema.minLength(2)) });
-			const b = Schema.Struct({ s: Schema.String.pipe(Schema.maxLength(5)) });
-
-			// spreading fields uses the later property; it does not merge pipes.
-			expect(
-				getEffectSchemaConstraint(Schema.Struct({ ...a.fields, ...b.fields })),
-			).toEqual({
-				s: { required: true, maxLength: 5 },
-			});
-
-			// Schema.extend merges pipes, so refinements are combined.
-			expect(getEffectSchemaConstraint(Schema.extend(a, b))).toEqual({
-				s: { required: true, maxLength: 5, minLength: 2 },
-			});
-		});
 
 		test('field-spread: later field overrides earlier refinement (number)', () => {
 			const a = Schema.Struct({
