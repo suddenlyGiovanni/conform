@@ -1112,7 +1112,7 @@ describe('constraint', () => {
 			});
 
 			const d = Schema.Struct({
-				n: Schema.String.pipe(Schema.length(10)),
+				n: Schema.String.pipe(Schema.length(42)),
 			});
 
 			test('fields', () => {
@@ -1126,7 +1126,7 @@ describe('constraint', () => {
 					),
 				).toEqual({
 					s: { required: false },
-					n: { required: true, maxLength: 10, minLength: 10 },
+					n: { required: true, maxLength: 42, minLength: 42 },
 				});
 
 				expect(
@@ -1138,7 +1138,7 @@ describe('constraint', () => {
 					),
 				).toEqual({
 					s: { required: false },
-					n: { required: true, maxLength: 10, minLength: 10 },
+					n: { required: true, maxLength: 42, minLength: 42 },
 				});
 
 				expect(
@@ -1175,12 +1175,12 @@ describe('constraint', () => {
 			test('extend', () => {
 				expect(getEffectSchemaConstraint(Schema.extend(a, d))).toEqual({
 					s: { required: false },
-					n: { required: true, maxLength: 10, minLength: 10 },
+					n: { required: true, maxLength: 42, minLength: 42 },
 				});
 
 				expect(getEffectSchemaConstraint(Schema.extend(d, a))).toEqual({
 					s: { required: false },
-					n: { required: true, maxLength: 10, minLength: 10 },
+					n: { required: true, maxLength: 42, minLength: 42 },
 				});
 
 				expect(getEffectSchemaConstraint(Schema.extend(b, c))).toEqual({
