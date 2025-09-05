@@ -1098,50 +1098,6 @@ describe('constraint', () => {
 	});
 
 	describe('extends', () => {
-		describe('without override', () => {
-			const a = Schema.Struct({
-				a: Schema.optional(Schema.String),
-			});
-
-			const b = Schema.Struct({
-				b: Schema.Number,
-			});
-
-			const expectedConstraintRecord: ConstraintRecord = {
-				a: { required: false },
-				b: { required: true },
-			};
-
-			test('with field spread', () => {
-				expect(
-					getEffectSchemaConstraint(
-						Schema.Struct({
-							...a.fields,
-							...b.fields,
-						}),
-					),
-				).toEqual(expectedConstraintRecord);
-
-				expect(
-					getEffectSchemaConstraint(
-						Schema.Struct({
-							...b.fields,
-							...a.fields,
-						}),
-					),
-				).toEqual(expectedConstraintRecord);
-			});
-
-			test('with Schema.extend', () => {
-				expect(getEffectSchemaConstraint(Schema.extend(a, b))).toEqual(
-					expectedConstraintRecord,
-				);
-				expect(getEffectSchemaConstraint(Schema.extend(b, a))).toEqual(
-					expectedConstraintRecord,
-				);
-			});
-		});
-
 		describe('with override', () => {
 			describe('String', () => {
 				const a = Schema.Struct({
@@ -1156,7 +1112,36 @@ describe('constraint', () => {
 					s: Schema.String.pipe(Schema.maxLength(10)),
 				});
 
+				const d = Schema.Struct({
+					n: Schema.String.pipe(Schema.length(10)),
+				});
+
 				test('fields', () => {
+					// without override
+					expect(
+						getEffectSchemaConstraint(
+							Schema.Struct({
+								...a.fields,
+								...d.fields,
+							}),
+						),
+					).toEqual({
+						s: { required: false },
+						n: { required: true, maxLength: 10, minLength: 10 },
+					});
+
+					expect(
+						getEffectSchemaConstraint(
+							Schema.Struct({
+								...d.fields,
+								...a.fields,
+							}),
+						),
+					).toEqual({
+						s: { required: false },
+						n: { required: true, maxLength: 10, minLength: 10 },
+					});
+
 					expect(
 						getEffectSchemaConstraint(
 							Schema.Struct({
@@ -1189,6 +1174,16 @@ describe('constraint', () => {
 				});
 
 				test('extend', () => {
+					expect(getEffectSchemaConstraint(Schema.extend(a, d))).toEqual({
+						s: { required: false },
+						n: { required: true, maxLength: 10, minLength: 10 },
+					});
+
+					expect(getEffectSchemaConstraint(Schema.extend(d, a))).toEqual({
+						s: { required: false },
+						n: { required: true, maxLength: 10, minLength: 10 },
+					});
+
 					expect(getEffectSchemaConstraint(Schema.extend(b, c))).toEqual({
 						s: { required: true, maxLength: 10, minLength: 1 },
 					});
