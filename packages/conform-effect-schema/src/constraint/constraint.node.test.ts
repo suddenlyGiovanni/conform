@@ -1,4 +1,5 @@
 import * as Schema from 'effect/Schema';
+import type * as Types from 'effect/Types';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 
 import { getEffectSchemaConstraint } from '../index';
@@ -1343,6 +1344,110 @@ details: cannot extend minLength(1) with undefined`,
 		});
 	});
 
+	describe('Union', () => {
+		const baseSchema = Schema.Struct({
+			qux: Schema.String.pipe(Schema.minLength(1)),
+		});
+
+		const Left = Schema.extend(
+			baseSchema,
+			Schema.Struct({
+				foo: Schema.String.pipe(Schema.minLength(1)),
+				baz: Schema.String.pipe(Schema.minLength(1)),
+			}),
+		);
+
+		const Right = Schema.extend(
+			baseSchema,
+			Schema.Struct({
+				bar: Schema.String.pipe(Schema.minLength(1)),
+				baz: Schema.String.pipe(Schema.minLength(1)),
+			}),
+		);
+
+		test.fails('Supports disjointed unions', () => {
+			const DisjointedUnion = Schema.Union(Left, Right);
+
+			expectTypeOf<Types.Simplify<typeof DisjointedUnion.Type>>().toEqualTypeOf<
+				| {
+						readonly qux: string;
+						readonly foo: string;
+						readonly baz: string;
+				  }
+				| {
+						readonly qux: string;
+						readonly bar: string;
+						readonly baz: string;
+				  }
+			>();
+
+			expect(getEffectSchemaConstraint(DisjointedUnion)).toEqual({
+				qux: {
+					required: true,
+					minLength: 1,
+				},
+				foo: {
+					required: false,
+					minLength: 1,
+				},
+				bar: {
+					required: false,
+					minLength: 1,
+				},
+				baz: {
+					required: true,
+					minLength: 1,
+				},
+			});
+		});
+
+		test.fails('Supports discriminated union', () => {
+			const DiscriminatedUnion = Schema.Union(
+				Left.pipe(Schema.attachPropertySignature('type', 'a')),
+				Right.pipe(Schema.attachPropertySignature('type', 'b')),
+			);
+
+			expectTypeOf<
+				Types.Simplify<typeof DiscriminatedUnion.Type>
+			>().toEqualTypeOf<
+				| {
+						readonly type: 'a';
+						readonly qux: string;
+						readonly foo: string;
+						readonly baz: string;
+				  }
+				| {
+						readonly type: 'b';
+						readonly qux: string;
+						readonly bar: string;
+						readonly baz: string;
+				  }
+			>();
+
+			expect(getEffectSchemaConstraint(DiscriminatedUnion)).toEqual({
+				type: {
+					required: true, // note: required as discriminant is always required
+				},
+				qux: {
+					required: true, // note: required as its present in both sides
+					minLength: 1,
+				},
+				foo: {
+					required: false, // note: optional because it's not present on both union members
+					minLength: 1,
+				},
+				bar: {
+					required: false, // note: optional because it's not present on both union members
+					minLength: 1,
+				},
+				baz: {
+					required: true, // note: required as its present in both sides
+					minLength: 1,
+				},
+			});
+		});
+	});
+
 	const minTimestamp = '1970-01-01';
 	const maxTimestamp = '2030-01-01';
 
@@ -1403,85 +1508,6 @@ details: cannot extend minLength(1) with undefined`,
 
 	test('case 1', () => {
 		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
-	});
-
-	test.todo('Union is supported', () => {
-		// Union is supported
-		const baseSchema = Schema.Struct({
-			qux: Schema.String.pipe(Schema.minLength(1)),
-		});
-		expect(
-			getEffectSchemaConstraint(
-				Schema.Union(
-					Schema.Struct({
-						...baseSchema.fields,
-						type: Schema.Literal('a'),
-						foo: Schema.String.pipe(Schema.minLength(1)),
-						baz: Schema.String.pipe(Schema.minLength(1)),
-					}),
-					Schema.Struct({
-						...baseSchema.fields,
-						type: Schema.Literal('b'),
-						bar: Schema.String.pipe(Schema.minLength(1)),
-						baz: Schema.String.pipe(Schema.minLength(1)),
-					}),
-				),
-			),
-		).toEqual({
-			type: { required: true },
-			foo: {
-				required: false,
-				minLength: 1,
-			},
-			bar: {
-				required: false,
-				minLength: 1,
-			},
-			baz: {
-				required: true,
-				minLength: 1,
-			},
-			qux: {
-				required: true,
-				minLength: 1,
-			},
-		});
-
-		// Discriminated union is also supported
-		expect(
-			getEffectSchemaConstraint(
-				Schema.Union(
-					Schema.Struct({
-						...baseSchema.fields,
-						foo: Schema.String.pipe(Schema.minLength(1)),
-						baz: Schema.String.pipe(Schema.minLength(1)),
-					}).pipe(Schema.attachPropertySignature('type', 'a')),
-					Schema.Struct({
-						...baseSchema.fields,
-						bar: Schema.String.pipe(Schema.minLength(1)),
-						baz: Schema.String.pipe(Schema.minLength(1)),
-					}).pipe(Schema.attachPropertySignature('type', 'b')),
-				),
-			),
-		).toEqual({
-			type: { required: true },
-			foo: {
-				required: false,
-				minLength: 1,
-			},
-			bar: {
-				required: false,
-				minLength: 1,
-			},
-			baz: {
-				required: true,
-				minLength: 1,
-			},
-			qux: {
-				required: true,
-				minLength: 1,
-			},
-		});
 	});
 
 	test.todo('Recursive schema should be supported too', () => {
