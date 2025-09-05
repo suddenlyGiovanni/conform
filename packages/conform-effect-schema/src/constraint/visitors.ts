@@ -115,7 +115,7 @@ export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
 /**
  * @todo extends union type visitor for root nodes `Endo.MakeVisitor<Ctx.Any, AST.Union>`
  */
-export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Node, AST.Union> =
+export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 	(rec) => (ctx, node) => {
 		const isStringLiteral = (
 			t: AST.AST,
@@ -139,13 +139,17 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Node, AST.Union> =
 			{
 				onNone: () => Endo.of(Endo.id),
 				onSome: (literals) =>
-					ctx.path.endsWith('[]')
-						? Endo.of(
-								Endo.patch(ctx.path, {
-									pattern: patternFromLiterals(literals),
-								}),
-							)
-						: Endo.of(Endo.id),
+					Ctx.$match(ctx, {
+						Root: () => Endo.of(Endo.id),
+						Node: ({ path }) =>
+							path.endsWith('[]')
+								? Endo.of(
+										Endo.patch(path, {
+											pattern: patternFromLiterals(literals),
+										}),
+									)
+								: Endo.of(Endo.id),
+					}),
 			},
 		);
 
@@ -153,7 +157,13 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Node, AST.Union> =
 		return ReadonlyArray.reduce(node.types, baseProg, (prog, member) =>
 			Endo.flatMap(prog, (accEndo) =>
 				Endo.map(
-					rec(Ctx.Node({ path: ctx.path, parent: node }), member),
+					rec(
+						Ctx.$match(ctx, {
+							Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: node }),
+							Root: (rootCtx) => rootCtx,
+						}),
+						member,
+					),
 					(memberEndo) => Endo.compose(accEndo, memberEndo),
 				),
 			),
