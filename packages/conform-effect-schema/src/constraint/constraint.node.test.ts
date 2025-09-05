@@ -1097,68 +1097,6 @@ describe('constraint', () => {
 		});
 	});
 
-	const minTimestamp = '1970-01-01';
-	const maxTimestamp = '2030-01-01';
-
-	const schema = Schema.Struct({
-		text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
-		number: Schema.Number.pipe(
-			Schema.greaterThanOrEqualTo(1),
-			Schema.lessThanOrEqualTo(10),
-			Schema.multipleOf(2, { message: () => 'step' }),
-		),
-		timestamp: Schema.optionalWith(
-			Schema.Date.pipe(
-				Schema.betweenDate(new Date(minTimestamp), new Date(maxTimestamp)),
-			),
-			{
-				default: () => new Date(maxTimestamp),
-			},
-		),
-		flag: Schema.optional(Schema.Boolean),
-		literalFlag: Schema.Literal(true),
-		options: Schema.Array(Schema.Literal('a', 'b', 'c')).pipe(
-			Schema.minItems(3),
-		),
-	});
-
-	const constraint = {
-		text: {
-			required: true,
-			minLength: 10,
-			maxLength: 100,
-		},
-		number: {
-			required: true,
-			min: 1,
-			max: 10,
-			step: 2,
-		},
-		timestamp: {
-			required: true,
-			max: maxTimestamp,
-			min: minTimestamp,
-		},
-		flag: {
-			required: false,
-		},
-		literalFlag: {
-			required: true,
-		},
-		options: {
-			required: true,
-			multiple: true,
-		},
-		'options[]': {
-			required: true,
-			pattern: 'a|b|c',
-		},
-	} satisfies Record<string, Constraint>;
-
-	test('case 1', () => {
-		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
-	});
-
 	describe('extends', () => {
 		describe('without override', () => {
 			const a = Schema.Struct({
@@ -1271,6 +1209,30 @@ details: cannot extend minLength(1) with undefined`,
 					);
 				});
 			});
+
+			describe('Number', () => {
+				const a = Schema.Struct({
+					n: Schema.Number.pipe(Schema.greaterThanOrEqualTo(1)),
+				});
+				const b = Schema.Struct({
+					n: Schema.Number.pipe(Schema.lessThanOrEqualTo(10)),
+				});
+
+				test('fields', () => {
+					expect(
+						getEffectSchemaConstraint(
+							Schema.Struct({ ...a.fields, ...b.fields }),
+						),
+					).toEqual({
+						n: { required: true, max: 10 },
+					});
+				});
+				test('extends', () => {
+					expect(getEffectSchemaConstraint(Schema.extend(a, b))).toEqual({
+						n: { required: true, max: 10, min: 1 },
+					});
+				});
+			});
 		});
 
 		test.todo(
@@ -1333,25 +1295,6 @@ details: cannot extend minLength(1) with undefined`,
 		});
 
 		// Supported extension patterns (demonstrated via explicit field merging)
-
-		test('field-spread: later field overrides earlier refinement (number)', () => {
-			const a = Schema.Struct({
-				n: Schema.Number.pipe(Schema.greaterThanOrEqualTo(1)),
-			});
-			const b = Schema.Struct({
-				n: Schema.Number.pipe(Schema.lessThanOrEqualTo(10)),
-			});
-
-			expect(
-				getEffectSchemaConstraint(Schema.Struct({ ...a.fields, ...b.fields })),
-			).toEqual({
-				n: { required: true, max: 10 },
-			});
-
-			expect(getEffectSchemaConstraint(Schema.extend(a, b))).toEqual({
-				n: { required: true, max: 10, min: 1 },
-			});
-		});
 
 		test('field-spread: boolean literal overrides boolean (literal wins)', () => {
 			expect(
@@ -1417,6 +1360,68 @@ details: cannot extend minLength(1) with undefined`,
 				something: { required: true },
 			});
 		});
+	});
+
+	const minTimestamp = '1970-01-01';
+	const maxTimestamp = '2030-01-01';
+
+	const schema = Schema.Struct({
+		text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
+		number: Schema.Number.pipe(
+			Schema.greaterThanOrEqualTo(1),
+			Schema.lessThanOrEqualTo(10),
+			Schema.multipleOf(2, { message: () => 'step' }),
+		),
+		timestamp: Schema.optionalWith(
+			Schema.Date.pipe(
+				Schema.betweenDate(new Date(minTimestamp), new Date(maxTimestamp)),
+			),
+			{
+				default: () => new Date(maxTimestamp),
+			},
+		),
+		flag: Schema.optional(Schema.Boolean),
+		literalFlag: Schema.Literal(true),
+		options: Schema.Array(Schema.Literal('a', 'b', 'c')).pipe(
+			Schema.minItems(3),
+		),
+	});
+
+	const constraint = {
+		text: {
+			required: true,
+			minLength: 10,
+			maxLength: 100,
+		},
+		number: {
+			required: true,
+			min: 1,
+			max: 10,
+			step: 2,
+		},
+		timestamp: {
+			required: true,
+			max: maxTimestamp,
+			min: minTimestamp,
+		},
+		flag: {
+			required: false,
+		},
+		literalFlag: {
+			required: true,
+		},
+		options: {
+			required: true,
+			multiple: true,
+		},
+		'options[]': {
+			required: true,
+			pattern: 'a|b|c',
+		},
+	} satisfies Record<string, Constraint>;
+
+	test('case 1', () => {
+		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
 	});
 
 	test.todo('Union is supported', () => {
