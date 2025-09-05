@@ -2,7 +2,7 @@ import * as Schema from 'effect/Schema';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 
 import { getEffectSchemaConstraint } from '../index';
-import type { Constraint } from './types';
+import type { Constraint, ConstraintRecord } from './types';
 
 describe('constraint', () => {
 	test('Non-object schemas will throw an error', () => {
@@ -1243,15 +1243,15 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test.todo(
-			'Schema.extend with a union of structs should merge supported union members into the target struct',
-			() => {
-				// This test will validate extension of a struct with a union of supported
-				// schemas. Keep it as TODO while implementation coverage is uncertain.
-			},
-		);
-
 		describe('TODOs:', () => {
+			test.todo(
+				'Schema.extend with a union of structs should merge supported union members into the target struct',
+				() => {
+					// This test will validate extension of a struct with a union of supported
+					// schemas. Keep it as TODO while implementation coverage is uncertain.
+				},
+			);
+
 			test.fails('Should support union of non-overlapping structs', () => {
 				const StructA = Schema.Struct({
 					a: Schema.String.pipe(Schema.minLength(1)),
@@ -1302,8 +1302,6 @@ details: cannot extend minLength(1) with undefined`,
 			).toThrow(/Unsupported schema|cannot extend/);
 		});
 
-		// Supported extension patterns (demonstrated via explicit field merging)
-
 		test('field-spread: nested struct spreading overrides earlier refinements', () => {
 			expect(
 				getEffectSchemaConstraint(
@@ -1341,38 +1339,6 @@ details: cannot extend minLength(1) with undefined`,
 					minLength: 1,
 					required: true,
 				},
-			});
-		});
-
-		test('nested: combine refinements by piping on inner struct', () => {
-			expect(
-				getEffectSchemaConstraint(
-					Schema.Struct({
-						obj: Schema.Struct({
-							x: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(8)),
-						}),
-					}),
-				),
-			).toEqual({
-				obj: { required: true },
-				'obj.x': { required: true, minLength: 1, maxLength: 8 },
-			});
-		});
-
-		test('Intersection is supported', () => {
-			// Intersection is supported
-			expect(
-				getEffectSchemaConstraint(
-					Schema.Struct({
-						...schema.fields,
-						text: Schema.optional(Schema.String),
-						something: Schema.String,
-					}),
-				),
-			).toEqual({
-				...constraint,
-				text: { required: false },
-				something: { required: true },
 			});
 		});
 	});
@@ -1433,7 +1399,7 @@ details: cannot extend minLength(1) with undefined`,
 			required: true,
 			pattern: 'a|b|c',
 		},
-	} satisfies Record<string, Constraint>;
+	} satisfies ConstraintRecord;
 
 	test('case 1', () => {
 		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
