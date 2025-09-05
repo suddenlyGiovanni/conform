@@ -1228,6 +1228,21 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
+		describe('Boolean', () => {
+			test('fields', () => {
+				expect(
+					getEffectSchemaConstraint(
+						Schema.Struct({
+							...Schema.Struct({ flag: Schema.Boolean }).fields,
+							...Schema.Struct({ flag: Schema.Literal(true) }).fields,
+						}),
+					),
+				).toEqual({
+					flag: { required: true },
+				});
+			});
+		});
+
 		test.todo(
 			'Schema.extend with a union of structs should merge supported union members into the target struct',
 			() => {
@@ -1289,19 +1304,6 @@ details: cannot extend minLength(1) with undefined`,
 
 		// Supported extension patterns (demonstrated via explicit field merging)
 
-		test('field-spread: boolean literal overrides boolean (literal wins)', () => {
-			expect(
-				getEffectSchemaConstraint(
-					Schema.Struct({
-						...Schema.Struct({ flag: Schema.Boolean }).fields,
-						...Schema.Struct({ flag: Schema.Literal(true) }).fields,
-					}),
-				),
-			).toEqual({
-				flag: { required: true },
-			});
-		});
-
 		test('field-spread: nested struct spreading overrides earlier refinements', () => {
 			expect(
 				getEffectSchemaConstraint(
@@ -1319,6 +1321,26 @@ details: cannot extend minLength(1) with undefined`,
 			).toEqual({
 				obj: { required: true },
 				'obj.x': { required: true, maxLength: 8 },
+			});
+
+			expect(
+				getEffectSchemaConstraint(
+					Schema.Struct({
+						obj: Schema.Struct({
+							x: Schema.extend(
+								Schema.String.pipe(Schema.minLength(1)),
+								Schema.String.pipe(Schema.maxLength(8)),
+							),
+						}),
+					}),
+				),
+			).toEqual({
+				obj: { required: true },
+				'obj.x': {
+					maxLength: 8,
+					minLength: 1,
+					required: true,
+				},
 			});
 		});
 
