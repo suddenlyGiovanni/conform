@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="WEB_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/.tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/temp" />
+      <excludeFolder url="file://$MODULE_DIR$/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/chakra-ui/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/headless-ui/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/material-ui/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/nextjs/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/radix-ui/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/react-aria/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/react-router/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/react-spa/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/remix/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/shadcn-ui/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/guide/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-dom/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-dom/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-effect-schema/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-effect-schema/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-react/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-react/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-valibot/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-valibot/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-validitystate/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-validitystate/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-yup/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-yup/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-zod/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-zod/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/playground/node_modules" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

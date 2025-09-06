@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="TypeScriptCompiler">
+    <option name="nodeInterpreterTextField" value="/nix/store/qwm1cl0dpjw4zin47aqqv5i540sbgai3-nodejs-slim-24.7.0/bin/node" />
+    <option name="useTypesFromServer" value="true" />
+  </component>
+</project>
