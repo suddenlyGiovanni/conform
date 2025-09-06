@@ -8,7 +8,14 @@ import * as AST from 'effect/SchemaAST';
 import * as Struct from 'effect/Struct';
 
 import * as Refinements from './refinements';
-import { type Constraint, Constraints, Ctx, Endo, type Errors } from './types';
+import {
+	type Constraint,
+	Constraints,
+	ConstraintRecord,
+	Ctx,
+	Endo,
+	type Errors,
+} from './types';
 
 export const makeTypeLiteralVisitor: Endo.MakeVisitor<
 	Ctx.Any,
@@ -122,13 +129,15 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 		): t is AST.Literal & { literal: string } =>
 			AST.isLiteral(t) && Predicate.isString(t.literal);
 
-		const regexEscape = (s: string) =>
+		const regexEscape = (s: string): string =>
 			s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d');
 
 		const patternFromLiterals = (values: readonly string[]): string =>
 			values.map(regexEscape).join('|');
 
-		const maybeStringLiterals = node.types.every(isStringLiteral)
+		const maybeStringLiterals: Option.Option<string[]> = node.types.every(
+			isStringLiteral,
+		)
 			? Option.some(node.types.map(Struct.get('literal')))
 			: Option.none();
 
@@ -151,12 +160,12 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 		// 2) Visit each union member once, collecting:
 		//    - the composed endomorphism over constraints
 		//    - a snapshot of keys/required flags produced by that member alone
-		const adjustedCtx = Ctx.$match(ctx, {
+		const adjustedCtx: Ctx.Any = Ctx.$match(ctx, {
 			Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: node }),
 			Root: (rootCtx) => rootCtx,
 		});
 
-		type Acc = { endo: Endo.Endo; snaps: Array<Record<string, Constraint>> };
+		type Acc = { endo: Endo.Endo; snaps: Array<ConstraintRecord> };
 		const initAcc: Acc = { endo: Endo.id, snaps: [] };
 
 		const collectProg: Either.Either<Acc, Errors> = ReadonlyArray.reduce(
@@ -174,7 +183,7 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 				),
 		);
 
-		// 3) Normalize required across branches: a path is required iff it is present
+		// 3) Normalize required across branches: a path is required if it is present
 		//    and required in ALL branches; otherwise mark it as optional.
 		return Endo.flatMap(baseProg, (baseEndo) =>
 			Either.map(collectProg, ({ endo: membersEndo, snaps }) => {
