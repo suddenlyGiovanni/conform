@@ -121,10 +121,34 @@ export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
 		);
 
 /**
- * - Constraints are static per form field, so union handling must be branch-agnostic.
- * - If an array’s item type is a union of string literals, emit a safe regex pattern for the item (enum-like constraint).
- * - A field is required only if it is present and required in every union member; otherwise it becomes optional.
- * - We do not intersect other refinements across branches. Conflicting branch shapes should be rejected earlier by schema composition (overlap/unsupported errors).
+ * Union handling (Conform domain)
+ *
+ * Background:
+ * - Effect’s SchemaAST allows unions of many AST node kinds (not only objects).
+ * - Conform constraints are keyed by form field paths. Only object-like members (TypeLiteral/Struct)
+ *   and nested shapes (tuples/arrays producing subpaths) actually contribute field keys.
+ * - Unions of primitives/literals do not introduce field paths by themselves, so they do not impact
+ *   “requiredness” directly in Conform’s ConstraintRecord.
+ *
+ * Policy:
+ * - Constraints are static per form field, so union handling is branch-agnostic (no conditionals).
+ * - Requiredness is derived by intersecting branch snapshots:
+ *   - A path k is required iff k is present and required in every union member that contributes it.
+ *   - If k is present in at least one member but is optional or absent in any other, k is optional.
+ *   - If k is present in none, it is omitted.
+ * - We do not attempt to merge/refine other constraints across branches. Conflicting shapes/refinements
+ *   should be rejected earlier by schema composition (overlap/unsupported errors).
+ *
+ * Special-cases:
+ * - Array of union-of-string-literals: when visiting an array item path (path ends with "[]") and the
+ *   union is entirely string literals, we emit a safe alternation regex (enum-like) at the item path.
+ *   This does not affect requiredness; it’s an additional item-level constraint.
+ *
+ * Notes:
+ * - Discriminated unions naturally make the discriminant required because it is present (and required)
+ *   in every branch; other fields follow the same intersection rule above.
+ * - If a union has no object-like members that yield field paths, this visitor may produce no keys;
+ *   that is expected and acceptable for Conform constraints.
  */
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 	(rec) => (ctx, node) => {
