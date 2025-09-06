@@ -148,7 +148,13 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 					Root: () => Endo.of(Endo.id),
 					Node: ({ path }) =>
 						path.endsWith('[]')
-							? Endo.of(
+							? /*
+								 * WHEN all union members are string literals,
+								 * AND the parent node is an array,
+								 * SO the expected type be an array of string literals (e.g. Array<'a' | 'b' | 'c'>),
+								 * THEN we need to attach a pattern constraint to the array item path.
+								 */
+								Endo.of(
 									Endo.patch(path, {
 										pattern: patternFromLiterals(literals),
 									}),
@@ -157,20 +163,19 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 				}),
 		});
 
-		// 2) Visit each union member once, collecting:
-		//    - the composed endomorphism over constraints
-		//    - a snapshot of keys/required flags produced by that member alone
 		const adjustedCtx: Ctx.Any = Ctx.$match(ctx, {
 			Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: node }),
 			Root: (rootCtx) => rootCtx,
 		});
 
 		type Acc = { endo: Endo.Endo; snaps: Array<ConstraintRecord> };
-		const initAcc: Acc = { endo: Endo.id, snaps: [] };
 
+		// 2) Visit each union member once, collecting:
+		//    - the composed endomorphism over constraints
+		//    - a snapshot of keys/required flags produced by that member alone
 		const collectProg: Either.Either<Acc, Errors> = ReadonlyArray.reduce(
 			node.types,
-			Either.right(initAcc) as Either.Either<Acc, Errors>,
+			Either.right({ endo: Endo.id, snaps: [] }) as Either.Either<Acc, Errors>,
 			(acc, member) =>
 				Either.flatMap(acc, (state) =>
 					Either.map(rec(adjustedCtx, member), (memberEndo) => {
