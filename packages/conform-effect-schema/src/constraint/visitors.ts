@@ -230,33 +230,29 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 		 * every alternative both defines it and requires it. Any missing or
 		 * optional occurrence forces it to optional in the merged view.
 		 */
-		return Endo.flatMap(Endo.of(Endo.id), (baseEndo) =>
-			Either.map(collectProg, ({ endo: membersEndo, snaps }) => {
-				const allKeys = Array.from(
-					new Set(snaps.flatMap((r) => Object.keys(r))),
-				);
+		return Either.map(collectProg, ({ endo: membersEndo, snaps }) => {
+			const allKeys = Array.from(new Set(snaps.flatMap((r) => Object.keys(r))));
 
-				const requiredInAll = new Set(
-					allKeys.filter((k) =>
-						snaps.every((r) => r[k] && r[k].required === true),
-					),
-				);
+			const requiredInAll = new Set(
+				allKeys.filter((k) =>
+					snaps.every((r) => r[k] && r[k].required === true),
+				),
+			);
 
-				const toOptional = allKeys.filter((k) => !requiredInAll.has(k));
+			const toOptional = allKeys.filter((k) => !requiredInAll.has(k));
 
-				// WHAT: Apply downgrades after raw member composition so they cannot be re-overridden.
-				const normalizeRequired = Endo.compose(
-					...toOptional.map((k) => Endo.patch(k, { required: false })),
-				);
-				/**
-				 * FINAL COMPOSITION:
-				 * pattern constraints (if any)
-				 * + raw branch constraints
-				 * + required normalization step
-				 */
-				return Endo.compose(baseEndo, membersEndo, normalizeRequired);
-			}),
-		);
+			// WHAT: Apply downgrades after raw member composition so they cannot be re-overridden.
+			const normalizeRequired = Endo.compose(
+				...toOptional.map((k) => Endo.patch(k, { required: false })),
+			);
+			/**
+			 * FINAL COMPOSITION:
+			 * pattern constraints (if any)
+			 * + raw branch constraints
+			 * + required normalization step
+			 */
+			return Endo.compose(membersEndo, normalizeRequired);
+		});
 	};
 
 const mergeConstraint = (
