@@ -158,39 +158,40 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 		 * regex pattern. The downstream constraint engine does not keep
 		 * literal sets, so we precompile them to a pattern.
 		 */
-		const isStringLiteral = (
-			t: AST.AST,
-		): t is AST.Literal & { literal: string } =>
-			AST.isLiteral(t) && Predicate.isString(t.literal);
 
-		const regexEscape = (s: string): string =>
-			s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d');
-
-		const patternFromLiterals = (values: readonly string[]): string =>
-			values.map(regexEscape).join('|');
-
-		const maybeStringLiterals: Option.Option<string[]> = node.types.every(
-			isStringLiteral,
-		)
-			? Option.some(node.types.map(Struct.get('literal')))
-			: Option.none();
-
-		const baseProg: Endo.Prog = Option.match(maybeStringLiterals, {
-			onNone: () => Endo.of(Endo.id),
-			onSome: (literals) =>
-				Ctx.$match(ctx, {
-					Root: () => Endo.of(Endo.id),
-					Node: ({ path }) =>
-						path.endsWith('[]')
-							? Endo.of(
-									Endo.patch(path, {
-										// WHAT: constrain each array item to one of the literal tokens
-										pattern: patternFromLiterals(literals),
-									}),
-								)
-							: Endo.of(Endo.id),
-				}),
-		});
+		if (
+			ReadonlyArray.every(
+				node.types,
+				(t): t is AST.Literal & { literal: string } =>
+					AST.isLiteral(t) && Predicate.isString(t.literal),
+			)
+		) {
+			return Ctx.$match(ctx, {
+				Root: (): Endo.Prog => Endo.of(Endo.id),
+				Node: ({ path }): Endo.Prog =>
+					path.endsWith('[]')
+						? Endo.of(
+								Endo.patch(path, {
+									// WHAT: constrain each array item to one of the literal tokens
+									pattern: pipe(
+										ReadonlyArray.map(
+											node.types as ReadonlyArray<
+												AST.Literal & { literal: string }
+											>,
+											Struct.get('literal'),
+										),
+										ReadonlyArray.map((s) =>
+											s
+												.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
+												.replace(/-/g, '\\x2d'),
+										),
+										ReadonlyArray.join('|'),
+									),
+								}),
+							)
+						: Endo.of(Endo.id),
+			});
+		}
 
 		/**
 		 * WHY: Children visited under a union need the union node as parent
@@ -229,7 +230,7 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 		 * every alternative both defines it and requires it. Any missing or
 		 * optional occurrence forces it to optional in the merged view.
 		 */
-		return Endo.flatMap(baseProg, (baseEndo) =>
+		return Endo.flatMap(Endo.of(Endo.id), (baseEndo) =>
 			Either.map(collectProg, ({ endo: membersEndo, snaps }) => {
 				const allKeys = Array.from(
 					new Set(snaps.flatMap((r) => Object.keys(r))),
