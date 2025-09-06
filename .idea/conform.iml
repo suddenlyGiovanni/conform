@@ -2,11 +2,6 @@
 <module type="WEB_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/packages/conform-dom/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/packages/conform-effect-schema/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/packages/conform-react/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/packages/conform-valibot/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/packages/conform-zod/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/.tmp" />
       <excludeFolder url="file://$MODULE_DIR$/temp" />
       <excludeFolder url="file://$MODULE_DIR$/tmp" />
@@ -17,12 +12,14 @@
       <excludeFolder url="file://$MODULE_DIR$/examples/radix-ui/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/examples/react-aria/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/examples/react-router/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/react-spa/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/examples/remix/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/examples/shadcn-ui/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/guide/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/packages/conform-dom/dist" />
       <excludeFolder url="file://$MODULE_DIR$/packages/conform-dom/node_modules" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/conform-effect-schema/dist" />
       <excludeFolder url="file://$MODULE_DIR$/packages/conform-effect-schema/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/packages/conform-react/dist" />
       <excludeFolder url="file://$MODULE_DIR$/packages/conform-react/node_modules" />
@@ -34,8 +31,6 @@
       <excludeFolder url="file://$MODULE_DIR$/packages/conform-yup/node_modules" />
       <excludeFolder url="file://$MODULE_DIR$/packages/conform-zod/dist" />
       <excludeFolder url="file://$MODULE_DIR$/packages/conform-zod/node_modules" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/conform-zod/v3" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/conform-zod/v4" />
       <excludeFolder url="file://$MODULE_DIR$/playground/node_modules" />
     </content>
     <orderEntry type="inheritedJdk" />

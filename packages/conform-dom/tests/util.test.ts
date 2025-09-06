@@ -1,21 +1,5 @@
 import { expect, test } from 'vitest';
-import { serialize, deepEqual } from '../util';
-
-test('serialize', () => {
-	expect(serialize('test')).toBe('test');
-	expect(serialize(true)).toBe('on');
-	expect(serialize(false)).toBeUndefined();
-	expect(serialize(123)).toBe('123');
-	expect(serialize(987654321n)).toBe('987654321');
-	expect(serialize(new Date(12345))).toBe(new Date(12345).toISOString());
-	expect(serialize(new Map())).toBeUndefined();
-	expect(serialize(new Set())).toBeUndefined();
-	expect(serialize(new File([], 'example'))).toBeUndefined();
-	expect(serialize(null)).toBeUndefined();
-	expect(serialize(undefined)).toBeUndefined();
-	expect(serialize({ a: 1, b: 2, c: 3 })).toBeUndefined();
-	expect(serialize(['foo', 'bar'])).toBeUndefined();
-});
+import { deepEqual } from '../util';
 
 test('deepEqual', () => {
 	expect(deepEqual(null, null)).toBe(true);

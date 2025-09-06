@@ -53,9 +53,23 @@ const menus: { [code: string]: Menu[] } = {
 		{
 			title: 'Future APIs',
 			links: [
-				{ title: 'useControl', to: '/api/react/future/useControl' },
+				{ title: 'useForm', to: '/api/react/future/useForm' },
 				{ title: 'useFormData', to: '/api/react/future/useFormData' },
+				{ title: 'useFormMetadata', to: '/api/react/future/useFormMetadata' },
+				{ title: 'useField', to: '/api/react/future/useField' },
+				{ title: 'useControl', to: '/api/react/future/useControl' },
+				{ title: 'useIntent', to: '/api/react/future/useIntent' },
+				{ title: 'parseSubmission', to: '/api/react/future/parseSubmission' },
+				{ title: 'report', to: '/api/react/future/report' },
 				{ title: 'isDirty', to: '/api/react/future/isDirty' },
+			],
+		},
+		{
+			title: 'Future APIs (Zod Schema)',
+			links: [
+				{ title: 'coerceFormValue', to: '/api/zod/future/coerceFormValue' },
+				{ title: 'formatResult', to: '/api/zod/future/formatResult' },
+				{ title: 'memoize', to: '/api/zod/future/memoize' },
 			],
 		},
 		{
