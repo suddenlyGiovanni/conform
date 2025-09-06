@@ -153,6 +153,7 @@ export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 	(rec) => (ctx, node) => {
 		/**
+		 * EDGE CASE: Array of union-of-string-literals
 		 * WHY: When an array's element type is a union of string literals
 		 * (e.g. Array<'a' | 'b'>) we surface an allow‑list via a single
 		 * regex pattern. The downstream constraint engine does not keep
@@ -194,35 +195,33 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 		}
 
 		/**
-		 * WHY: Children visited under a union need the union node as parent
-		 * so later logic (if any) can detect union ancestry.
-		 */
-		const adjustedCtx: Ctx.Any = Ctx.$match(ctx, {
-			Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: node }),
-			Root: (rootCtx) => rootCtx,
-		});
-
-		type Acc = { endo: Endo.Endo; snaps: Array<ConstraintRecord> };
-
-		/**
 		 * WHAT: Visit each branch to:
 		 * 1. Accumulate its constraint mutations (endo)
 		 * 2. Capture a snapshot of the constraint record the branch alone produces
 		 * WHY: Snapshots let us compute the intersection of required properties.
 		 */
-		const collectProg: Either.Either<Acc, Errors> = ReadonlyArray.reduce(
-			node.types,
-			Either.right({ endo: Endo.id, snaps: [] }) as Either.Either<Acc, Errors>,
-			(acc, member) =>
-				Either.flatMap(acc, (state) =>
-					Either.map(rec(adjustedCtx, member), (memberEndo) => {
-						const snap = Constraints.toRecord(memberEndo(Constraints.empty()));
-						return {
-							endo: Endo.compose(state.endo, memberEndo),
-							snaps: [...state.snaps, snap],
-						};
+		const collectProg = ReadonlyArray.reduce<
+			AST.AST,
+			Either.Either<{ endo: Endo.Endo; snaps: Array<ConstraintRecord> }, Errors>
+		>(node.types, Either.right({ endo: Endo.id, snaps: [] }), (acc, member) =>
+			Either.flatMap(acc, (state) =>
+				Either.map(
+					rec(
+						Ctx.$match(ctx, {
+							Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: node }),
+							Root: (rootCtx) => rootCtx,
+						}),
+						member,
+					),
+					(memberEndo) => ({
+						endo: Endo.compose(state.endo, memberEndo),
+						snaps: [
+							...state.snaps,
+							Constraints.toRecord(memberEndo(Constraints.empty())),
+						],
 					}),
 				),
+			),
 		);
 
 		/**
