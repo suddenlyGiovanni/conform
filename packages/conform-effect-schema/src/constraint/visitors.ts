@@ -194,64 +194,69 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 			});
 		}
 
-		/**
-		 * WHAT: Visit each branch to:
-		 * 1. Accumulate its constraint mutations (endo)
-		 * 2. Capture a snapshot of the constraint record the branch alone produces
-		 * WHY: Snapshots let us compute the intersection of required properties.
-		 */
-		const collectProg = ReadonlyArray.reduce<
-			AST.AST,
-			Either.Either<{ endo: Endo.Endo; snaps: Array<ConstraintRecord> }, Errors>
-		>(node.types, Either.right({ endo: Endo.id, snaps: [] }), (acc, member) =>
-			Either.flatMap(acc, (state) =>
-				Either.map(
-					rec(
-						Ctx.$match(ctx, {
-							Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: node }),
-							Root: (rootCtx) => rootCtx,
-						}),
-						member,
-					),
-					(memberEndo) => ({
-						endo: Endo.compose(state.endo, memberEndo),
-						snaps: [
-							...state.snaps,
-							Constraints.toRecord(memberEndo(Constraints.empty())),
-						],
-					}),
-				),
-			),
-		);
-
-		/**
-		 * WHY: In a union a consumer cannot rely on a property existing unless
-		 * every alternative both defines it and requires it. Any missing or
-		 * optional occurrence forces it to optional in the merged view.
-		 */
-		return Either.map(collectProg, ({ endo: membersEndo, snaps }) => {
-			const allKeys = Array.from(new Set(snaps.flatMap((r) => Object.keys(r))));
-
-			const requiredInAll = new Set(
-				allKeys.filter((k) =>
-					snaps.every((r) => r[k] && r[k].required === true),
-				),
-			);
-
-			const toOptional = allKeys.filter((k) => !requiredInAll.has(k));
-
-			// WHAT: Apply downgrades after raw member composition so they cannot be re-overridden.
-			const normalizeRequired = Endo.compose(
-				...toOptional.map((k) => Endo.patch(k, { required: false })),
-			);
+		return pipe(
 			/**
-			 * FINAL COMPOSITION:
-			 * pattern constraints (if any)
-			 * + raw branch constraints
-			 * + required normalization step
+			 * WHAT: Visit each branch to:
+			 * 1. Accumulate its constraint mutations (endo)
+			 * 2. Capture a snapshot of the constraint record the branch alone produces
+			 * WHY: Snapshots let us compute the intersection of required properties.
 			 */
-			return Endo.compose(membersEndo, normalizeRequired);
-		});
+			node.types,
+			ReadonlyArray.reduce(
+				Either.right({ endo: Endo.id, snaps: [] }) as Either.Either<
+					{ endo: Endo.Endo; snaps: Array<ConstraintRecord> },
+					Errors
+				>,
+				(acc, member) =>
+					Either.flatMap(acc, (state) =>
+						Either.map(
+							rec(
+								Ctx.$match(ctx, {
+									Node: (nodeCtx) =>
+										Ctx.Node({ path: nodeCtx.path, parent: node }),
+									Root: (rootCtx) => rootCtx,
+								}),
+								member,
+							),
+							(memberEndo) => ({
+								endo: Endo.compose(state.endo, memberEndo),
+								snaps: [
+									...state.snaps,
+									Constraints.toRecord(memberEndo(Constraints.empty())),
+								],
+							}),
+						),
+					),
+			),
+			/**
+			 * WHY: In a union a consumer cannot rely on a property existing unless
+			 * every alternative both defines it and requires it. Any missing or
+			 * optional occurrence forces it to optional in the merged view.
+			 */
+			Either.map(({ endo: membersEndo, snaps }) => {
+				const allKeys = Array.from(new Set(snaps.flatMap(Object.keys)));
+
+				const requiredInAll = new Set(
+					allKeys.filter((k) =>
+						snaps.every((r) => r[k] && r[k].required === true),
+					),
+				);
+
+				const toOptional = allKeys.filter((k) => !requiredInAll.has(k));
+
+				// WHAT: Apply downgrades after raw member composition so they cannot be re-overridden.
+				const normalizeRequired = Endo.compose(
+					...toOptional.map((k) => Endo.patch(k, { required: false })),
+				);
+				/**
+				 * FINAL COMPOSITION:
+				 * pattern constraints (if any)
+				 * + raw branch constraints
+				 * + required normalization step
+				 */
+				return Endo.compose(membersEndo, normalizeRequired);
+			}),
+		);
 	};
 
 const mergeConstraint = (
