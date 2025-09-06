@@ -120,10 +120,20 @@ export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
 			Match.orElse(() => Endo.of(Endo.id)),
 		);
 
+/**
+ * - Constraints are static per form field, so union handling must be branch-agnostic.
+ * - If an array’s item type is a union of string literals, emit a safe regex pattern for the item (enum-like constraint).
+ * - A field is required only if it is present and required in every union member; otherwise it becomes optional.
+ * - We do not intersect other refinements across branches. Conflicting branch shapes should be rejected earlier by schema composition (overlap/unsupported errors).
+ */
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 	(rec) => (ctx, node) => {
-		// 1) If the union is entirely string literals and we're on an array item path,
-		//    attach a pattern constraint for those literals.
+		/**
+		 * WHY: When an array's element type is a union of string literals
+		 * (e.g. Array<'a' | 'b'>) we surface an allow‑list via a single
+		 * regex pattern. The downstream constraint engine does not keep
+		 * literal sets, so we precompile them to a pattern.
+		 */
 		const isStringLiteral = (
 			t: AST.AST,
 		): t is AST.Literal & { literal: string } =>
@@ -148,14 +158,9 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 					Root: () => Endo.of(Endo.id),
 					Node: ({ path }) =>
 						path.endsWith('[]')
-							? /*
-								 * WHEN all union members are string literals,
-								 * AND the parent node is an array,
-								 * SO the expected type be an array of string literals (e.g. Array<'a' | 'b' | 'c'>),
-								 * THEN we need to attach a pattern constraint to the array item path.
-								 */
-								Endo.of(
+							? Endo.of(
 									Endo.patch(path, {
+										// WHAT: constrain each array item to one of the literal tokens
 										pattern: patternFromLiterals(literals),
 									}),
 								)
@@ -163,6 +168,10 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 				}),
 		});
 
+		/**
+		 * WHY: Children visited under a union need the union node as parent
+		 * so later logic (if any) can detect union ancestry.
+		 */
 		const adjustedCtx: Ctx.Any = Ctx.$match(ctx, {
 			Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: node }),
 			Root: (rootCtx) => rootCtx,
@@ -170,9 +179,12 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 
 		type Acc = { endo: Endo.Endo; snaps: Array<ConstraintRecord> };
 
-		// 2) Visit each union member once, collecting:
-		//    - the composed endomorphism over constraints
-		//    - a snapshot of keys/required flags produced by that member alone
+		/**
+		 * WHAT: Visit each branch to:
+		 * 1. Accumulate its constraint mutations (endo)
+		 * 2. Capture a snapshot of the constraint record the branch alone produces
+		 * WHY: Snapshots let us compute the intersection of required properties.
+		 */
 		const collectProg: Either.Either<Acc, Errors> = ReadonlyArray.reduce(
 			node.types,
 			Either.right({ endo: Endo.id, snaps: [] }) as Either.Either<Acc, Errors>,
@@ -188,8 +200,11 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 				),
 		);
 
-		// 3) Normalize required across branches: a path is required if it is present
-		//    and required in ALL branches; otherwise mark it as optional.
+		/**
+		 * WHY: In a union a consumer cannot rely on a property existing unless
+		 * every alternative both defines it and requires it. Any missing or
+		 * optional occurrence forces it to optional in the merged view.
+		 */
 		return Endo.flatMap(baseProg, (baseEndo) =>
 			Either.map(collectProg, ({ endo: membersEndo, snaps }) => {
 				const allKeys = Array.from(
@@ -203,10 +218,17 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 				);
 
 				const toOptional = allKeys.filter((k) => !requiredInAll.has(k));
+
+				// WHAT: Apply downgrades after raw member composition so they cannot be re-overridden.
 				const normalizeRequired = Endo.compose(
 					...toOptional.map((k) => Endo.patch(k, { required: false })),
 				);
-
+				/**
+				 * FINAL COMPOSITION:
+				 * pattern constraints (if any)
+				 * + raw branch constraints
+				 * + required normalization step
+				 */
 				return Endo.compose(baseEndo, membersEndo, normalizeRequired);
 			}),
 		);
