@@ -1538,9 +1538,7 @@ details: cannot extend minLength(1) with undefined`,
 		} satisfies ConstraintRecord);
 	});
 
-	test.todo('Recursive schema should be supported too', () => {
-		// Recursive schema should be supported too
-
+	test.todo('Should supporr recursive schemas', () => {
 		interface Category {
 			readonly name: string;
 			readonly subcategories: ReadonlyArray<Category>;
