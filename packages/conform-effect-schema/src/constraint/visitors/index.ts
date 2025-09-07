@@ -15,7 +15,7 @@ import {
 	Ctx,
 	Endo,
 	type Errors,
-} from './types';
+} from '../types';
 
 export const makeTypeLiteralVisitor: Endo.MakeVisitor<
 	Ctx.Any,

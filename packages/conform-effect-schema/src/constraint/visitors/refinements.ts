@@ -6,7 +6,7 @@ import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 import * as Struct from 'effect/Struct';
 
-import type { Constraint } from './types';
+import type { Constraint } from '../types';
 
 const pickMinLength = Struct.pick('minLength');
 const pickMaxLength = Struct.pick('maxLength');
