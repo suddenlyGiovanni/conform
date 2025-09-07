@@ -1473,66 +1473,69 @@ details: cannot extend minLength(1) with undefined`,
 		});
 	});
 
-	const minTimestamp = '1970-01-01';
-	const maxTimestamp = '2030-01-01';
+	test('Should support complex schemas', () => {
+		const minTimestamp = '1970-01-01';
+		const maxTimestamp = '2030-01-01';
 
-	const schema = Schema.Struct({
-		text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
-		number: Schema.Number.pipe(
-			Schema.greaterThanOrEqualTo(1),
-			Schema.lessThanOrEqualTo(10),
-			Schema.multipleOf(2, { message: () => 'step' }),
-		),
-		timestamp: Schema.optionalWith(
-			Schema.Date.pipe(
-				Schema.betweenDate(new Date(minTimestamp), new Date(maxTimestamp)),
+		expect(
+			getEffectSchemaConstraint(
+				Schema.Struct({
+					text: Schema.String.pipe(Schema.minLength(10), Schema.maxLength(100)),
+					number: Schema.Number.pipe(
+						Schema.greaterThanOrEqualTo(1),
+						Schema.lessThanOrEqualTo(10),
+						Schema.multipleOf(2, { message: () => 'step' }),
+					),
+					timestamp: Schema.optionalWith(
+						Schema.Date.pipe(
+							Schema.betweenDate(
+								new Date(minTimestamp),
+								new Date(maxTimestamp),
+							),
+						),
+						{
+							default: () => new Date(maxTimestamp),
+						},
+					),
+					flag: Schema.optional(Schema.Boolean),
+					literalFlag: Schema.Literal(true),
+					options: Schema.Array(Schema.Literal('a', 'b', 'c')).pipe(
+						Schema.minItems(3),
+					),
+				}),
 			),
-			{
-				default: () => new Date(maxTimestamp),
+		).toEqual({
+			text: {
+				required: true,
+				minLength: 10,
+				maxLength: 100,
 			},
-		),
-		flag: Schema.optional(Schema.Boolean),
-		literalFlag: Schema.Literal(true),
-		options: Schema.Array(Schema.Literal('a', 'b', 'c')).pipe(
-			Schema.minItems(3),
-		),
-	});
-
-	const constraint = {
-		text: {
-			required: true,
-			minLength: 10,
-			maxLength: 100,
-		},
-		number: {
-			required: true,
-			min: 1,
-			max: 10,
-			step: 2,
-		},
-		timestamp: {
-			required: true,
-			max: maxTimestamp,
-			min: minTimestamp,
-		},
-		flag: {
-			required: false,
-		},
-		literalFlag: {
-			required: true,
-		},
-		options: {
-			required: true,
-			multiple: true,
-		},
-		'options[]': {
-			required: true,
-			pattern: 'a|b|c',
-		},
-	} satisfies ConstraintRecord;
-
-	test('case 1', () => {
-		expect(getEffectSchemaConstraint(schema)).toEqual(constraint);
+			number: {
+				required: true,
+				min: 1,
+				max: 10,
+				step: 2,
+			},
+			timestamp: {
+				required: true,
+				max: maxTimestamp,
+				min: minTimestamp,
+			},
+			flag: {
+				required: false,
+			},
+			literalFlag: {
+				required: true,
+			},
+			options: {
+				required: true,
+				multiple: true,
+			},
+			'options[]': {
+				required: true,
+				pattern: 'a|b|c',
+			},
+		} satisfies ConstraintRecord);
 	});
 
 	test.todo('Recursive schema should be supported too', () => {
