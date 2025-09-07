@@ -1,12 +1,12 @@
-import * as Schema from 'effect/Schema';
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
+import * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
-import * as Visitors from './visitors';
 import * as Errors from './errors';
-import { Endo, Constraints, Ctx, type ConstraintRecord } from './types';
+import { type ConstraintRecord, Constraints, Ctx, Endo } from './types';
+import { Visitors } from './visitors';
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
