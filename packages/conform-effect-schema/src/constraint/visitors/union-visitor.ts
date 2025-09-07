@@ -6,7 +6,7 @@ import * as AST from 'effect/SchemaAST';
 import * as Struct from 'effect/Struct';
 
 import {
-	ConstraintRecord,
+	type ConstraintRecord,
 	Constraints,
 	Ctx,
 	Endo,

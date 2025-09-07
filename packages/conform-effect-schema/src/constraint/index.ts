@@ -1,12 +1,12 @@
-import * as Either from 'effect/Either';
-import { pipe } from 'effect/Function';
-import * as Match from 'effect/Match';
-import * as Schema from 'effect/Schema';
-import * as AST from 'effect/SchemaAST';
+import * as Either from "effect/Either";
+import { pipe } from "effect/Function";
+import * as Match from "effect/Match";
+import type * as Schema from "effect/Schema";
+import * as AST from "effect/SchemaAST";
 
-import * as Errors from './errors';
-import { type ConstraintRecord, Constraints, Ctx, Endo } from './types';
-import { Visitors } from './visitors';
+import * as Errors from "./errors";
+import { type ConstraintRecord, Constraints, Ctx, Endo } from "./types";
+import * as Visitors from "./visitors";
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
@@ -83,7 +83,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			Match.orElse((node) =>
 				Endo.fail(
 					new Errors.IllegalRootNode({
-						expectedNode: 'TypeLiteral',
+						expectedNode: "TypeLiteral",
 						actualNode: node._tag,
 					}),
 				),

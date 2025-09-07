@@ -1,5 +1,5 @@
-import type * as AST from 'effect/SchemaAST';
 import * as Data from 'effect/Data';
+import type * as AST from 'effect/SchemaAST';
 
 export class UnsupportedNodeError extends Data.TaggedError('UnsupportedNode')<{
 	readonly path: string;

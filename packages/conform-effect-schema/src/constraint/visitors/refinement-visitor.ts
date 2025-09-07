@@ -1,6 +1,6 @@
 import { pipe } from 'effect/Function';
 import * as Option from 'effect/Option';
-import * as AST from 'effect/SchemaAST';
+import type * as AST from 'effect/SchemaAST';
 
 import { type Constraint, Ctx, Endo } from '../types';
 import * as Refinements from './refinements';

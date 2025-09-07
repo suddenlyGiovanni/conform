@@ -1,6 +1,6 @@
-import * as AST from 'effect/SchemaAST';
+import type * as AST from 'effect/SchemaAST';
 
-import { Ctx, Endo } from '../types';
+import { Ctx, type Endo } from '../types';
 
 export const makeTransformationVisitor: Endo.MakeVisitor<
 	Ctx.Any,

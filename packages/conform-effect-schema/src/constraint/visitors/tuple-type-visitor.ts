@@ -1,6 +1,6 @@
 import * as ReadonlyArray from 'effect/Array';
 import * as Match from 'effect/Match';
-import * as AST from 'effect/SchemaAST';
+import type * as AST from 'effect/SchemaAST';
 
 import { Ctx, Endo } from '../types';
 

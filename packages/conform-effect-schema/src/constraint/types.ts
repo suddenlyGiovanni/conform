@@ -1,15 +1,15 @@
 /* eslint-disable import/export,@typescript-eslint/no-namespace */
-import type * as AST from 'effect/SchemaAST';
-import type { Constraint } from '@conform-to/dom';
-import * as Either from 'effect/Either';
-import { identity, pipe } from 'effect/Function';
-import * as HashMap from 'effect/HashMap';
-import * as Record from 'effect/Record';
-import * as ReadonlyArray from 'effect/Array';
-import * as Option from 'effect/Option';
-import * as Data from 'effect/Data';
+import type { Constraint } from "@conform-to/dom";
+import * as ReadonlyArray from "effect/Array";
+import * as Data from "effect/Data";
+import * as Either from "effect/Either";
+import { identity, pipe } from "effect/Function";
+import * as HashMap from "effect/HashMap";
+import * as Option from "effect/Option";
+import * as Record from "effect/Record";
+import type * as AST from "effect/SchemaAST";
 
-import type { Errors } from './errors';
+import type { Errors } from "./errors";
 
 export type ConstraintRecord = Record.ReadonlyRecord<string, Constraint>;
 
@@ -123,11 +123,10 @@ export declare namespace Ctx {
 		Root: {};
 	}>;
 
-	type Root = Data.TaggedEnum.Value<Any, 'Root'>;
+	type Root = Data.TaggedEnum.Value<Any, "Root">;
 
-	type Node = Data.TaggedEnum.Value<Any, 'Node'>;
+	type Node = Data.TaggedEnum.Value<Any, "Node">;
 }
 
-export type { Errors } from './errors';
-
-export type { Constraint } from '@conform-to/dom';
+export type { Constraint } from "@conform-to/dom";
+export type { Errors } from "./errors";
