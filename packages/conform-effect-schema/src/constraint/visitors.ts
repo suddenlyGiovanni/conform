@@ -20,7 +20,7 @@ import {
 export const makeTypeLiteralVisitor: Endo.MakeVisitor<
 	Ctx.Any,
 	AST.TypeLiteral
-> = (rec) => (ctx, node) => {
+> = (visit) => (ctx, node) => {
 	const propertySignatures = node.propertySignatures;
 
 	if (propertySignatures.length === 0) {
@@ -39,7 +39,7 @@ export const makeTypeLiteralVisitor: Endo.MakeVisitor<
 				});
 
 				return Endo.map(
-					rec(Ctx.Node({ path, parent: node }), propertySignature.type),
+					visit(Ctx.Node({ path, parent: node }), propertySignature.type),
 					(memberEndo) =>
 						Endo.compose(
 							accEndo,
@@ -52,7 +52,7 @@ export const makeTypeLiteralVisitor: Endo.MakeVisitor<
 };
 
 export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
-	(rec) => (ctx, node) =>
+	(visit) => (ctx, node) =>
 		Match.value(node).pipe(
 			Match.withReturnType<Endo.Prog>(),
 
@@ -66,7 +66,7 @@ export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
 					return ReadonlyArray.reduce(tupleType.rest, base, (prog, type) =>
 						Endo.flatMap(prog, (accEndo) =>
 							Endo.map(
-								rec(
+								visit(
 									Ctx.Node({ path: `${ctx.path}[]`, parent: tupleType }),
 									type.type,
 								),
@@ -95,7 +95,7 @@ export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
 						(prog, optionalType, idx) =>
 							Endo.flatMap(prog, (accEndo) =>
 								Endo.map(
-									rec(
+									visit(
 										Ctx.Node({
 											path: `${ctx.path}[${idx}]`,
 											parent: tupleType,
@@ -151,7 +151,7 @@ export const makeTupleTypeVisitor: Endo.MakeVisitor<Ctx.Node, AST.TupleType> =
  *   that is expected and acceptable for Conform constraints.
  */
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
-	(rec) => (ctx, node) => {
+	(visit) => (ctx, node) => {
 		/**
 		 * EDGE CASE: Array of union-of-string-literals
 		 * WHY: When an array's element type is a union of string literals
@@ -210,7 +210,7 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 				(acc, member) =>
 					Either.flatMap(acc, (state) =>
 						Either.map(
-							rec(
+							visit(
 								Ctx.$match(ctx, {
 									Node: (nodeCtx) =>
 										Ctx.Node({ path: nodeCtx.path, parent: node }),
@@ -270,7 +270,7 @@ const mergeConstraint = (
 export const makeRefinementVisitor: Endo.MakeVisitor<
 	Ctx.Node,
 	AST.Refinement
-> = (rec) => (ctx, node) => {
+> = (visit) => (ctx, node) => {
 	const fragment = mergeConstraint(
 		Refinements.stringRefinement(node),
 		Refinements.numberRefinement(node),
@@ -280,7 +280,7 @@ export const makeRefinementVisitor: Endo.MakeVisitor<
 
 	// Compose: first apply the refinement fragment at ctx.path, then continue with "from"
 	return Endo.map(
-		rec(Ctx.Node({ path: ctx.path, parent: node }), node.from),
+		visit(Ctx.Node({ path: ctx.path, parent: node }), node.from),
 		(endo) => Endo.compose(Endo.patch(ctx.path, fragment), endo),
 	);
 };
@@ -288,9 +288,9 @@ export const makeRefinementVisitor: Endo.MakeVisitor<
 export const makeTransformationVisitor: Endo.MakeVisitor<
 	Ctx.Any,
 	AST.Transformation
-> = (rec) => (ctx, node) =>
+> = (visit) => (ctx, node) =>
 	Ctx.$match(ctx, {
-		Root: (rootCtx) => rec(rootCtx, node.to),
+		Root: (rootCtx) => visit(rootCtx, node.to),
 		Node: (nodeCtx) =>
-			rec(Ctx.Node({ path: nodeCtx.path, parent: node }), node.to),
+			visit(Ctx.Node({ path: nodeCtx.path, parent: node }), node.to),
 	});

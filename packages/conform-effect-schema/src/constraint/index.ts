@@ -11,7 +11,7 @@ import { Endo, Constraints, Ctx, type ConstraintRecord } from './types';
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
 ): ConstraintRecord => {
-	const recNode: Endo.Visit<Ctx.Node> = (ctx, ast) =>
+	const visitNode: Endo.Visit<Ctx.Node> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
 
@@ -70,7 +70,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			Match.exhaustive,
 		);
 
-	const recRoot: Endo.Visit<Ctx.Root> = (ctx, ast) =>
+	const visitRoot: Endo.Visit<Ctx.Root> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
 
@@ -90,20 +90,20 @@ export const getEffectSchemaConstraint = <A, I>(
 			),
 		);
 
-	const rec: Endo.Visit<Ctx.Any> = (ctx, node) =>
+	const visit: Endo.Visit<Ctx.Any> = (ctx, node) =>
 		Ctx.$match(ctx, {
-			Root: (ctxRoot) => recRoot(ctxRoot, node),
-			Node: (ctxNode) => recNode(ctxNode, node),
+			Root: (ctxRoot) => visitRoot(ctxRoot, node),
+			Node: (ctxNode) => visitNode(ctxNode, node),
 		});
 
-	const typeLiteralVisitor = Visitors.makeTypeLiteralVisitor(rec);
-	const tupleTypeVisitor = Visitors.makeTupleTypeVisitor(recNode);
-	const unionVisitor = Visitors.makeUnionVisitor(rec);
-	const refinementVisitor = Visitors.makeRefinementVisitor(recNode);
-	const transformationVisitor = Visitors.makeTransformationVisitor(rec);
+	const typeLiteralVisitor = Visitors.makeTypeLiteralVisitor(visit);
+	const tupleTypeVisitor = Visitors.makeTupleTypeVisitor(visitNode);
+	const unionVisitor = Visitors.makeUnionVisitor(visit);
+	const refinementVisitor = Visitors.makeRefinementVisitor(visitNode);
+	const transformationVisitor = Visitors.makeTransformationVisitor(visit);
 
 	return pipe(
-		rec,
+		visit,
 		(visit) => visit(Ctx.Root(), schema.ast),
 		Either.map((endo) => endo(Constraints.empty())),
 		Either.getOrThrowWith((error) => {
