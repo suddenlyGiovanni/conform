@@ -5,6 +5,7 @@ import * as Predicate from 'effect/Predicate';
 import * as AST from 'effect/SchemaAST';
 import * as Struct from 'effect/Struct';
 
+import { IllegalRootNode } from '../errors';
 import {
 	type ConstraintRecord,
 	Constraints,
@@ -45,6 +46,21 @@ import {
  */
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 	(visit) => (ctx, node) => {
+		// Invariant: on root only union of type literals or Transformations are allowed
+		if (
+			Ctx.$is('Root')(ctx) &&
+			!(
+				ReadonlyArray.every(node.types, AST.isTypeLiteral) ||
+				ReadonlyArray.every(node.types, AST.isTransformation)
+			)
+		) {
+			return Endo.fail(
+				new IllegalRootNode({
+					actualNode: node.types.at(0)!._tag,
+					expectedNode: 'TypeLiteral',
+				}),
+			);
+		}
 		/**
 		 * EDGE CASE: Array of union-of-string-literals
 		 * WHY: When an array's element type is a union of string literals
@@ -52,39 +68,30 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 		 * regex pattern. The downstream constraint engine does not keep
 		 * literal sets, so we precompile them to a pattern.
 		 */
-
 		if (
+			Ctx.$is('Node')(ctx) &&
 			ReadonlyArray.every(
 				node.types,
 				(t): t is AST.Literal & { literal: string } =>
 					AST.isLiteral(t) && Predicate.isString(t.literal),
-			)
+			) &&
+			ctx.path.endsWith('[]')
 		) {
-			return Ctx.$match(ctx, {
-				Root: (): Endo.Prog => Endo.of(Endo.id),
-				Node: ({ path }): Endo.Prog =>
-					path.endsWith('[]')
-						? Endo.of(
-								Endo.patch(path, {
-									// WHAT: constrain each array item to one of the literal tokens
-									pattern: pipe(
-										ReadonlyArray.map(
-											node.types as ReadonlyArray<
-												AST.Literal & { literal: string }
-											>,
-											Struct.get('literal'),
-										),
-										ReadonlyArray.map((s) =>
-											s
-												.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
-												.replace(/-/g, '\\x2d'),
-										),
-										ReadonlyArray.join('|'),
-									),
-								}),
-							)
-						: Endo.of(Endo.id),
-			});
+			return Endo.of(
+				Endo.patch(ctx.path, {
+					// WHAT: constrain each array item to one of the literal tokens
+					pattern: pipe(
+						ReadonlyArray.map(
+							node.types as ReadonlyArray<AST.Literal & { literal: string }>,
+							Struct.get('literal'),
+						),
+						ReadonlyArray.map((s) =>
+							s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d'),
+						),
+						ReadonlyArray.join('|'),
+					),
+				}),
+			);
 		}
 
 		return pipe(
