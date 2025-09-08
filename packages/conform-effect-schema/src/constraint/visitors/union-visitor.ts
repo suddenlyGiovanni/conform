@@ -1,5 +1,6 @@
 import * as ReadonlyArray from 'effect/Array';
 import * as Record from 'effect/Record';
+import * as HashSet from 'effect/HashSet';
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
 import * as Predicate from 'effect/Predicate';
@@ -141,13 +142,22 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 					ReadonlyArray.dedupe,
 				);
 
-				const requiredInAll = new Set(
-					allKeys.filter((k) =>
-						snaps.every((r) => r[k] && r[k].required === true),
+				const requiredInAll = pipe(
+					allKeys,
+					ReadonlyArray.filter((k) =>
+						ReadonlyArray.every(
+							snaps,
+							(constraintRecord) =>
+								Predicate.hasProperty(k)(constraintRecord) &&
+								constraintRecord[k]!.required === true,
+						),
 					),
+					HashSet.fromIterable,
 				);
 
-				const toOptional = allKeys.filter((k) => !requiredInAll.has(k));
+				const toOptional = allKeys.filter(
+					(k) => !HashSet.has(requiredInAll, k),
+				);
 
 				// WHAT: Apply downgrades after raw member composition so they cannot be re-overridden.
 				const normalizeRequired = Endo.compose(
