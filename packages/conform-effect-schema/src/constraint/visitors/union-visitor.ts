@@ -1,4 +1,5 @@
 import * as ReadonlyArray from 'effect/Array';
+import * as Record from 'effect/Record';
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
 import * as Predicate from 'effect/Predicate';
@@ -134,7 +135,11 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 			 * optional occurrence forces it to optional in the merged view.
 			 */
 			Either.map(({ endo: membersEndo, snaps }) => {
-				const allKeys = Array.from(new Set(snaps.flatMap(Object.keys)));
+				const allKeys = pipe(
+					snaps,
+					ReadonlyArray.flatMap(Record.keys),
+					ReadonlyArray.dedupe,
+				);
 
 				const requiredInAll = new Set(
 					allKeys.filter((k) =>
