@@ -1581,103 +1581,108 @@ details: cannot extend minLength(1) with undefined`,
 		} satisfies ConstraintRecord);
 	});
 
-	test('Supports recursive schemas (suspend)', () => {
-		const fields = {
-			name: Schema.String,
-			// ...other fields as needed
-		};
-
-		// Define an interface for the Category schema,
-		// extending the Type of the defined fields
-		interface Category extends Schema.Struct.Type<typeof fields> {
-			// Define `subcategories` using recursion
-			readonly subcategories: ReadonlyArray<Category>;
-		}
-
-		const Category = Schema.Struct({
-			...fields, // Spread in the base fields
-			subcategories: Schema.Array(
-				// Define `subcategories` using recursion
-				Schema.suspend((): Schema.Schema<Category> => Category),
-			),
+	describe('suspend', () => {
+		test('Root Suspend schema expands underlying struct', () => {
+			const Suspended = Schema.suspend(() =>
+				Schema.Struct({
+					name: Schema.String,
+					age: Schema.optional(Schema.Number),
+				}),
+			);
+			expect(getEffectSchemaConstraint(Suspended)).toEqual({
+				name: { required: true },
+				age: { required: false },
+			});
 		});
 
-		expect(
-			getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 2 }),
-		).toEqual({
-			name: { required: true },
-			subcategories: { required: true, multiple: true },
-			'subcategories[]': { required: true },
-			'subcategories[].name': { required: true },
-			'subcategories[].subcategories': { required: true, multiple: true },
-			'subcategories[].subcategories[]': { required: true },
-			'subcategories[].subcategories[].name': { required: true },
-			'subcategories[].subcategories[].subcategories': {
-				required: true,
-				multiple: true,
-			},
-			'subcategories[].subcategories[].subcategories[]': { required: true },
-		});
-	});
-
-	test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 0 (no expansion)', () => {
-		const fields = { name: Schema.String };
-		interface Category extends Schema.Struct.Type<typeof fields> {
-			readonly subcategories: ReadonlyArray<Category>;
-		}
-		const Category: Schema.Schema<Category> = Schema.Struct({
-			...fields,
-			subcategories: Schema.Array(
-				Schema.suspend((): Schema.Schema<Category> => Category),
-			),
-		});
-
-		expect(
-			getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 0 }),
-		).toEqual({
-			name: { required: true },
-			subcategories: { required: true, multiple: true },
-			'subcategories[]': { required: true },
-		});
-	});
-
-	test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 3 (deeper expansion)', () => {
-		const fields = { name: Schema.String };
-		interface Category extends Schema.Struct.Type<typeof fields> {
-			readonly subcategories: ReadonlyArray<Category>;
-		}
-		const Category: Schema.Schema<Category> = Schema.Struct({
-			...fields,
-			subcategories: Schema.Array(
-				Schema.suspend((): Schema.Schema<Category> => Category),
-			),
+		test('Supports recursive schemas (suspend)', () => {
+			const fields = {
+				name: Schema.String,
+			};
+			interface Category extends Schema.Struct.Type<typeof fields> {
+				readonly subcategories: ReadonlyArray<Category>;
+			}
+			const Category = Schema.Struct({
+				...fields,
+				subcategories: Schema.Array(
+					Schema.suspend((): Schema.Schema<Category> => Category),
+				),
+			});
+			expect(
+				getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 2 }),
+			).toEqual({
+				name: { required: true },
+				subcategories: { required: true, multiple: true },
+				'subcategories[]': { required: true },
+				'subcategories[].name': { required: true },
+				'subcategories[].subcategories': { required: true, multiple: true },
+				'subcategories[].subcategories[]': { required: true },
+				'subcategories[].subcategories[].name': { required: true },
+				'subcategories[].subcategories[].subcategories': {
+					required: true,
+					multiple: true,
+				},
+				'subcategories[].subcategories[].subcategories[]': { required: true },
+			});
 		});
 
-		expect(
-			getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 3 }),
-		).toEqual({
-			name: { required: true },
-			subcategories: { required: true, multiple: true },
-			'subcategories[]': { required: true },
-			'subcategories[].name': { required: true },
-			'subcategories[].subcategories': { required: true, multiple: true },
-			'subcategories[].subcategories[]': { required: true },
-			'subcategories[].subcategories[].name': { required: true },
-			'subcategories[].subcategories[].subcategories': {
-				required: true,
-				multiple: true,
-			},
-			'subcategories[].subcategories[].subcategories[]': { required: true },
-			'subcategories[].subcategories[].subcategories[].name': {
-				required: true,
-			},
-			'subcategories[].subcategories[].subcategories[].subcategories': {
-				required: true,
-				multiple: true,
-			},
-			'subcategories[].subcategories[].subcategories[].subcategories[]': {
-				required: true,
-			},
+		test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 0 (no expansion)', () => {
+			const fields = { name: Schema.String };
+			interface Category extends Schema.Struct.Type<typeof fields> {
+				readonly subcategories: ReadonlyArray<Category>;
+			}
+			const Category: Schema.Schema<Category> = Schema.Struct({
+				...fields,
+				subcategories: Schema.Array(
+					Schema.suspend((): Schema.Schema<Category> => Category),
+				),
+			});
+			expect(
+				getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 0 }),
+			).toEqual({
+				name: { required: true },
+				subcategories: { required: true, multiple: true },
+				'subcategories[]': { required: true },
+			});
+		});
+
+		test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 3 (deeper expansion)', () => {
+			const fields = { name: Schema.String };
+			interface Category extends Schema.Struct.Type<typeof fields> {
+				readonly subcategories: ReadonlyArray<Category>;
+			}
+			const Category: Schema.Schema<Category> = Schema.Struct({
+				...fields,
+				subcategories: Schema.Array(
+					Schema.suspend((): Schema.Schema<Category> => Category),
+				),
+			});
+			expect(
+				getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 3 }),
+			).toEqual({
+				name: { required: true },
+				subcategories: { required: true, multiple: true },
+				'subcategories[]': { required: true },
+				'subcategories[].name': { required: true },
+				'subcategories[].subcategories': { required: true, multiple: true },
+				'subcategories[].subcategories[]': { required: true },
+				'subcategories[].subcategories[].name': { required: true },
+				'subcategories[].subcategories[].subcategories': {
+					required: true,
+					multiple: true,
+				},
+				'subcategories[].subcategories[].subcategories[]': { required: true },
+				'subcategories[].subcategories[].subcategories[].name': {
+					required: true,
+				},
+				'subcategories[].subcategories[].subcategories[].subcategories': {
+					required: true,
+					multiple: true,
+				},
+				'subcategories[].subcategories[].subcategories[].subcategories[]': {
+					required: true,
+				},
+			});
 		});
 	});
 
