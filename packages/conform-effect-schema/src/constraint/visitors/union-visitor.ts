@@ -112,34 +112,36 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 				return !(allTypeLiterals || allTransformations)
 					? Endo.fail(
 							new IllegalRootNode({
-								actualNode: unionNode.types.at(0)!._tag,
+								actualNode: unionNode.types[0]._tag,
 								expectedNode: 'TypeLiteral',
 							}),
 						)
 					: aggregate(ctx);
 			},
 			Node: (nodeCtx) => {
-				if (nodeCtx.path.endsWith('[]')) {
-					const allStringLiterals = ReadonlyArray.every(
+				return nodeCtx.path.endsWith('[]') &&
+					ReadonlyArray.every(
 						unionNode.types,
 						(t): t is AST.Literal & { literal: string } =>
 							AST.isLiteral(t) && Predicate.isString(t.literal),
-					);
-					if (allStringLiterals) {
-						const pattern = pipe(
-							unionNode.types as ReadonlyArray<
-								AST.Literal & { literal: string }
-							>,
-							ReadonlyArray.map(Struct.get('literal')),
-							ReadonlyArray.map((s) =>
-								s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d'),
-							),
-							ReadonlyArray.join('|'),
-						);
-						return Endo.of(Endo.patch(nodeCtx.path, { pattern }));
-					}
-				}
-				return aggregate(Ctx.Node({ path: nodeCtx.path, parent: unionNode }));
+					)
+					? Endo.of(
+							Endo.patch(nodeCtx.path, {
+								pattern: pipe(
+									unionNode.types as ReadonlyArray<
+										AST.Literal & { literal: string }
+									>,
+									ReadonlyArray.map(Struct.get('literal')),
+									ReadonlyArray.map((s) =>
+										s
+											.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
+											.replace(/-/g, '\\x2d'),
+									),
+									ReadonlyArray.join('|'),
+								),
+							}),
+						)
+					: aggregate(Ctx.Node({ path: nodeCtx.path, parent: unionNode }));
 			},
 		});
 	};
