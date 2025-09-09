@@ -9,7 +9,8 @@ import * as Struct from 'effect/Struct';
 
 import { IllegalRootNode } from '../errors';
 import {
-	ConstraintRecord,
+	type Constraint,
+	type ConstraintRecord,
 	Constraints,
 	Ctx,
 	Endo,
@@ -91,22 +92,11 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 			}
 		}
 
-		/** Helper: adjust context parent for branch traversal */
-		const recontextualize = (c: Ctx.Any): Ctx.Any =>
-			Ctx.$match(c, {
-				Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: unionNode }),
-				Root: (rootCtx) => rootCtx,
-			});
-
 		/** Traverse each branch, collecting composed endo and a snapshot of produced constraints. */
-		interface SnapshotFragment {
-			readonly required?: boolean;
-			readonly pattern?: string;
-			readonly [k: string]: unknown;
-		}
+
 		interface AccState {
 			readonly endo: Endo.Endo;
-			readonly snapshots: ReadonlyArray<Record<string, SnapshotFragment>>;
+			readonly snapshots: ReadonlyArray<ConstraintRecord>;
 		}
 		const collected = pipe(
 			unionNode.types,
@@ -117,15 +107,25 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 				>,
 				(acc, member) =>
 					Either.flatMap(acc, (state) =>
-						Either.map(visit(recontextualize(ctx), member), (memberEndo) => {
-							const snapshot = Constraints.toRecord(
-								memberEndo(Constraints.empty()),
-							) as Record<string, SnapshotFragment>;
-							return {
-								endo: Endo.compose(state.endo, memberEndo),
-								snapshots: [...state.snapshots, snapshot],
-							};
-						}),
+						Either.map(
+							visit(
+								Ctx.$match(ctx, {
+									Node: (nodeCtx) =>
+										Ctx.Node({ path: nodeCtx.path, parent: unionNode }),
+									Root: (rootCtx) => rootCtx,
+								}),
+								member,
+							),
+							(memberEndo) => {
+								const snapshot = Constraints.toRecord(
+									memberEndo(Constraints.empty()),
+								);
+								return {
+									endo: Endo.compose(state.endo, memberEndo),
+									snapshots: [...state.snapshots, snapshot],
+								};
+							},
+						),
 					),
 			),
 		);
@@ -134,23 +134,28 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 			const allKeys = pipe(
 				snapshots,
 				ReadonlyArray.flatMap(Record.keys),
-				ReadonlyArray.dedupe,
+				HashSet.fromIterable,
 			);
 			const requiredEverywhere = pipe(
 				allKeys,
-				ReadonlyArray.filter((k) =>
+				HashSet.filter((k) =>
 					ReadonlyArray.every(snapshots, (snapshot) => {
-						const entry = snapshot[k] as SnapshotFragment | undefined;
+						const entry = snapshot[k] as Constraint | undefined;
 						return entry?.required === true;
 					}),
 				),
-				HashSet.fromIterable,
 			);
-			const toOptional = allKeys.filter(
+			const toOptional = HashSet.filter(
+				allKeys,
 				(k) => !HashSet.has(requiredEverywhere, k),
 			);
+
 			const downgradeRequired = Endo.compose(
-				...toOptional.map((k) => Endo.patch(k, { required: false })),
+				...pipe(
+					toOptional,
+					HashSet.map((k) => Endo.patch(k, { required: false })),
+					HashSet.toValues,
+				),
 			);
 			return Endo.compose(endo, downgradeRequired);
 		});
