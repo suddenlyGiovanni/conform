@@ -1582,19 +1582,27 @@ details: cannot extend minLength(1) with undefined`,
 	});
 
 	test.todo('Should supporr recursive schemas', () => {
-		interface Category {
-			readonly name: string;
+		const fields = {
+			name: Schema.String,
+			// ...other fields as needed
+		};
+
+		// Define an interface for the Category schema,
+		// extending the Type of the defined fields
+		interface Category extends Schema.Struct.Type<typeof fields> {
+			// Define `subcategories` using recursion
 			readonly subcategories: ReadonlyArray<Category>;
 		}
 
-		const categorySchema = Schema.Struct({
-			name: Schema.String,
+		const Category = Schema.Struct({
+			...fields, // Spread in the base fields
 			subcategories: Schema.Array(
-				Schema.suspend((): Schema.Schema<Category> => categorySchema),
+				// Define `subcategories` using recursion
+				Schema.suspend((): Schema.Schema<Category> => Category),
 			),
 		});
 
-		expect(getEffectSchemaConstraint(categorySchema)).toEqual({
+		expect(getEffectSchemaConstraint(Category)).toEqual({
 			name: {
 				required: true,
 			},
