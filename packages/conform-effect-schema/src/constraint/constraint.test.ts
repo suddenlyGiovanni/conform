@@ -1684,57 +1684,52 @@ details: cannot extend minLength(1) with undefined`,
 				},
 			});
 		});
-	});
 
-	test.todo('getEffectSchemaConstraint', () => {
-		type Condition =
-			| {
-					readonly type: 'filter';
-			  }
-			| {
-					readonly type: 'group';
-					readonly conditions: ReadonlyArray<Condition>;
-			  };
+		test('Recursive discriminated union with suspend (Condition example)', () => {
+			type Condition =
+				| { readonly type: 'filter' }
+				| {
+						readonly type: 'group';
+						readonly conditions: ReadonlyArray<Condition>;
+				  };
 
-		const ConditionSchema: Schema.Schema<Condition> = Schema.Union(
-			Schema.Struct({
-				type: Schema.Literal('filter'),
-			}),
-			Schema.Struct({
+			const ConditionSchema: Schema.Schema<Condition> = Schema.Union(
+				Schema.Struct({
+					type: Schema.Literal('filter'),
+				}),
+				Schema.Struct({
+					type: Schema.Literal('group'),
+					conditions: Schema.Array(Schema.suspend(() => ConditionSchema)),
+				}),
+			);
+
+			const FilterSchema = Schema.Struct({
 				type: Schema.Literal('group'),
-				conditions: Schema.Array(Schema.suspend(() => ConditionSchema)),
-			}),
-		);
+				conditions: Schema.Array(ConditionSchema),
+			});
 
-		const FilterSchema = Schema.Struct({
-			type: Schema.Literal('group'),
-			conditions: Schema.Array(ConditionSchema),
-		});
-
-		expect(getEffectSchemaConstraint(FilterSchema)).toEqual({
-			type: {
-				required: true,
-			},
-			conditions: {
-				required: true,
-				multiple: true,
-			},
-
-			'conditions[].type': {
-				required: true,
-			},
-			'conditions[].conditions': {
-				required: true,
-				multiple: true,
-			},
-
-			'conditions[].conditions[].type': {
-				required: true,
-			},
-			'conditions[].conditions[].conditions': {
-				required: true,
-				multiple: true,
-			},
+			expect(getEffectSchemaConstraint(FilterSchema)).toEqual({
+				type: { required: true },
+				conditions: { required: true, multiple: true },
+				'conditions[]': { required: true },
+				'conditions[].type': { required: true },
+				'conditions[].conditions': { required: false, multiple: true },
+				'conditions[].conditions[]': { required: false },
+				'conditions[].conditions[].type': { required: false },
+				'conditions[].conditions[].conditions': {
+					required: false,
+					multiple: true,
+				},
+				'conditions[].conditions[].conditions[]': { required: false },
+				'conditions[].conditions[].conditions[].type': { required: false },
+				'conditions[].conditions[].conditions[].conditions': {
+					required: false,
+					multiple: true,
+				},
+				'conditions[].conditions[].conditions[].conditions[]': {
+					required: false,
+				},
+			});
 		});
 	});
 });
