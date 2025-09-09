@@ -169,50 +169,73 @@ export const _makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 	(visit) => (ctx: Ctx.Any, unionNode: Readonly<AST.Union>) => {
 		// Branch aggregation helper (shared by Root / Node cases)
-		const aggregate = (baseCtx: Ctx.Any): Endo.Prog => {
-			interface Acc { endo: Endo.Endo; snaps: ReadonlyArray<ConstraintRecord> }
-			const collected = pipe(
+		const aggregate = (baseCtx: Ctx.Any): Endo.Prog =>
+			pipe(
 				unionNode.types,
 				ReadonlyArray.reduce(
-					Either.right({ endo: Endo.id, snaps: [] }) as Either.Either<Acc, Errors>,
+					Either.right({ endo: Endo.id, snaps: [] }) as Either.Either<
+						{
+							endo: Endo.Endo;
+							snaps: ReadonlyArray<ConstraintRecord>;
+						},
+						Errors
+					>,
 					(acc, member) =>
 						Either.flatMap(acc, (state) =>
-							Either.map(visit(baseCtx, member), (memberEndo) => {
-								const snap = Constraints.toRecord(memberEndo(Constraints.empty()));
-								return {
-									endo: Endo.compose(state.endo, memberEndo),
-									snaps: [...state.snaps, snap],
-								};
-							}),
-					),
+							Either.map(visit(baseCtx, member), (memberEndo) => ({
+								endo: Endo.compose(state.endo, memberEndo),
+								snaps: [
+									...state.snaps,
+									Constraints.toRecord(memberEndo(Constraints.empty())),
+								],
+							})),
+						),
 				),
+
+				Either.map(({ endo, snaps }) => {
+					const allKeys = pipe(
+						snaps,
+						ReadonlyArray.flatMap(Record.keys),
+						HashSet.fromIterable,
+					);
+					const requiredEverywhere = HashSet.filter(allKeys, (k) =>
+						snaps.every(
+							(s) => (s[k] as Constraint | undefined)?.required === true,
+						),
+					);
+					const toOptional = HashSet.filter(
+						allKeys,
+						(k) => !HashSet.has(requiredEverywhere, k),
+					);
+					const downgrade = Endo.compose(
+						...pipe(
+							toOptional,
+							HashSet.map((k) => Endo.patch(k, { required: false })),
+							HashSet.toValues,
+						),
+					);
+					return Endo.compose(endo, downgrade);
+				}),
 			);
-			return Either.map(collected, ({ endo, snaps }) => {
-				const allKeys = pipe(snaps, ReadonlyArray.flatMap(Record.keys), HashSet.fromIterable);
-				const requiredEverywhere = HashSet.filter(allKeys, (k) =>
-					snaps.every((s) => (s[k] as Constraint | undefined)?.required === true),
-				);
-				const toOptional = HashSet.filter(allKeys, (k) => !HashSet.has(requiredEverywhere, k));
-				const downgrade = Endo.compose(
-					...pipe(
-						toOptional,
-						HashSet.map((k) => Endo.patch(k, { required: false })),
-						HashSet.toValues,
-					),
-				);
-				return Endo.compose(endo, downgrade);
-			});
-		};
 
 		return Ctx.$match(ctx, {
 			Root: () => {
-				const allTypeLiterals = ReadonlyArray.every(unionNode.types, AST.isTypeLiteral);
-				const allTransformations = ReadonlyArray.every(unionNode.types, AST.isTransformation);
+				const allTypeLiterals = ReadonlyArray.every(
+					unionNode.types,
+					AST.isTypeLiteral,
+				);
+				const allTransformations = ReadonlyArray.every(
+					unionNode.types,
+					AST.isTransformation,
+				);
 				if (!(allTypeLiterals || allTransformations)) {
-					const first = unionNode.types[0];
-					if (first) {
+					const actualNode = unionNode.types.at(0);
+					if (actualNode) {
 						return Endo.fail(
-							new IllegalRootNode({ actualNode: first._tag, expectedNode: 'TypeLiteral' }),
+							new IllegalRootNode({
+								actualNode: actualNode._tag,
+								expectedNode: 'TypeLiteral',
+							}),
 						);
 					}
 				}
@@ -222,11 +245,14 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 				if (nodeCtx.path.endsWith('[]')) {
 					const allStringLiterals = ReadonlyArray.every(
 						unionNode.types,
-						(t): t is AST.Literal & { literal: string } => AST.isLiteral(t) && Predicate.isString(t.literal),
+						(t): t is AST.Literal & { literal: string } =>
+							AST.isLiteral(t) && Predicate.isString(t.literal),
 					);
 					if (allStringLiterals) {
 						const pattern = pipe(
-							unionNode.types as ReadonlyArray<AST.Literal & { literal: string }>,
+							unionNode.types as ReadonlyArray<
+								AST.Literal & { literal: string }
+							>,
 							ReadonlyArray.map(Struct.get('literal')),
 							ReadonlyArray.map((s) =>
 								s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d'),
