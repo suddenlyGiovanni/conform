@@ -1,16 +1,45 @@
-import * as Either from "effect/Either";
-import { pipe } from "effect/Function";
-import * as Match from "effect/Match";
-import type * as Schema from "effect/Schema";
-import * as AST from "effect/SchemaAST";
+import * as Either from 'effect/Either';
+import { pipe } from 'effect/Function';
+import * as Match from 'effect/Match';
+import type * as Schema from 'effect/Schema';
+import * as AST from 'effect/SchemaAST';
 
-import * as Errors from "./errors";
-import { type ConstraintRecord, Constraints, Ctx, Endo } from "./types";
-import * as Visitors from "./visitors";
+import * as Errors from './errors';
+import { type ConstraintRecord, Constraints, Ctx, Endo } from './types';
+import * as Visitors from './visitors';
+
+/** Options controlling constraint extraction behavior. */
+export interface ConstraintOptions {
+	/**
+	 * Maximum number of times a single suspended AST target (the result of `Suspend.f()`) may be expanded.
+	 * Prevents infinite recursion for self / mutually recursive schemas while still surfacing a useful
+	 * prefix of nested constraints for e.g. form builders.
+	 *
+	 * Counting is per distinct underlying AST node (WeakMap keyed) across the whole traversal.
+	 * A value of `0` means suspended targets are never expanded (effectively ignored). Defaults to `2`.
+	 */
+	readonly MAX_SUSPEND_EXPANSIONS?: number;
+}
+
+const DEFAULT_OPTIONS: Required<ConstraintOptions> = {
+	MAX_SUSPEND_EXPANSIONS: 2,
+};
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
+	options?: ConstraintOptions,
 ): ConstraintRecord => {
+	const { MAX_SUSPEND_EXPANSIONS } = { ...DEFAULT_OPTIONS, ...options };
+
+	// Track how many times we've expanded a given suspended target AST.
+	const suspendExpansionCounts = new WeakMap<AST.AST, number>();
+
+	const shouldExpandSuspend = (target: AST.AST): boolean => {
+		const current = suspendExpansionCounts.get(target) ?? 0;
+		if (current >= MAX_SUSPEND_EXPANSIONS) return false;
+		suspendExpansionCounts.set(target, current + 1);
+		return true;
+	};
 	const visitNode: Endo.Visit<Ctx.Node> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
@@ -58,14 +87,19 @@ export const getEffectSchemaConstraint = <A, I>(
 			Match.when(AST.isTransformation, (node) =>
 				transformationVisitor(ctx, node),
 			),
-			Match.when(AST.isSuspend, (node) =>
-				Endo.fail(
-					new Errors.MissingNodeImplementationError({
-						nodeTag: node._tag,
-						path: ctx.path,
-					}),
-				),
-			),
+			Match.when(AST.isSuspend, (node) => {
+				// Resolve underlying AST with depth limiting.
+				let target: AST.AST;
+				try {
+					target = node.f();
+				} catch {
+					// If thunk throws just skip.
+					return Endo.of(Endo.id);
+				}
+				return shouldExpandSuspend(target)
+					? visit(ctx, target)
+					: Endo.of(Endo.id);
+			}),
 
 			Match.exhaustive,
 		);
@@ -79,11 +113,22 @@ export const getEffectSchemaConstraint = <A, I>(
 				transformationVisitor(ctx, node),
 			),
 			Match.when(AST.isUnion, (node) => unionVisitor(ctx, node)),
+			Match.when(AST.isSuspend, (node) => {
+				let target: AST.AST;
+				try {
+					target = node.f();
+				} catch {
+					return Endo.of(Endo.id);
+				}
+				return shouldExpandSuspend(target)
+					? visit(ctx, target)
+					: Endo.of(Endo.id);
+			}),
 
 			Match.orElse((node) =>
 				Endo.fail(
 					new Errors.IllegalRootNode({
-						expectedNode: "TypeLiteral",
+						expectedNode: 'TypeLiteral',
 						actualNode: node._tag,
 					}),
 				),

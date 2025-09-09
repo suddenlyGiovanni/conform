@@ -1581,7 +1581,7 @@ details: cannot extend minLength(1) with undefined`,
 		} satisfies ConstraintRecord);
 	});
 
-	test.todo('Should supporr recursive schemas', () => {
+	test('Supports recursive schemas (suspend)', () => {
 		const fields = {
 			name: Schema.String,
 			// ...other fields as needed
@@ -1602,30 +1602,21 @@ details: cannot extend minLength(1) with undefined`,
 			),
 		});
 
-		expect(getEffectSchemaConstraint(Category)).toEqual({
-			name: {
-				required: true,
-			},
-			subcategories: {
-				required: true,
-				multiple: true,
-			},
-
-			'subcategories[].name': {
-				required: true,
-			},
-			'subcategories[].subcategories': {
-				required: true,
-				multiple: true,
-			},
-
-			'subcategories[].subcategories[].name': {
-				required: true,
-			},
+		expect(
+			getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 2 }),
+		).toEqual({
+			name: { required: true },
+			subcategories: { required: true, multiple: true },
+			'subcategories[]': { required: true },
+			'subcategories[].name': { required: true },
+			'subcategories[].subcategories': { required: true, multiple: true },
+			'subcategories[].subcategories[]': { required: true },
+			'subcategories[].subcategories[].name': { required: true },
 			'subcategories[].subcategories[].subcategories': {
 				required: true,
 				multiple: true,
 			},
+			'subcategories[].subcategories[].subcategories[]': { required: true },
 		});
 	});
 
