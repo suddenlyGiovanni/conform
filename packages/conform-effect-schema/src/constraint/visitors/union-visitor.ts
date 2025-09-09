@@ -18,34 +18,43 @@ import {
 } from '../types';
 
 /**
- * Union handling (Conform domain)
+ * Builds a visitor for `AST.Union` nodes that merges per-branch constraint endomorphisms
+ * while computing correct field requiredness by intersection.
  *
- * Background:
- * - Effect’s SchemaAST allows unions of many AST node kinds (not only objects).
- * - Conform constraints are keyed by form field paths. Only object-like members (TypeLiteral/Struct)
- *   and nested shapes (tuples/arrays producing subpaths) actually contribute field keys.
- * - Unions of primitives/literals do not introduce field paths by themselves, so they do not impact
- *   “requiredness” directly in Conform’s ConstraintRecord.
+ * @remarks
+ * Background
+ * - Effect Schema AST allows unions over heterogeneous node kinds (object literals, primitives, etc.).
+ * - Conform associates constraints only with form field paths contributed by object-like shapes (e.g. `TypeLiteral`).
+ * - Primitive / literal-only union members do not add paths; they only influence requiredness if a path appears elsewhere.
  *
- * Policy:
- * - Constraints are static per form field, so union handling is branch-agnostic (no conditionals).
- * - Requiredness is derived by intersecting branch snapshots:
- *   - A path k is required iff k is present and required in every union member that contributes it.
- *   - If k is present in at least one member but is optional or absent in any other, k is optional.
- *   - If k is present in none, it is omitted.
- * - We do not attempt to merge/refine other constraints across branches. Conflicting shapes/refinements
- *   should be rejected earlier by schema composition (overlap/unsupported errors).
+ * Requiredness Policy (intersection semantics)
+ * - A field path `k` is marked `required: true` iff it is present and required in every branch snapshot.
+ * - If `k` appears required in some branches but is optional or absent in at least one other branch, it is downgraded to optional.
+ * - Paths absent from all branches are omitted entirely.
+ * - No other constraint properties are merged or reconciled across branches (only requiredness downgrades are applied). Any semantic conflicts should have been prevented earlier during schema construction.
  *
- * Special-cases:
- * - Array of union-of-string-literals: when visiting an array item path (path ends with "[]") and the
- *   union is entirely string literals, we emit a safe alternation regex (enum-like) at the item path.
- *   This does not affect requiredness; it’s an additional item-level constraint.
+ * Special Case Optimization
+ * - When the union occurs at an array item context (path ends with `[]`) AND every union member is a string literal, an alternation regex is synthesized and attached as a `pattern` constraint for that item path (i.e. an enum-like validation). This does not influence requiredness.
  *
- * Notes:
- * - Discriminated unions naturally make the discriminant required because it is present (and required)
- *   in every branch; other fields follow the same intersection rule above.
- * - If a union has no object-like members that yield field paths, this visitor may produce no keys;
- *   that is expected and acceptable for Conform constraints.
+ * Error Handling
+ * - At the root context only homogeneous unions of `TypeLiteral` OR homogeneous unions of `Transformation` are permitted. Otherwise an {@link IllegalRootNode} error is produced.
+ *
+ * Algorithm (high level)
+ * 1. For each union member: visit it, producing an `Endo` and capture a snapshot (`ConstraintRecord`) by applying it to an empty constraint set.
+ * 2. Collect all field keys appearing in any snapshot.
+ * 3. Determine which keys are required in every snapshot; downgrade all others to `required: false` via a composed patch endo.
+ * 4. Compose: (a) sequential branch endos, then (b) the downgrade endo.
+ * 5. (Array string-literal special case) Short‑circuit and emit a single patch endo with the generated regex.
+ *
+ * Complexity
+ * - Let `n` be number of union members and `m` the total distinct keys across snapshots; runtime is `O(n + m)` (snapshot creation dominates; downgrade map is linear in distinct keys).
+ *
+ * Idempotence
+ * - The produced endomorphism is deterministic and idempotent with respect to requiredness downgrades (reapplying will not further change constraints).
+ *
+ * @returns A `MakeVisitor` implementation producing an `Endo.Prog` that either fails with {@link Errors} or yields a composed field-constraint transformer.
+ *
+ * @throws IllegalRootNode If invoked at root with a heterogeneous union not comprised solely of `TypeLiteral` or solely of `Transformation` nodes.
  */
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 	(visit) => (ctx: Ctx.Any, unionNode: Readonly<AST.Union>) => {
@@ -79,15 +88,21 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 						ReadonlyArray.flatMap(Record.keys),
 						HashSet.fromIterable,
 					);
-					const requiredEverywhere = HashSet.filter(allKeys, (k) =>
-						snaps.every(
-							(s) => (s[k] as Constraint | undefined)?.required === true,
+
+					const requiredEverywhere = pipe(
+						allKeys,
+						HashSet.filter((k) =>
+							snaps.every(
+								(s) => (s[k] as Constraint | undefined)?.required === true,
+							),
 						),
 					);
-					const toOptional = HashSet.filter(
+
+					const toOptional = pipe(
 						allKeys,
-						(k) => !HashSet.has(requiredEverywhere, k),
+						HashSet.filter((k) => !HashSet.has(requiredEverywhere, k)),
 					);
+
 					const downgrade = Endo.compose(
 						...pipe(
 							toOptional,
@@ -95,6 +110,7 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 							HashSet.toValues,
 						),
 					);
+
 					return Endo.compose(endo, downgrade);
 				}),
 			);
