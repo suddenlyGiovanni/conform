@@ -30,6 +30,11 @@ export const getEffectSchemaConstraint = <A, I>(
 	options?: ConstraintOptions,
 ): ConstraintRecord => {
 	const { MAX_SUSPEND_EXPANSIONS } = { ...DEFAULT_OPTIONS, ...options };
+	if (MAX_SUSPEND_EXPANSIONS < 0 || !Number.isFinite(MAX_SUSPEND_EXPANSIONS)) {
+		throw new Error(
+			`MAX_SUSPEND_EXPANSIONS must be a non-negative finite number (and reasonable). Received: ${MAX_SUSPEND_EXPANSIONS}`,
+		);
+	}
 
 	// Track how many times we've expanded a given suspended target AST.
 	const suspendExpansionCounts = new WeakMap<AST.AST, number>();

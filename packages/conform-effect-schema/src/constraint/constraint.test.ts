@@ -6,8 +6,8 @@ import { describe, expect, expectTypeOf, test } from 'vitest';
 import { getEffectSchemaConstraint } from '../index';
 import type { Constraint, ConstraintRecord } from './types';
 
-describe('constraint', () => {
-	test('Non-object schemas will throw an error', () => {
+describe('getEffectSchemaConstraint', () => {
+	test('should throw on non-object root schemas', () => {
 		expect(() => getEffectSchemaConstraint(Schema.String)).toThrow(
 			"Root schema must be an AST node 'TypeLiteral', instead got: 'StringKeyword'",
 		);
@@ -18,8 +18,8 @@ describe('constraint', () => {
 		);
 	});
 
-	describe('String', () => {
-		test('optional', () => {
+	describe('string', () => {
+		test('should mark optional string field as not required', () => {
 			const schema = Schema.Struct({
 				requiredText: Schema.String,
 				optionalText: Schema.optional(Schema.String),
@@ -37,7 +37,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('literal', () => {
+		test('should treat literal string as required', () => {
 			const literal = 'literal';
 			const schema = Schema.Struct({ literalString: Schema.Literal(literal) });
 
@@ -46,7 +46,7 @@ describe('constraint', () => {
 			>({ literalString: { required: true } });
 		});
 
-		test('with no refinement', () => {
+		test('should handle plain string field', () => {
 			expect(
 				getEffectSchemaConstraint(
 					Schema.Struct({
@@ -58,8 +58,8 @@ describe('constraint', () => {
 			});
 		});
 
-		describe('with refinements', () => {
-			test('MinLengthSchemaId: a string at least <number> character(s) long', () => {
+		describe('refinements', () => {
+			test('should apply minLength refinement', () => {
 				const minLength = 1;
 				const schema = Schema.Struct({
 					requiredTextAndWithMinLength: Schema.String.pipe(
@@ -77,7 +77,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('MaxLengthSchemaId: a string at most <number> character(s) long', () => {
+			test('should apply maxLength refinement after minLength', () => {
 				// handling multiple transformations
 				const minLength = 1;
 				const maxLength = 10;
@@ -127,28 +127,25 @@ describe('constraint', () => {
 						minLength: 15,
 					},
 				},
-			])(
-				'LengthSchemaId: a string at most <number> character(s) long',
-				({ inputLength, expected }) => {
-					const schema = Schema.Struct({
-						requiredTextAndWithMinLength: Schema.String.pipe(
-							Schema.length(inputLength),
-						),
-					});
+			])('should apply length refinement', ({ inputLength, expected }) => {
+				const schema = Schema.Struct({
+					requiredTextAndWithMinLength: Schema.String.pipe(
+						Schema.length(inputLength),
+					),
+				});
 
-					expect(getEffectSchemaConstraint(schema)).toEqual<
-						Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
-					>({
-						requiredTextAndWithMinLength: {
-							required: true,
-							maxLength: expected.maxLength,
-							minLength: expected.minLength,
-						},
-					});
-				},
-			);
+				expect(getEffectSchemaConstraint(schema)).toEqual<
+					Record<keyof Schema.Schema.Type<typeof schema>, Constraint>
+				>({
+					requiredTextAndWithMinLength: {
+						required: true,
+						maxLength: expected.maxLength,
+						minLength: expected.minLength,
+					},
+				});
+			});
 
-			test('NonEmptyString: a non empty string', () => {
+			test('should apply NonEmptyString refinement', () => {
 				const schema = Schema.Struct({
 					nonEmptyString: Schema.NonEmptyString,
 				});
@@ -162,7 +159,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('PatternSchemaId: a string matching the <pattern>', () => {
+			test('should apply pattern refinement', () => {
 				const regex = new RegExp(/^[a-z]+$/);
 
 				const schema = Schema.Struct({
@@ -178,7 +175,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('StartsWithSchemaId: a string starting with `{string}<postfix>`', () => {
+			test('should apply startsWith refinement', () => {
 				const startsWith = 'prefix';
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.startsWith(startsWith)),
@@ -194,7 +191,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('EndsWithSchemaId: a string ending with `<prefix>{string}`', () => {
+			test('should apply endsWith refinement', () => {
 				const endsWith = 'postfix';
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.endsWith(endsWith)),
@@ -210,7 +207,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('IncludesSchemaId: a string including `<prefix>{string}<postfix>`', () => {
+			test('should apply includes refinement', () => {
 				const infix = 'infix';
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.includes(infix)),
@@ -226,7 +223,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('TrimmedSchemaId: a string with no leading or trailing whitespace', () => {
+			test('should apply trimmed refinement', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.trimmed()),
 				});
@@ -241,7 +238,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('LowercasedSchemaId: a lowercase string', () => {
+			test('should apply lowercased refinement', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.lowercased()),
 				});
@@ -256,7 +253,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('UppercasedSchemaId: an uppercase string', () => {
+			test('should apply uppercased refinement', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.uppercased()),
 				});
@@ -271,7 +268,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('CapitalizedSchemaId: a capitalized string', () => {
+			test('should apply capitalized refinement', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.capitalized()),
 				});
@@ -286,7 +283,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('UncapitalizedSchemaId: a uncapitalized string', () => {
+			test('should apply uncapitalized refinement', () => {
 				const schema = Schema.Struct({
 					pattern: Schema.String.pipe(Schema.uncapitalized()),
 				});
@@ -302,8 +299,8 @@ describe('constraint', () => {
 			});
 		});
 
-		describe('with Transformation', () => {
-			test('split: Splits a string by a specified delimiter into an array of substrings.', () => {
+		describe('transformations', () => {
+			test('should derive constraints from split transformation', () => {
 				expect(
 					getEffectSchemaConstraint(
 						Schema.Struct({
@@ -321,7 +318,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('Trim: Removes whitespace from the beginning and end of a string.', () => {
+			test('should apply trim then maxLength refinement', () => {
 				const maxLength = 10;
 				expect(
 					getEffectSchemaConstraint(
@@ -338,7 +335,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('Lowercase: Converts a string to lowercase.', () => {
+			test('should apply lowercase then minLength refinement', () => {
 				const minLength = 10;
 				expect(
 					getEffectSchemaConstraint(
@@ -355,7 +352,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('Uppercase: Converts a string to uppercase.', () => {
+			test('should apply uppercase then minLength refinement', () => {
 				const minLength = 10;
 				expect(
 					getEffectSchemaConstraint(
@@ -372,7 +369,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('Capitalize: Converts the first character of a string to uppercase.', () => {
+			test('should apply capitalize then minLength refinement', () => {
 				const minLength = 10;
 				expect(
 					getEffectSchemaConstraint(
@@ -389,7 +386,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('Uncapitalize: Converts the first character of a string to lowercase.', () => {
+			test('should apply uncapitalize then minLength refinement', () => {
 				const minLength = 10;
 				expect(
 					getEffectSchemaConstraint(
@@ -410,8 +407,8 @@ describe('constraint', () => {
 		});
 	});
 
-	describe('Number', () => {
-		test('with no refinement', () => {
+	describe('number', () => {
+		test('should handle plain number field', () => {
 			const schema = Schema.Struct({ number: Schema.Number });
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
@@ -419,7 +416,7 @@ describe('constraint', () => {
 			>({ number: { required: true } });
 		});
 
-		test('optional', () => {
+		test('should mark optional number field as not required', () => {
 			const schema = Schema.Struct({
 				optionalNumber: Schema.optional(Schema.Number),
 			});
@@ -429,7 +426,7 @@ describe('constraint', () => {
 			>({ optionalNumber: { required: false } });
 		});
 
-		test('literal', () => {
+		test('should treat literal number as required', () => {
 			const literal = 42;
 			const schema = Schema.Struct({ literalNumber: Schema.Literal(literal) });
 
@@ -442,7 +439,7 @@ describe('constraint', () => {
 			>({ literalNumber: { required: true } });
 		});
 
-		test('GreaterThanSchemaId: a number greater than <exclusiveMinimum>', () => {
+		test('should apply greaterThan refinement', () => {
 			const exclusiveMinimum = 5;
 			const schema = Schema.Struct({
 				numberGreaterThan: Schema.Number.pipe(
@@ -460,7 +457,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('GreaterThanOrEqualToSchemaId: a number greater than or equal to <inclusiveMinimum>', () => {
+		test('should apply greaterThanOrEqualTo refinement', () => {
 			const inclusiveMinimum = 10;
 			const schema = Schema.Struct({
 				numberGreaterThanOrEqualTo: Schema.Number.pipe(
@@ -478,7 +475,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('LessThanSchemaId: a number less than <exclusiveMaximum>', () => {
+		test('should apply lessThan refinement', () => {
 			const exclusiveMaximum = 7;
 			const schema = Schema.Struct({
 				numberLessThan: Schema.Number.pipe(Schema.lessThan(exclusiveMaximum)),
@@ -494,7 +491,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('LessThanOrEqualToSchemaId: a number less than or equal to <inclusiveMaximum>', () => {
+		test('should apply lessThanOrEqualTo refinement', () => {
 			const inclusiveMaximum = 42;
 			const schema = Schema.Struct({
 				numberLessThanOrEqualTo: Schema.Number.pipe(
@@ -512,7 +509,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('BetweenSchemaId: a number between <minimum> and <maximum>', () => {
+		test('should apply between refinement', () => {
 			const inclusiveMinimum = 3;
 			const inclusiveMaximum = 7;
 			const schema = Schema.Struct({
@@ -532,7 +529,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('MultipleOfSchemaId: a number divisible by <positiveDivisor>', () => {
+		test('should apply multipleOf refinement', () => {
 			const divisor = 3;
 			const schema = Schema.Struct({
 				numberBetween: Schema.Number.pipe(Schema.multipleOf(divisor)),
@@ -548,8 +545,8 @@ describe('constraint', () => {
 			});
 		});
 
-		describe('with Transformation', () => {
-			test('NumberFromString', () => {
+		describe('transformations', () => {
+			test('should apply NumberFromString then greaterThan refinement', () => {
 				const exclusiveMinimum = 5;
 
 				const schema = Schema.Struct({
@@ -568,7 +565,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('clamp', () => {
+			test('should apply clamp transformation', () => {
 				const minimum = -1;
 				const maximum = 1;
 
@@ -587,7 +584,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('parseNumber', () => {
+			test('should parse number from string', () => {
 				expect(
 					getEffectSchemaConstraint(
 						Schema.Struct({
@@ -599,8 +596,8 @@ describe('constraint', () => {
 		});
 	});
 
-	describe('BigInt ', () => {
-		test('with no refinement', () => {
+	describe('bigint', () => {
+		test('should handle plain bigint field', () => {
 			const schema = Schema.Struct({ bigInt: Schema.BigIntFromSelf });
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
@@ -608,7 +605,7 @@ describe('constraint', () => {
 			>({ bigInt: { required: true } });
 		});
 
-		test('with optional', () => {
+		test('should mark optional bigint field as not required', () => {
 			const schema = Schema.Struct({
 				optionalBigInt: Schema.optional(Schema.BigIntFromSelf),
 			});
@@ -618,7 +615,7 @@ describe('constraint', () => {
 			>({ optionalBigInt: { required: false } });
 		});
 
-		test('literal', () => {
+		test('should treat literal bigint as required', () => {
 			const literal = 42n;
 			const schema = Schema.Struct({ literalBigInt: Schema.Literal(literal) });
 
@@ -631,7 +628,7 @@ describe('constraint', () => {
 			>({ literalBigInt: { required: true } });
 		});
 
-		test('GreaterThanBigIntSchemaId: a bigint greater than <exclusiveMinimum>', () => {
+		test('should apply greaterThanBigInt refinement', () => {
 			const exclusiveMinimum = 5n;
 			const schema = Schema.Struct({
 				bigIntGreaterThan: Schema.BigIntFromSelf.pipe(
@@ -649,7 +646,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('GreaterThanOrEqualToBigIntSchemaId: a bigint greater than or equal to <inclusiveMinimum>', () => {
+		test('should apply greaterThanOrEqualToBigInt refinement', () => {
 			const inclusiveMinimumBigInt = 10n;
 			const schema = Schema.Struct({
 				bigIntGreaterThanOrEqualTo: Schema.BigIntFromSelf.pipe(
@@ -667,7 +664,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('LessThanBigIntSchemaId: a bigint less than <exclusiveMaximum>', () => {
+		test('should apply lessThanBigInt refinement', () => {
 			const exclusiveMaximum = 7n;
 			const schema = Schema.Struct({
 				bigIntLessThan: Schema.BigIntFromSelf.pipe(
@@ -685,7 +682,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('LessThanOrEqualToBigIntSchemaId: a bigint less than or equal to <inclusiveMaximum>', () => {
+		test('should apply lessThanOrEqualToBigInt refinement', () => {
 			const inclusiveMaximum = 42n;
 			const schema = Schema.Struct({
 				bigIntLessThanOrEqualTo: Schema.BigIntFromSelf.pipe(
@@ -703,7 +700,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('BetweenBigIntSchemaId: a bigint between <minimum>n and <maximum>n', () => {
+		test('should apply betweenBigInt refinement', () => {
 			const inclusiveMinimum = -2n;
 			const inclusiveMaximum = 2n;
 			const schema = Schema.Struct({
@@ -723,15 +720,15 @@ describe('constraint', () => {
 			});
 		});
 
-		describe('with Transformation', () => {
-			test('BigInt', () => {
+		describe('transformations', () => {
+			test('should parse BigInt from string', () => {
 				// Converts a string to a BigInt using the BigInt constructor.
 				expect(
 					getEffectSchemaConstraint(Schema.Struct({ bigInt: Schema.BigInt })),
 				).toEqual({ bigInt: { required: true } });
 			});
 
-			test('BigIntFromNumber', () => {
+			test('should transform BigIntFromNumber with safe integer bounds', () => {
 				expect(
 					getEffectSchemaConstraint(
 						Schema.Struct({
@@ -747,7 +744,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('clampBigInt', () => {
+			test('should apply clampBigInt transformation', () => {
 				const maximum = 1n;
 				const minimum = -maximum;
 				expect(
@@ -769,8 +766,8 @@ describe('constraint', () => {
 		});
 	});
 
-	describe('Date', () => {
-		test('with optional', () => {
+	describe('date', () => {
+		test('should mark optional date field as not required', () => {
 			const schema = Schema.Struct({
 				optionalDate: Schema.optional(Schema.DateFromSelf),
 			});
@@ -784,8 +781,8 @@ describe('constraint', () => {
 			});
 		});
 
-		describe('with refinements', () => {
-			test('GreaterThanDateSchemaId: a date after <minExclusiveDate>', () => {
+		describe('refinements', () => {
+			test('should apply greaterThanDate refinement', () => {
 				const minExclusiveDate = new Date('2020-01-01');
 				const schema = Schema.Struct({
 					dateGreaterThanDate: Schema.DateFromSelf.pipe(
@@ -803,7 +800,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('GreaterThanOrEqualToDateSchemaId: a date after or equal to <minInclusiveDate>', () => {
+			test('should apply greaterThanOrEqualToDate refinement', () => {
 				const minInclusiveDate = new Date('2022-01-01');
 				const schema = Schema.Struct({
 					dateGreaterThanOrEqualToDate: Schema.DateFromSelf.pipe(
@@ -821,7 +818,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('LessThanDateSchemaId: a date before <maxExclusiveDate>', () => {
+			test('should apply lessThanDate refinement', () => {
 				const maxExclusiveDate = new Date('1969-01-01');
 				const schema = Schema.Struct({
 					dateLessThanDate: Schema.DateFromSelf.pipe(
@@ -839,7 +836,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('LessThanDateSchemaId: a date before or equal to <maxInclusiveDate>', () => {
+			test('should apply lessThanOrEqualToDate refinement', () => {
 				const maxInclusiveDate = new Date('1911-01-01');
 				const schema = Schema.Struct({
 					dateLessThanOrEqualToDate: Schema.DateFromSelf.pipe(
@@ -857,7 +854,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('BetweenDateSchemaId: a date between <minInclusiveDate> and <maxInclusiveDate>', () => {
+			test('should apply betweenDate refinement', () => {
 				const minInclusiveDate = new Date('2001-01-01');
 				const maxInclusiveDate = new Date('2021-01-01');
 				const schema = Schema.Struct({
@@ -878,8 +875,8 @@ describe('constraint', () => {
 			});
 		});
 
-		describe('with transformation', () => {
-			test('Date: Converts a string into a valid Date', () => {
+		describe('transformations', () => {
+			test('should transform Date string then apply range refinements', () => {
 				const min = '2022-01-01';
 				const max = '2022-12-31';
 
@@ -897,8 +894,8 @@ describe('constraint', () => {
 		});
 	});
 
-	describe('Boolean', () => {
-		test('with optional', () => {
+	describe('boolean', () => {
+		test('should mark optional boolean field as not required', () => {
 			const schema = Schema.Struct({
 				optionalBoolean: Schema.optional(Schema.Boolean),
 			});
@@ -910,7 +907,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('required', () => {
+		test('should treat boolean field as required', () => {
 			const schema = Schema.Struct({
 				requiredBoolean: Schema.Boolean,
 			});
@@ -922,7 +919,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('with literal', () => {
+		test('should treat literal boolean as required', () => {
 			const schema = Schema.Struct({
 				literalBoolean: Schema.Literal(true),
 			});
@@ -934,8 +931,8 @@ describe('constraint', () => {
 			});
 		});
 
-		describe('with Transformation', () => {
-			test('not', () => {
+		describe('transformations', () => {
+			test('should apply not transformation', () => {
 				expect(
 					getEffectSchemaConstraint(Schema.Struct({ not: Schema.Not })),
 				).toEqual({ not: { required: true } });
@@ -943,8 +940,8 @@ describe('constraint', () => {
 		});
 	});
 
-	describe('Array', () => {
-		test('with no refinement', () => {
+	describe('array', () => {
+		test('should handle basic array', () => {
 			const schema = Schema.Struct({ array: Schema.Array(Schema.String) });
 
 			expect(getEffectSchemaConstraint(schema)).toEqual<
@@ -958,8 +955,8 @@ describe('constraint', () => {
 			});
 		});
 
-		describe('with nested data', () => {
-			test('Struct', () => {
+		describe('nested data', () => {
+			test('should handle array of structs', () => {
 				const schema = Schema.Struct({
 					list: Schema.Array(
 						Schema.Struct({
@@ -988,7 +985,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('Union', () => {
+			test('should handle array of struct with optional field', () => {
 				const schema = Schema.Struct({
 					list: Schema.Array(
 						Schema.Struct({
@@ -1014,7 +1011,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('Union of Literals', () => {
+			test('should derive pattern from array of literal union', () => {
 				expect(
 					getEffectSchemaConstraint(
 						Schema.Struct({
@@ -1034,8 +1031,8 @@ describe('constraint', () => {
 		});
 	});
 
-	describe('Tuple', () => {
-		test('with no refinement', () => {
+	describe('tuple', () => {
+		test('should handle tuple', () => {
 			const schema = Schema.Struct({
 				tuple: Schema.Tuple(Schema.String, Schema.Number),
 			});
@@ -1051,7 +1048,7 @@ describe('constraint', () => {
 			});
 		});
 
-		test('with refinements', () => {
+		test('should handle tuple with element refinements', () => {
 			const schema = Schema.Struct({
 				tuple: Schema.Tuple(
 					Schema.String.pipe(Schema.minLength(3)),
@@ -1077,8 +1074,8 @@ describe('constraint', () => {
 		});
 	});
 
-	describe('Nested Schemas', () => {
-		test('Struct', () => {
+	describe('nested schemas', () => {
+		test('should handle nested struct', () => {
 			const schema = Schema.Struct({
 				nested: Schema.Struct({
 					key: Schema.String.pipe(Schema.minLength(1)),
@@ -1099,8 +1096,8 @@ describe('constraint', () => {
 		});
 	});
 
-	describe('extends', () => {
-		describe('String', () => {
+	describe('extend', () => {
+		describe('string', () => {
 			const a = Schema.Struct({
 				s: Schema.optional(Schema.String),
 			});
@@ -1117,7 +1114,7 @@ describe('constraint', () => {
 				n: Schema.String.pipe(Schema.length(42)),
 			});
 
-			test('fields', () => {
+			test('should merge fields using spreads', () => {
 				// without override
 				expect(
 					getEffectSchemaConstraint(
@@ -1174,7 +1171,7 @@ describe('constraint', () => {
 				});
 			});
 
-			test('extend', () => {
+			test('should extend string schemas and enforce constraints', () => {
 				expect(getEffectSchemaConstraint(Schema.extend(a, d))).toEqual({
 					s: { required: false },
 					n: { required: true, maxLength: 42, minLength: 42 },
@@ -1206,7 +1203,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		describe('Number', () => {
+		describe('number', () => {
 			const a = Schema.Struct({
 				n: Schema.Number.pipe(Schema.greaterThanOrEqualTo(1)),
 			});
@@ -1214,7 +1211,7 @@ details: cannot extend minLength(1) with undefined`,
 				n: Schema.Number.pipe(Schema.lessThanOrEqualTo(10)),
 			});
 
-			test('fields', () => {
+			test('should merge numeric field constraints via spreads', () => {
 				expect(
 					getEffectSchemaConstraint(
 						Schema.Struct({ ...a.fields, ...b.fields }),
@@ -1223,15 +1220,15 @@ details: cannot extend minLength(1) with undefined`,
 					n: { required: true, max: 10 },
 				});
 			});
-			test('extends', () => {
+			test('should extend numeric schemas', () => {
 				expect(getEffectSchemaConstraint(Schema.extend(a, b))).toEqual({
 					n: { required: true, max: 10, min: 1 },
 				});
 			});
 		});
 
-		describe('Boolean', () => {
-			test('fields', () => {
+		describe('boolean', () => {
+			test('should merge boolean field constraints via spreads', () => {
 				expect(
 					getEffectSchemaConstraint(
 						Schema.Struct({
@@ -1245,7 +1242,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test('Union of overlapping member', () => {
+		test('should extend with union containing overlapping member', () => {
 			const Extended = Schema.extend(
 				Schema.Struct({ a: Schema.String }),
 				Schema.Union(
@@ -1273,7 +1270,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test('Union of non-overlapping structs', () => {
+		test('should extend with union of non-overlapping structs', () => {
 			const StructA = Schema.Struct({
 				a: Schema.String.pipe(Schema.minLength(1)),
 			});
@@ -1312,7 +1309,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test('Should not support union of invalid overlapping member', () => {
+		test('should throw on invalid overlapping member extension', () => {
 			const StructA = Schema.Struct({ a: Schema.String });
 			const OverlappingUnion = Schema.Union(
 				Schema.Struct({ a: Schema.Number }),
@@ -1324,7 +1321,7 @@ details: cannot extend minLength(1) with undefined`,
 			).toThrow(/Unsupported schema|cannot extend/);
 		});
 
-		test('field-spread: nested struct spreading overrides earlier refinements', () => {
+		test('should let later nested struct field spread override earlier refinements', () => {
 			expect(
 				getEffectSchemaConstraint(
 					Schema.Struct({
@@ -1365,7 +1362,7 @@ details: cannot extend minLength(1) with undefined`,
 		});
 	});
 
-	describe('Union', () => {
+	describe('union', () => {
 		const baseSchema = Schema.Struct({
 			qux: Schema.String.pipe(Schema.minLength(1)),
 		});
@@ -1386,7 +1383,7 @@ details: cannot extend minLength(1) with undefined`,
 			}),
 		);
 
-		test('Supports disjointed unions', () => {
+		test('should handle disjoint union', () => {
 			const DisjointedUnion = Schema.Union(Left, Right);
 
 			expectTypeOf<Types.Simplify<typeof DisjointedUnion.Type>>().toEqualTypeOf<
@@ -1430,7 +1427,7 @@ details: cannot extend minLength(1) with undefined`,
 		 * This yields a potentially over‑restrictive constraint (both minLength & maxLength) whereas
 		 * the logical schema union would allow values satisfying EITHER branch.
 		 */
-		test('Union of same property with different refinements (documents current intersection)', () => {
+		test('should intersect refinements on same property across union members (current behavior)', () => {
 			const Right = Schema.extend(
 				baseSchema,
 				Schema.Struct({
@@ -1467,7 +1464,7 @@ details: cannot extend minLength(1) with undefined`,
 			 */
 		});
 
-		test('Supports discriminated union', () => {
+		test('should handle discriminated union', () => {
 			const DiscriminatedUnion = Schema.Union(
 				Left.pipe(Schema.attachPropertySignature('type', 'a')),
 				Right.pipe(Schema.attachPropertySignature('type', 'b')),
@@ -1516,7 +1513,7 @@ details: cannot extend minLength(1) with undefined`,
 		});
 	});
 
-	test('Should support complex schemas', () => {
+	test('should support complex schemas', () => {
 		const minTimestamp = '1970-01-01';
 		const maxTimestamp = '2030-01-01';
 
@@ -1582,7 +1579,15 @@ details: cannot extend minLength(1) with undefined`,
 	});
 
 	describe('suspend', () => {
-		test('Root Suspend schema expands underlying struct', () => {
+		test('should reject negative MAX_SUSPEND_EXPANSIONS option', () => {
+			const Suspended = Schema.suspend(() =>
+				Schema.Struct({ name: Schema.String }),
+			);
+			expect(() =>
+				getEffectSchemaConstraint(Suspended, { MAX_SUSPEND_EXPANSIONS: -1 }),
+			).toThrow(/MAX_SUSPEND_EXPANSIONS must be a non-negative finite number/);
+		});
+		test('should expand root suspended struct', () => {
 			const Suspended = Schema.suspend(() =>
 				Schema.Struct({
 					name: Schema.String,
@@ -1595,7 +1600,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test('Supports recursive schemas (suspend)', () => {
+		test('should expand recursive schema (depth=2 default)', () => {
 			const fields = {
 				name: Schema.String,
 			};
@@ -1626,7 +1631,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 0 (no expansion)', () => {
+		test('should not expand recursive schema when MAX_SUSPEND_EXPANSIONS=0', () => {
 			const fields = { name: Schema.String };
 			interface Category extends Schema.Struct.Type<typeof fields> {
 				readonly subcategories: ReadonlyArray<Category>;
@@ -1646,7 +1651,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 3 (deeper expansion)', () => {
+		test('should expand recursive schema to depth=3', () => {
 			const fields = { name: Schema.String };
 			interface Category extends Schema.Struct.Type<typeof fields> {
 				readonly subcategories: ReadonlyArray<Category>;
@@ -1685,7 +1690,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 1 (single expansion level)', () => {
+		test('should expand recursive schema one level when MAX_SUSPEND_EXPANSIONS=1', () => {
 			const fields = { name: Schema.String };
 			interface Category extends Schema.Struct.Type<typeof fields> {
 				readonly subcategories: ReadonlyArray<Category>;
@@ -1709,7 +1714,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test('Multiple independent recursive schemas each honor MAX_SUSPEND_EXPANSIONS per target', () => {
+		test('should count expansions per independent recursive target', () => {
 			// CategoryA recursion
 			const fieldsA = { name: Schema.String };
 			interface CategoryA extends Schema.Struct.Type<typeof fieldsA> {
@@ -1758,7 +1763,7 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
-		test('Recursive discriminated union with suspend (Condition example)', () => {
+		test('should handle recursive discriminated union', () => {
 			type Condition =
 				| { readonly type: 'filter' }
 				| {
