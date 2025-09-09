@@ -40,6 +40,7 @@ export const getEffectSchemaConstraint = <A, I>(
 		suspendExpansionCounts.set(target, current + 1);
 		return true;
 	};
+
 	const visitNode: Endo.Visit<Ctx.Node> = (ctx, ast) =>
 		Match.value(ast).pipe(
 			Match.withReturnType<Endo.Prog>(),
@@ -87,19 +88,7 @@ export const getEffectSchemaConstraint = <A, I>(
 			Match.when(AST.isTransformation, (node) =>
 				transformationVisitor(ctx, node),
 			),
-			Match.when(AST.isSuspend, (node) => {
-				// Resolve underlying AST with depth limiting.
-				let target: AST.AST;
-				try {
-					target = node.f();
-				} catch {
-					// If thunk throws just skip.
-					return Endo.of(Endo.id);
-				}
-				return shouldExpandSuspend(target)
-					? visit(ctx, target)
-					: Endo.of(Endo.id);
-			}),
+			Match.when(AST.isSuspend, (node) => suspendVisitor(ctx, node)),
 
 			Match.exhaustive,
 		);
@@ -113,17 +102,7 @@ export const getEffectSchemaConstraint = <A, I>(
 				transformationVisitor(ctx, node),
 			),
 			Match.when(AST.isUnion, (node) => unionVisitor(ctx, node)),
-			Match.when(AST.isSuspend, (node) => {
-				let target: AST.AST;
-				try {
-					target = node.f();
-				} catch {
-					return Endo.of(Endo.id);
-				}
-				return shouldExpandSuspend(target)
-					? visit(ctx, target)
-					: Endo.of(Endo.id);
-			}),
+			Match.when(AST.isSuspend, (node) => suspendVisitor(ctx, node)),
 
 			Match.orElse((node) =>
 				Endo.fail(
@@ -146,6 +125,10 @@ export const getEffectSchemaConstraint = <A, I>(
 	const unionVisitor = Visitors.makeUnionVisitor(visit);
 	const refinementVisitor = Visitors.makeRefinementVisitor(visitNode);
 	const transformationVisitor = Visitors.makeTransformationVisitor(visit);
+	const suspendVisitor = Visitors.makeSuspendVisitor(
+		visit,
+		shouldExpandSuspend,
+	);
 
 	return pipe(
 		visit,
