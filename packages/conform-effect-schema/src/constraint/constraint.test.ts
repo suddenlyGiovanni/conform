@@ -1424,6 +1424,49 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
+		/**
+		 * NOTE: Additional coverage – differing refinements on the same property name across union members.
+		 * Current implementation composes endos sequentially, effectively INTERSECTING refinements.
+		 * This yields a potentially over‑restrictive constraint (both minLength & maxLength) whereas
+		 * the logical schema union would allow values satisfying EITHER branch.
+		 */
+		test('Union of same property with different refinements (documents current intersection)', () => {
+			const Right = Schema.extend(
+				baseSchema,
+				Schema.Struct({
+					bar: Schema.String.pipe(Schema.minLength(1)),
+					baz: Schema.String.pipe(Schema.maxLength(10)),
+				}),
+			);
+			const UnionRefinement = Schema.Union(Left, Right);
+
+			expect(getEffectSchemaConstraint(UnionRefinement)).toEqual({
+				qux: {
+					required: true,
+					minLength: 1,
+				},
+				foo: {
+					required: false,
+					minLength: 1,
+				},
+				bar: {
+					required: false,
+					minLength: 1,
+				},
+				baz: {
+					required: true,
+					minLength: 1, // merged from Left intersection
+					maxLength: 10, // merged from Right intersection
+				},
+			});
+
+			/**
+			 * TODO: If future policy decides that conflicting refinements across union members should not be intersected,
+			 * we can replace the above test with one that expects an error (Unsupported schema / overlapping types)
+			 * OR expects only a subset of refinements to be emitted.
+			 */
+		});
+
 		test('Supports discriminated union', () => {
 			const DiscriminatedUnion = Schema.Union(
 				Left.pipe(Schema.attachPropertySignature('type', 'a')),
