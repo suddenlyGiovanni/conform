@@ -1685,6 +1685,79 @@ details: cannot extend minLength(1) with undefined`,
 			});
 		});
 
+		test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 1 (single expansion level)', () => {
+			const fields = { name: Schema.String };
+			interface Category extends Schema.Struct.Type<typeof fields> {
+				readonly subcategories: ReadonlyArray<Category>;
+			}
+			const Category: Schema.Schema<Category> = Schema.Struct({
+				...fields,
+				subcategories: Schema.Array(
+					Schema.suspend((): Schema.Schema<Category> => Category),
+				),
+			});
+			expect(
+				getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 1 }),
+			).toEqual({
+				name: { required: true },
+				subcategories: { required: true, multiple: true },
+				'subcategories[]': { required: true },
+				// first (and only) expansion adds one nested level
+				'subcategories[].name': { required: true },
+				'subcategories[].subcategories': { required: true, multiple: true },
+				'subcategories[].subcategories[]': { required: true },
+			});
+		});
+
+		test('Multiple independent recursive schemas each honor MAX_SUSPEND_EXPANSIONS per target', () => {
+			// CategoryA recursion
+			const fieldsA = { name: Schema.String };
+			interface CategoryA extends Schema.Struct.Type<typeof fieldsA> {
+				readonly childrenA: ReadonlyArray<CategoryA>;
+			}
+			const CategoryA: Schema.Schema<CategoryA> = Schema.Struct({
+				...fieldsA,
+				childrenA: Schema.Array(
+					Schema.suspend((): Schema.Schema<CategoryA> => CategoryA),
+				),
+			});
+
+			// CategoryB recursion (independent target)
+			const fieldsB = { title: Schema.String };
+			interface CategoryB extends Schema.Struct.Type<typeof fieldsB> {
+				readonly childrenB: ReadonlyArray<CategoryB>;
+			}
+			const CategoryB: Schema.Schema<CategoryB> = Schema.Struct({
+				...fieldsB,
+				childrenB: Schema.Array(
+					Schema.suspend((): Schema.Schema<CategoryB> => CategoryB),
+				),
+			});
+
+			const Root = Schema.Struct({ a: CategoryA, b: CategoryB });
+
+			expect(
+				getEffectSchemaConstraint(Root, { MAX_SUSPEND_EXPANSIONS: 1 }),
+			).toEqual({
+				a: { required: true },
+				'a.name': { required: true },
+				'a.childrenA': { required: true, multiple: true },
+				'a.childrenA[]': { required: true },
+				// first expansion of CategoryA target
+				'a.childrenA[].name': { required: true },
+				'a.childrenA[].childrenA': { required: true, multiple: true },
+				'a.childrenA[].childrenA[]': { required: true },
+				b: { required: true },
+				'b.title': { required: true },
+				'b.childrenB': { required: true, multiple: true },
+				'b.childrenB[]': { required: true },
+				// first expansion of CategoryB target
+				'b.childrenB[].title': { required: true },
+				'b.childrenB[].childrenB': { required: true, multiple: true },
+				'b.childrenB[].childrenB[]': { required: true },
+			});
+		});
+
 		test('Recursive discriminated union with suspend (Condition example)', () => {
 			type Condition =
 				| { readonly type: 'filter' }
