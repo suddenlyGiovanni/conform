@@ -1620,6 +1620,67 @@ details: cannot extend minLength(1) with undefined`,
 		});
 	});
 
+	test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 0 (no expansion)', () => {
+		const fields = { name: Schema.String };
+		interface Category extends Schema.Struct.Type<typeof fields> {
+			readonly subcategories: ReadonlyArray<Category>;
+		}
+		const Category: Schema.Schema<Category> = Schema.Struct({
+			...fields,
+			subcategories: Schema.Array(
+				Schema.suspend((): Schema.Schema<Category> => Category),
+			),
+		});
+
+		expect(
+			getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 0 }),
+		).toEqual({
+			name: { required: true },
+			subcategories: { required: true, multiple: true },
+			'subcategories[]': { required: true },
+		});
+	});
+
+	test('Supports recursive schemas (suspend) with MAX_SUSPEND_EXPANSIONS = 3 (deeper expansion)', () => {
+		const fields = { name: Schema.String };
+		interface Category extends Schema.Struct.Type<typeof fields> {
+			readonly subcategories: ReadonlyArray<Category>;
+		}
+		const Category: Schema.Schema<Category> = Schema.Struct({
+			...fields,
+			subcategories: Schema.Array(
+				Schema.suspend((): Schema.Schema<Category> => Category),
+			),
+		});
+
+		expect(
+			getEffectSchemaConstraint(Category, { MAX_SUSPEND_EXPANSIONS: 3 }),
+		).toEqual({
+			name: { required: true },
+			subcategories: { required: true, multiple: true },
+			'subcategories[]': { required: true },
+			'subcategories[].name': { required: true },
+			'subcategories[].subcategories': { required: true, multiple: true },
+			'subcategories[].subcategories[]': { required: true },
+			'subcategories[].subcategories[].name': { required: true },
+			'subcategories[].subcategories[].subcategories': {
+				required: true,
+				multiple: true,
+			},
+			'subcategories[].subcategories[].subcategories[]': { required: true },
+			'subcategories[].subcategories[].subcategories[].name': {
+				required: true,
+			},
+			'subcategories[].subcategories[].subcategories[].subcategories': {
+				required: true,
+				multiple: true,
+			},
+			'subcategories[].subcategories[].subcategories[].subcategories[]': {
+				required: true,
+			},
+		});
+	});
+
 	test.todo('getEffectSchemaConstraint', () => {
 		type Condition =
 			| {
