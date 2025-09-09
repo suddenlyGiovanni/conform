@@ -1,15 +1,15 @@
 import * as ReadonlyArray from 'effect/Array';
-import * as Record from 'effect/Record';
-import * as HashSet from 'effect/HashSet';
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
+import * as HashSet from 'effect/HashSet';
 import * as Predicate from 'effect/Predicate';
+import * as Record from 'effect/Record';
 import * as AST from 'effect/SchemaAST';
 import * as Struct from 'effect/Struct';
 
 import { IllegalRootNode } from '../errors';
 import {
-	type ConstraintRecord,
+	ConstraintRecord,
 	Constraints,
 	Ctx,
 	Endo,
@@ -47,129 +47,111 @@ import {
  *   that is expected and acceptable for Conform constraints.
  */
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
-	(visit) => (ctx, node) => {
-		// Invariant: on root only union of type literals or Transformations are allowed
-		if (
-			Ctx.$is('Root')(ctx) &&
-			!(
-				ReadonlyArray.every(node.types, AST.isTypeLiteral) ||
-				ReadonlyArray.every(node.types, AST.isTransformation)
-			)
-		) {
-			return Endo.fail(
-				new IllegalRootNode({
-					actualNode: node.types.at(0)!._tag,
-					expectedNode: 'TypeLiteral',
-				}),
+	(visit) => (ctx, unionNode) => {
+		/** Root validation: only unions entirely of TypeLiteral or entirely of Transformation. */
+		if (Ctx.$is('Root')(ctx)) {
+			const allTypeLiterals = ReadonlyArray.every(
+				unionNode.types,
+				AST.isTypeLiteral,
 			);
-		}
-		/**
-		 * EDGE CASE: Array of union-of-string-literals
-		 * WHY: When an array's element type is a union of string literals
-		 * (e.g. Array<'a' | 'b'>) we surface an allow‑list via a single
-		 * regex pattern. The downstream constraint engine does not keep
-		 * literal sets, so we precompile them to a pattern.
-		 */
-		if (
-			Ctx.$is('Node')(ctx) &&
-			ReadonlyArray.every(
-				node.types,
-				(t): t is AST.Literal & { literal: string } =>
-					AST.isLiteral(t) && Predicate.isString(t.literal),
-			) &&
-			ctx.path.endsWith('[]')
-		) {
-			return Endo.of(
-				Endo.patch(ctx.path, {
-					// WHAT: constrain each array item to one of the literal tokens
-					pattern: pipe(
-						ReadonlyArray.map(
-							node.types as ReadonlyArray<AST.Literal & { literal: string }>,
-							Struct.get('literal'),
-						),
-						ReadonlyArray.map((s) =>
-							s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d'),
-						),
-						ReadonlyArray.join('|'),
-					),
-				}),
+			const allTransformations = ReadonlyArray.every(
+				unionNode.types,
+				AST.isTransformation,
 			);
+			if (!(allTypeLiterals || allTransformations)) {
+				const first = unionNode.types[0];
+				if (first) {
+					return Endo.fail(
+						new IllegalRootNode({
+							actualNode: first._tag,
+							expectedNode: 'TypeLiteral',
+						}),
+					);
+				}
+			}
 		}
 
-		return pipe(
-			/**
-			 * WHAT: Visit each branch to:
-			 * 1. Accumulate its constraint mutations (endo)
-			 * 2. Capture a snapshot of the constraint record the branch alone produces
-			 * WHY: Snapshots let us compute the intersection of required properties.
-			 */
-			node.types,
+		/** Detect: Array item path where member types are string literals -> emit pattern */
+		if (Ctx.$is('Node')(ctx) && ctx.path.endsWith('[]')) {
+			const allStringLiterals = ReadonlyArray.every(
+				unionNode.types,
+				(t): t is AST.Literal & { literal: string } =>
+					AST.isLiteral(t) && Predicate.isString(t.literal),
+			);
+			if (allStringLiterals) {
+				const pattern = pipe(
+					unionNode.types as ReadonlyArray<AST.Literal & { literal: string }>,
+					ReadonlyArray.map(Struct.get('literal')),
+					ReadonlyArray.map((s) =>
+						s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d'),
+					),
+					ReadonlyArray.join('|'),
+				);
+				return Endo.of(Endo.patch(ctx.path, { pattern }));
+			}
+		}
+
+		/** Helper: adjust context parent for branch traversal */
+		const recontextualize = (c: Ctx.Any): Ctx.Any =>
+			Ctx.$match(c, {
+				Node: (nodeCtx) => Ctx.Node({ path: nodeCtx.path, parent: unionNode }),
+				Root: (rootCtx) => rootCtx,
+			});
+
+		/** Traverse each branch, collecting composed endo and a snapshot of produced constraints. */
+		interface SnapshotFragment {
+			readonly required?: boolean;
+			readonly pattern?: string;
+			readonly [k: string]: unknown;
+		}
+		interface AccState {
+			readonly endo: Endo.Endo;
+			readonly snapshots: ReadonlyArray<Record<string, SnapshotFragment>>;
+		}
+		const collected = pipe(
+			unionNode.types,
 			ReadonlyArray.reduce(
-				Either.right({ endo: Endo.id, snaps: [] }) as Either.Either<
-					{ endo: Endo.Endo; snaps: Array<ConstraintRecord> },
+				Either.right({ endo: Endo.id, snapshots: [] }) as Either.Either<
+					AccState,
 					Errors
 				>,
 				(acc, member) =>
 					Either.flatMap(acc, (state) =>
-						Either.map(
-							visit(
-								Ctx.$match(ctx, {
-									Node: (nodeCtx) =>
-										Ctx.Node({ path: nodeCtx.path, parent: node }),
-									Root: (rootCtx) => rootCtx,
-								}),
-								member,
-							),
-							(memberEndo) => ({
+						Either.map(visit(recontextualize(ctx), member), (memberEndo) => {
+							const snapshot = Constraints.toRecord(
+								memberEndo(Constraints.empty()),
+							) as Record<string, SnapshotFragment>;
+							return {
 								endo: Endo.compose(state.endo, memberEndo),
-								snaps: [
-									...state.snaps,
-									Constraints.toRecord(memberEndo(Constraints.empty())),
-								],
-							}),
-						),
+								snapshots: [...state.snapshots, snapshot],
+							};
+						}),
 					),
 			),
-			/**
-			 * WHY: In a union a consumer cannot rely on a property existing unless
-			 * every alternative both defines it and requires it. Any missing or
-			 * optional occurrence forces it to optional in the merged view.
-			 */
-			Either.map(({ endo: membersEndo, snaps }) => {
-				const allKeys = pipe(
-					snaps,
-					ReadonlyArray.flatMap(Record.keys),
-					ReadonlyArray.dedupe,
-				);
-
-				const requiredInAll = pipe(
-					allKeys,
-					ReadonlyArray.filter((k) =>
-						ReadonlyArray.every(
-							snaps,
-							(constraintRecord) =>
-								Predicate.hasProperty(k)(constraintRecord) &&
-								constraintRecord[k]!.required === true,
-						),
-					),
-					HashSet.fromIterable,
-				);
-
-				const toOptional = allKeys.filter(
-					(k) => !HashSet.has(requiredInAll, k),
-				);
-
-				// WHAT: Apply downgrades after raw member composition so they cannot be re-overridden.
-				const normalizeRequired = Endo.compose(
-					...toOptional.map((k) => Endo.patch(k, { required: false })),
-				);
-				/**
-				 * FINAL COMPOSITION:
-				 * pattern constraints (if any)
-				 * + raw branch constraints
-				 * + required normalization step
-				 */
-				return Endo.compose(membersEndo, normalizeRequired);
-			}),
 		);
+
+		return Either.map(collected, ({ endo, snapshots }) => {
+			const allKeys = pipe(
+				snapshots,
+				ReadonlyArray.flatMap(Record.keys),
+				ReadonlyArray.dedupe,
+			);
+			const requiredEverywhere = pipe(
+				allKeys,
+				ReadonlyArray.filter((k) =>
+					ReadonlyArray.every(snapshots, (snapshot) => {
+						const entry = snapshot[k] as SnapshotFragment | undefined;
+						return entry?.required === true;
+					}),
+				),
+				HashSet.fromIterable,
+			);
+			const toOptional = allKeys.filter(
+				(k) => !HashSet.has(requiredEverywhere, k),
+			);
+			const downgradeRequired = Endo.compose(
+				...toOptional.map((k) => Endo.patch(k, { required: false })),
+			);
+			return Endo.compose(endo, downgradeRequired);
+		});
 	};
