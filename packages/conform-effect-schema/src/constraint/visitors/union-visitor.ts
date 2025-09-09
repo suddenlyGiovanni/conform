@@ -47,125 +47,6 @@ import {
  * - If a union has no object-like members that yield field paths, this visitor may produce no keys;
  *   that is expected and acceptable for Conform constraints.
  */
-export const _makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
-	(visit) => (ctx, unionNode) => {
-		/** Root validation: only unions entirely of TypeLiteral or entirely of Transformation. */
-		if (Ctx.$is('Root')(ctx)) {
-			const allTypeLiterals = ReadonlyArray.every(
-				unionNode.types,
-				AST.isTypeLiteral,
-			);
-			const allTransformations = ReadonlyArray.every(
-				unionNode.types,
-				AST.isTransformation,
-			);
-			if (!(allTypeLiterals || allTransformations)) {
-				const first = unionNode.types[0];
-				if (first) {
-					return Endo.fail(
-						new IllegalRootNode({
-							actualNode: first._tag,
-							expectedNode: 'TypeLiteral',
-						}),
-					);
-				}
-			}
-		}
-
-		/** Detect: Array item path where member types are string literals -> emit pattern */
-		if (Ctx.$is('Node')(ctx) && ctx.path.endsWith('[]')) {
-			const allStringLiterals = ReadonlyArray.every(
-				unionNode.types,
-				(t): t is AST.Literal & { literal: string } =>
-					AST.isLiteral(t) && Predicate.isString(t.literal),
-			);
-			if (allStringLiterals) {
-				const pattern = pipe(
-					unionNode.types as ReadonlyArray<AST.Literal & { literal: string }>,
-					ReadonlyArray.map(Struct.get('literal')),
-					ReadonlyArray.map((s) =>
-						s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d'),
-					),
-					ReadonlyArray.join('|'),
-				);
-				return Endo.of(Endo.patch(ctx.path, { pattern }));
-			}
-		}
-
-		/** Traverse each branch, collecting composed endo and a snapshot of produced constraints. */
-
-		interface AccState {
-			readonly endo: Endo.Endo;
-			readonly snapshots: ReadonlyArray<ConstraintRecord>;
-		}
-		const collected = pipe(
-			unionNode.types,
-			ReadonlyArray.reduce(
-				Either.right({ endo: Endo.id, snapshots: [] }) as Either.Either<
-					AccState,
-					Errors
-				>,
-				(acc, member) =>
-					Either.flatMap(acc, (state) =>
-						Either.map(
-							visit(
-								Ctx.$match(ctx, {
-									Node: (nodeCtx) =>
-										Ctx.Node({ path: nodeCtx.path, parent: unionNode }),
-									Root: (rootCtx) => rootCtx,
-								}),
-								member,
-							),
-							(memberEndo) => {
-								const snapshot = Constraints.toRecord(
-									memberEndo(Constraints.empty()),
-								);
-								return {
-									endo: Endo.compose(state.endo, memberEndo),
-									snapshots: [...state.snapshots, snapshot],
-								};
-							},
-						),
-					),
-			),
-		);
-
-		return Either.map(collected, ({ endo, snapshots }) => {
-			const allKeys = pipe(
-				snapshots,
-				ReadonlyArray.flatMap(Record.keys),
-				HashSet.fromIterable,
-			);
-			const requiredEverywhere = pipe(
-				allKeys,
-				HashSet.filter((k) =>
-					ReadonlyArray.every(snapshots, (snapshot) => {
-						const entry = snapshot[k] as Constraint | undefined;
-						return entry?.required === true;
-					}),
-				),
-			);
-			const toOptional = HashSet.filter(
-				allKeys,
-				(k) => !HashSet.has(requiredEverywhere, k),
-			);
-
-			const downgradeRequired = Endo.compose(
-				...pipe(
-					toOptional,
-					HashSet.map((k) => Endo.patch(k, { required: false })),
-					HashSet.toValues,
-				),
-			);
-			return Endo.compose(endo, downgradeRequired);
-		});
-	};
-
-/**
- * Alternative pattern-matching oriented implementation kept alongside the original
- * for temporary comparison (will be removed once validated). Not exported under the
- * same name to avoid affecting existing behavior.
- */
 export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 	(visit) => (ctx: Ctx.Any, unionNode: Readonly<AST.Union>) => {
 		// Branch aggregation helper (shared by Root / Node cases)
@@ -228,18 +109,14 @@ export const makeUnionVisitor: Endo.MakeVisitor<Ctx.Any, AST.Union> =
 					unionNode.types,
 					AST.isTransformation,
 				);
-				if (!(allTypeLiterals || allTransformations)) {
-					const actualNode = unionNode.types.at(0);
-					if (actualNode) {
-						return Endo.fail(
+				return !(allTypeLiterals || allTransformations)
+					? Endo.fail(
 							new IllegalRootNode({
-								actualNode: actualNode._tag,
+								actualNode: unionNode.types.at(0)!._tag,
 								expectedNode: 'TypeLiteral',
 							}),
-						);
-					}
-				}
-				return aggregate(ctx);
+						)
+					: aggregate(ctx);
 			},
 			Node: (nodeCtx) => {
 				if (nodeCtx.path.endsWith('[]')) {
