@@ -46,48 +46,65 @@ export function parseWithEffectSchema<A>(
 	payload: FormData | URLSearchParams,
 	options: Options<A> | (Options<A> & WithAsync),
 ): Submission<A, string[]> | Promise<Submission<A, string[]>> {
-	const resolveSubmission = (
-		source: FormData | URLSearchParams,
-		intent: Intent | null,
-	) => {
-		const baseSchema: Schema.Schema<A> = Schema.isSchema(options.schema)
-			? (options.schema as Schema.Schema<A>)
-			: (options.schema as (intent: Intent | null) => Schema.Schema<A>)(intent);
-
-		return pipe(
-			source,
-			Schema.decodeUnknownEither(baseSchema, { errors: 'all' }),
-			Either.match({
-				onLeft: (parseError) =>
-					({
-						value: undefined,
-						error: pipe(
-							parseError,
-							ParseResult.ArrayFormatter.formatErrorSync,
-							Record.fromIterableWith((issue) => [
-								formatPaths(issue.path as Array<string | number>),
-								[issue.message],
-							]),
-						),
-					}) as const,
-				onRight: (value) =>
-					({
-						value,
-						error: undefined,
-					}) as const,
-			}),
-		);
-	};
-
 	return options.async
 		? parse(payload, {
-				resolve: (data, intent) =>
-					Promise.resolve(
-						resolveSubmission(data as FormData | URLSearchParams, intent), // TODO: add true Schema Async validation
-					),
+				resolve: (data, intent) => {
+					const baseSchema: Schema.Schema<A> = Schema.isSchema(options.schema)
+						? (options.schema as Schema.Schema<A>)
+						: (options.schema as (intent: Intent | null) => Schema.Schema<A>)(
+								intent,
+							);
+
+					return pipe(
+						data,
+						Schema.decodeUnknownEither(baseSchema, { errors: 'all' }),
+						Either.match({
+							onLeft: (parseError) =>
+								({
+									value: undefined,
+									error: pipe(
+										parseError,
+										ParseResult.ArrayFormatter.formatErrorSync,
+										Record.fromIterableWith((issue) => [
+											formatPaths(issue.path as Array<string | number>),
+											[issue.message],
+										]),
+									),
+								}) as const,
+							onRight: (value) => ({ value, error: undefined }) as const,
+						}),
+
+						(_) => Promise.resolve(_), // TODO: replace with true Schema async refinements
+					);
+				},
 			})
 		: parse(payload, {
-				resolve: (data, intent) =>
-					resolveSubmission(data as FormData | URLSearchParams, intent),
+				resolve: (data, intent) => {
+					const baseSchema: Schema.Schema<A> = Schema.isSchema(options.schema)
+						? (options.schema as Schema.Schema<A>)
+						: (options.schema as (intent: Intent | null) => Schema.Schema<A>)(
+								intent,
+							);
+
+					return pipe(
+						data,
+						Schema.decodeUnknownEither(baseSchema, { errors: 'all' }),
+						Either.match({
+							onLeft: (parseError) =>
+								({
+									value: undefined,
+									error: pipe(
+										parseError,
+										ParseResult.ArrayFormatter.formatErrorSync,
+										Record.fromIterableWith((issue) => [
+											formatPaths(issue.path as Array<string | number>),
+											[issue.message],
+										]),
+									),
+								}) as const,
+							onRight: (value) => ({ value, error: undefined }) as const,
+						}),
+					);
+				},
 			});
 }
