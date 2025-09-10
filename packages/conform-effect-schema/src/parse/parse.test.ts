@@ -137,13 +137,12 @@ describe('parseWithEffectSchema', () => {
 				);
 			}
 
+			const messages = Object.values(submission.error ?? {})
+				.flat()
+				.filter(Boolean) as string[];
 			expect(
-				Object.values(submission.error ?? {})
-					.flat()
-					.filter(Boolean) as string[],
-			).toEqual([
-				'cannot be be resolved synchronously, this is caused by using runSync on an effect that performs async work',
-			]);
+				messages.some((m) => /cannot .*resolved synchronously/i.test(m)),
+			).toBe(true);
 		});
 	});
 

@@ -47,7 +47,8 @@ export function parseWithEffectSchema<A, I>(
  *
  * Current limitations:
  * - Only one error message retained per field path (multi-issue aggregation planned).
- * - Async path is a Promise wrapper around sync decode (true async refinements forthcoming).
+ * - Async path executes Effect-based decoding (supports async refinements / transforms). Sync still fails fast
+ *   if schema performs async work.
  */
 export function parseWithEffectSchema<A, I>(
 	payload: FormData | URLSearchParams,
