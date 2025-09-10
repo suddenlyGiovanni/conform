@@ -11,35 +11,37 @@ import * as ParseResult from 'effect/ParseResult';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 
+type SchemaFactory<A, I> = (intent: Intent | null) => Schema.Schema<A, I>;
+
+/** Schema instance or intent-aware factory variant. */
+type SchemaOrFactory<A, I> = Schema.Schema<A, I> | SchemaFactory<A, I>;
+
+/** Shared option surface (will grow: formatError, transformIssue, etc.). */
+interface BaseOptions<A, I> {
+	/** Schema or factory returning a schema (receives submission intent). */
+	schema: SchemaOrFactory<A, I>;
+}
+
+/** Synchronous parse options (default). */
+interface SyncOptions<A, I> extends BaseOptions<A, I> {
+	/** If present and false/undefined, forces sync return type. */
+	readonly async?: false;
+}
+
+/** Asynchronous parse options. */
+interface AsyncOptions<A, I> extends BaseOptions<A, I> {
+	/** Literal true discriminates async branch returning a Promise. */
+	readonly async: true;
+}
+
+// Public overloads (signature contract is kept identical, only expressed via named option types)
 export function parseWithEffectSchema<A, I>(
 	payload: FormData | URLSearchParams,
-	options: {
-		/**
-		 * Effect Schema instance or an intent-aware factory.
-		 * The factory receives the submission intent allowing conditional schema logic.
-		 */
-		schema:
-			| Schema.Schema<A, I>
-			| ((intent: Intent | null) => Schema.Schema<A, I>);
-
-		/** Run synchronously (default). */
-		async?: false;
-	},
+	options: SyncOptions<A, I>,
 ): Submission<A, string[]>;
 export function parseWithEffectSchema<A, I>(
 	payload: FormData | URLSearchParams,
-	options: {
-		/**
-		 * Effect Schema instance or an intent-aware factory.
-		 * The factory receives the submission intent allowing conditional schema logic.
-		 */
-		schema:
-			| Schema.Schema<A, I>
-			| ((intent: Intent | null) => Schema.Schema<A, I>);
-
-		/** Force asynchronous return signature. */
-		async: true;
-	},
+	options: AsyncOptions<A, I>,
 ): Promise<Submission<A, string[]>>;
 
 /**
@@ -52,28 +54,16 @@ export function parseWithEffectSchema<A, I>(
  */
 export function parseWithEffectSchema<A, I>(
 	payload: FormData | URLSearchParams,
-	options: {
-		schema:
-			| Schema.Schema<A, I>
-			| ((intent: Intent | null) => Schema.Schema<A, I>);
-		async?: boolean;
-	},
+	options: SyncOptions<A, I> | AsyncOptions<A, I>,
 ): Submission<A, string[]> | Promise<Submission<A, string[]>> {
-	const optionsWithDefaults = {
-		async: options.async ?? false,
-		...options,
-	};
+	const { async: isAsync = false, schema } = options;
 
-	return optionsWithDefaults.async === true
+	return isAsync === true
 		? parse(payload, {
 				resolve: (data, intent) => {
-					const baseSchema: Schema.Schema<A, I> = Schema.isSchema(
-						options.schema,
-					)
-						? (options.schema as Schema.Schema<A, I>)
-						: (
-								options.schema as (intent: Intent | null) => Schema.Schema<A, I>
-							)(intent);
+					const baseSchema: Schema.Schema<A, I> = Schema.isSchema(schema)
+						? (schema as Schema.Schema<A, I>)
+						: (schema as SchemaFactory<A, I>)(intent);
 
 					return pipe(
 						data,
@@ -97,13 +87,9 @@ export function parseWithEffectSchema<A, I>(
 			})
 		: parse(payload, {
 				resolve: (data, intent) => {
-					const baseSchema: Schema.Schema<A, I> = Schema.isSchema(
-						options.schema,
-					)
-						? (options.schema as Schema.Schema<A, I>)
-						: (
-								options.schema as (intent: Intent | null) => Schema.Schema<A, I>
-							)(intent);
+					const baseSchema: Schema.Schema<A, I> = Schema.isSchema(schema)
+						? (schema as Schema.Schema<A, I>)
+						: (schema as SchemaFactory<A, I>)(intent);
 
 					return pipe(
 						data,
