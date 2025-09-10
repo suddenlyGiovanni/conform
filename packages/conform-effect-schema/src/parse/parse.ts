@@ -60,14 +60,15 @@ export function parseWithEffectSchema<A, I>(
 
 	return isAsync === true
 		? parse(payload, {
-				resolve: (data, intent) => {
-					const baseSchema: Schema.Schema<A, I> = Schema.isSchema(schema)
-						? (schema as Schema.Schema<A, I>)
-						: (schema as SchemaFactory<A, I>)(intent);
-
-					return pipe(
+				resolve: (data, intent) =>
+					pipe(
 						data,
-						ParseResult.decodeUnknown(baseSchema, { errors: 'all' }),
+						ParseResult.decodeUnknown(
+							Schema.isSchema(schema)
+								? (schema as Schema.Schema<A, I>)
+								: (schema as SchemaFactory<A, I>)(intent),
+							{ errors: 'all' },
+						),
 						Effect.catchAll((parseIssue) =>
 							Effect.flip(ParseResult.ArrayFormatter.formatIssue(parseIssue)),
 						),
@@ -82,18 +83,18 @@ export function parseWithEffectSchema<A, I>(
 							onSuccess: (value) => ({ value, error: undefined }) as const,
 						}),
 						Effect.runPromise,
-					);
-				},
+					),
 			})
 		: parse(payload, {
-				resolve: (data, intent) => {
-					const baseSchema: Schema.Schema<A, I> = Schema.isSchema(schema)
-						? (schema as Schema.Schema<A, I>)
-						: (schema as SchemaFactory<A, I>)(intent);
-
-					return pipe(
+				resolve: (data, intent) =>
+					pipe(
 						data,
-						Schema.decodeUnknownEither(baseSchema, { errors: 'all' }),
+						Schema.decodeUnknownEither(
+							Schema.isSchema(schema)
+								? (schema as Schema.Schema<A, I>)
+								: (schema as SchemaFactory<A, I>)(intent),
+							{ errors: 'all' },
+						),
 						Either.match({
 							onLeft: (parseError) =>
 								({
@@ -109,7 +110,6 @@ export function parseWithEffectSchema<A, I>(
 								}) as const,
 							onRight: (value) => ({ value, error: undefined }) as const,
 						}),
-					);
-				},
+					),
 			});
 }
