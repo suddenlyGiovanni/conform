@@ -1,3 +1,4 @@
+import * as Effect from 'effect/Effect';
 import * as Schema from 'effect/Schema';
 import { describe, expect, test } from 'vitest';
 
@@ -87,11 +88,62 @@ describe('parseWithEffectSchema', () => {
 	});
 
 	describe('async support', () => {
-		test.skip('resolves successfully with async schema refinement', async () => {
-			// Future: use async refinement and { async: true }
+		const asyncSchema = Schema.transformOrFail(
+			Schema.Struct({ id: Schema.String }), // PersonInput
+			Schema.Struct({
+				id: Schema.Number,
+				name: Schema.String,
+				age: Schema.Number,
+			}), // PersonOutput
+			{
+				strict: true,
+				decode: (input) =>
+					Effect.succeed({
+						id: Number(input.id),
+						name: 'name',
+						age: 18,
+					}).pipe(Effect.delay('5 millis')),
+				encode: (person) =>
+					Effect.succeed({ id: String(person.id) }).pipe(
+						Effect.delay('5 millis'),
+					),
+			},
+		);
+
+		test('resolves successfully with async schema transform when async: true', async () => {
+			await expect(
+				parseWithEffectSchema(createFormData([['id', '1']]), {
+					schema: asyncSchema,
+					async: true,
+				}),
+			).resolves.toEqual(
+				expect.objectContaining({
+					payload: { id: '1' },
+					status: 'success',
+					value: { id: 1, name: 'name', age: 18 },
+				}),
+			);
 		});
-		test.skip('returns errors from async refinement failures', async () => {
-			// Future: failing async refinement
+
+		test('produces sync parse error when async schema used without async: true', () => {
+			const submission = parseWithEffectSchema(createFormData([['id', '1']]), {
+				schema: asyncSchema,
+			});
+			expect(submission.status).toBe('error');
+
+			if (submission.status !== 'error') {
+				throw new Error(
+					'Expected error status when an async schema used without "{async: true}"',
+				);
+			}
+
+			expect(
+				Object.values(submission.error ?? {})
+					.flat()
+					.filter(Boolean) as string[],
+			).toEqual([
+				'cannot be be resolved synchronously, this is caused by using runSync on an effect that performs async work',
+			]);
 		});
 	});
 
