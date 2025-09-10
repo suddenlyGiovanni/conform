@@ -10,33 +10,29 @@ import * as ParseResult from 'effect/ParseResult';
 import * as Record from 'effect/Record';
 import * as Schema from 'effect/Schema';
 
-/** Options for the synchronous variant of parseWithEffectSchema. */
-export interface ParseWithEffectSchemaOptionsSync<A> {
+interface Options<A> {
 	/**
 	 * Effect Schema instance or an intent-aware factory.
 	 * The factory receives the submission intent allowing conditional schema logic.
 	 */
 	schema: Schema.Schema<A> | ((intent: Intent | null) => Schema.Schema<A>);
+
 	/** Run synchronously (default). */
-	async?: false | undefined;
+	async?: undefined | boolean;
 }
 
-/** Options for the asynchronous variant of parseWithEffectSchema. */
-export interface ParseWithEffectSchemaOptionsAsync<A> {
-	/** See ParseWithEffectSchemaOptionsSync.schema. */
-	schema: Schema.Schema<A> | ((intent: Intent | null) => Schema.Schema<A>);
+interface WithAsync {
 	/** Force asynchronous return signature. */
 	async: true;
 }
 
-// Overloads -----------------------------------------------------------------
 export function parseWithEffectSchema<A>(
 	payload: FormData | URLSearchParams,
-	options: ParseWithEffectSchemaOptionsSync<A>,
+	options: Options<A>,
 ): Submission<A, string[]>;
 export function parseWithEffectSchema<A>(
 	payload: FormData | URLSearchParams,
-	options: ParseWithEffectSchemaOptionsAsync<A>,
+	options: Options<A> & WithAsync,
 ): Promise<Submission<A, string[]>>;
 
 /**
@@ -48,9 +44,7 @@ export function parseWithEffectSchema<A>(
  */
 export function parseWithEffectSchema<A>(
 	payload: FormData | URLSearchParams,
-	options:
-		| ParseWithEffectSchemaOptionsSync<A>
-		| ParseWithEffectSchemaOptionsAsync<A>,
+	options: Options<A> | (Options<A> & WithAsync),
 ): Submission<A, string[]> | Promise<Submission<A, string[]>> {
 	const resolveSubmission = (
 		source: FormData | URLSearchParams,
@@ -85,17 +79,15 @@ export function parseWithEffectSchema<A>(
 		);
 	};
 
-	if (options.async) {
-		return parse(payload, {
-			resolve: (data, intent) =>
-				Promise.resolve(
+	return options.async
+		? parse(payload, {
+				resolve: (data, intent) =>
+					Promise.resolve(
+						resolveSubmission(data as FormData | URLSearchParams, intent), // TODO: add true Schema Async validation
+					),
+			})
+		: parse(payload, {
+				resolve: (data, intent) =>
 					resolveSubmission(data as FormData | URLSearchParams, intent),
-				),
-		});
-	}
-
-	return parse(payload, {
-		resolve: (data, intent) =>
-			resolveSubmission(data as FormData | URLSearchParams, intent),
-	});
+			});
 }
