@@ -1,6 +1,8 @@
 import * as Either from 'effect/Either';
 import { pipe } from 'effect/Function';
 import * as Match from 'effect/Match';
+import * as Number from 'effect/Number';
+import * as Predicate from 'effect/Predicate';
 import type * as Schema from 'effect/Schema';
 import * as AST from 'effect/SchemaAST';
 
@@ -21,20 +23,34 @@ export interface ConstraintOptions {
 	readonly MAX_SUSPEND_EXPANSIONS?: number;
 }
 
-const DEFAULT_OPTIONS: Required<ConstraintOptions> = {
+const DEFAULT_OPTIONS = {
 	MAX_SUSPEND_EXPANSIONS: 2,
-};
+} satisfies Required<ConstraintOptions>;
 
 export const getEffectSchemaConstraint = <A, I>(
 	schema: Schema.Schema<A, I>,
 	options?: ConstraintOptions,
 ): ConstraintRecord => {
-	const { MAX_SUSPEND_EXPANSIONS } = { ...DEFAULT_OPTIONS, ...options };
-	if (MAX_SUSPEND_EXPANSIONS < 0 || !Number.isFinite(MAX_SUSPEND_EXPANSIONS)) {
+	// Merge user options with defaults (ensures field presence for struct predicate)
+	const merged: Required<ConstraintOptions> = {
+		...DEFAULT_OPTIONS,
+		...options,
+	};
+
+	const isValidConstraintOptions = Predicate.struct({
+		MAX_SUSPEND_EXPANSIONS: Predicate.and(
+			Number.isNumber,
+			Number.greaterThanOrEqualTo(0),
+		),
+	});
+
+	if (!isValidConstraintOptions(merged)) {
 		throw new Error(
-			`MAX_SUSPEND_EXPANSIONS must be a non-negative finite number (and reasonable). Received: ${MAX_SUSPEND_EXPANSIONS}`,
+			`MAX_SUSPEND_EXPANSIONS must be a non-negative finite number (and reasonable). Received: ${merged.MAX_SUSPEND_EXPANSIONS}`,
 		);
 	}
+
+	const { MAX_SUSPEND_EXPANSIONS } = merged;
 
 	// Track how many times we've expanded a given suspended target AST.
 	const suspendExpansionCounts = new WeakMap<AST.AST, number>();
