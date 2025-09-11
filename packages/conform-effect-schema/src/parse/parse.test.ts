@@ -17,10 +17,6 @@ export function createFormData(
 }
 
 describe('parseWithEffectSchema', () => {
-	// ---------------------------------------------------------------------
-	// Parity scaffolding test suites (see parseWithEffectSchema-parity.md)
-	// ---------------------------------------------------------------------
-
 	describe('multi-issue aggregation', () => {
 		test.skip('collects multiple refinement issues for a single field preserving order', () => {
 			const schema = Schema.Struct({
@@ -259,6 +255,42 @@ describe('parseWithEffectSchema', () => {
 			expect(submission.value).toEqual({
 				email: 'test@example.com',
 				message: 'This is a test message',
+			});
+		});
+
+		test('parity: error shape matches zod (no custom formatting)', () => {
+			const schema = Schema.Struct({
+				text: Schema.String.pipe(Schema.minLength(5)),
+			});
+			const formData = createFormData([['text', 'abc']]);
+
+			expect(parseWithEffectSchema(formData, { schema })).toEqual({
+				status: 'error',
+				payload: { text: 'abc' },
+				error: {
+					text: [
+						'Expected a string at least 5 character(s) long, actual "abc"',
+					],
+				},
+				reply: expect.any(Function),
+			});
+		});
+
+		test('parity: error shape matches zod (no custom formatting)', () => {
+			const schema = Schema.Struct({
+				text: Schema.String.pipe(Schema.minLength(5)),
+			});
+			const formData = createFormData([['text', 'abc']]);
+
+			expect(parseWithEffectSchema(formData, { schema })).toEqual({
+				status: 'error',
+				payload: { text: 'abc' },
+				error: {
+					text: [
+						'Expected a string at least 5 character(s) long, actual "abc"',
+					],
+				},
+				reply: expect.any(Function),
 			});
 		});
 
