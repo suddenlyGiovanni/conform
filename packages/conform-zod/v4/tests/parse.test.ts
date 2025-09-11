@@ -224,5 +224,29 @@ describe('parse', () => {
 				reply: expect.any(Function),
 			});
 		});
+
+		test('parseWithZod accumulates multiple issues for a single field', () => {
+			const schema = z.object({
+				username: z
+					.string()
+					.min(5, { message: 'Username must be at least 5 characters' })
+					.regex(/^[a-z]+$/, {
+						message: 'Username must contain only lowercase letters',
+					}),
+			});
+			const formData = createFormData([['username', 'a$']]);
+
+			expect(parseWithZod(formData, { schema })).toEqual({
+				status: 'error',
+				payload: { username: 'a$' },
+				error: {
+					username: [
+						'Username must be at least 5 characters',
+						'Username must contain only lowercase letters',
+					],
+				},
+				reply: expect.any(Function),
+			});
+		});
 	});
 });
