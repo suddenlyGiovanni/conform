@@ -18,23 +18,27 @@ export function createFormData(
 
 describe('parseWithEffectSchema', () => {
 	describe('multi-issue aggregation', () => {
-		test.skip('collects multiple refinement issues for a single field preserving order', () => {
-			const schema = Schema.Struct({
-				username: Schema.String.pipe(
-					Schema.minLength(5),
-					Schema.pattern(/^[a-z]+$/),
-				),
-			});
-			const formData = createFormData([['username', 'a$']]);
-			const result = parseWithEffectSchema(formData, { schema });
-			if (result.status !== 'error') {
-				throw new Error('Expected error status');
-			}
-			// Future expectation: two messages preserved
-			// expect(result.error?.username).toHaveLength(2);
-			// expect(result.error?.username?.[0]).toMatch(/at least 5/);
-			// expect(result.error?.username?.[1]).toMatch(/matching the pattern/);
-		});
+		test.fails(
+			'collects multiple refinement issues for a single field preserving order',
+			() => {
+				const schema = Schema.Struct({
+					username: Schema.String.pipe(
+						Schema.minLength(5),
+						Schema.pattern(/^[a-z]+$/),
+					),
+				});
+				const formData = createFormData([['username', 'a$']]);
+				const result = parseWithEffectSchema(formData, { schema });
+				if (result.status !== 'error') {
+					throw new Error('Expected error status');
+				}
+				expect(result.error?.username).toEqual([
+					'Expected a string at least 5 character(s) long, actual "a$"',
+					'Expected a string matching the pattern ^[a-z]+$, actual "a$"', // NOTE: Schema does not suppress multiple issues per field refinement; short circuited to first issue!
+				]);
+			},
+		);
+
 		test.skip('does not overwrite earlier issues when later ones appear', () => {
 			const schema = Schema.Struct({
 				code: Schema.String.pipe(
@@ -47,8 +51,10 @@ describe('parseWithEffectSchema', () => {
 			if (result.status !== 'error') {
 				throw new Error('Expected error status');
 			}
-			// Future expectation: both minLength & pattern messages present
-			// expect(result.error?.code?.length).toBe(2);
+			expect(result.error?.code).toEqual([
+				'Expected a string at least 4 character(s) long, actual "a1"',
+				'Expected a string matching the pattern ^[A-Z]+$, actual "a1"', // NOTE: Schema does not suppress multiple issues per field refinement; short circuited to first issue!
+			]);
 		});
 	});
 
